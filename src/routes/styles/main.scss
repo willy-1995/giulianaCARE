@@ -1,0 +1,233 @@
+:root {
+  --accent-color: #ffc0cb;
+  --accent-color-low: #ff7a90;
+  --container-color: rgba(255, 192, 203, 0.3);
+  --shadow-color: rgb(103, 102, 102);
+  --cover-color: rgba(0, 0, 0, 0.401);
+  --button-color: rgb(69, 213, 242);
+}
+
+//=======================================
+//==========GENERAL ITEMS================
+//=======================================
+* {
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  background-color: var(--button-color);
+  border: 1px solid var(--button-color);
+  border-radius: 15px;
+  color: rgb(255, 255, 255);
+  padding: 5px 10px;
+  box-shadow: 0 0 5px var(--shadow-color);
+  font-weight: 600;
+}
+
+a {
+  color: white;
+  text-decoration: none;
+}
+
+li {
+  list-style: none;
+}
+
+body {
+  width: 100%;
+  font-family: sans-serif;
+  color: grey;
+}
+
+.body-div {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+}
+
+.section {
+  width: 100%;
+  min-height: 100vh;
+  padding-bottom: 50px;
+}
+
+.section-heading {
+  width: 100%;
+  background-color: var(--accent-color);
+  color: white;
+  padding-left: 5px;
+  margin-bottom: 50px;
+}
+
+.card {
+  border-radius: 15px;
+
+  color: rgb(67, 67, 67);
+  padding: 5px;
+}
+
+.ui-icon {
+  font-size: 2rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4); // Dunkelt den Hintergrund leicht ab
+  backdrop-filter: blur(8px); // Erzeugt den modernen Blur-Effekt
+  z-index: 999; // Liegt über der gesamten App
+  display: flex;
+  justify-content: center; // Zentriert horizontal
+  align-items: center; // Zentriert vertikal
+
+  // Verhindert Klicks auf darunterliegende Elemente im gesamten Viewport
+  pointer-events: auto;
+
+  .modal {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    max-width: 450px;
+    width: 90%;
+    position: relative;
+    z-index: 1000; // Liegt sicher über dem Overlay
+  }
+}
+
+//FORM
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+input {
+  border-radius: 15px;
+  border: none;
+  padding: 5px 10px;
+}
+
+//===================================================
+//=================COMPONENTS========================
+//===================================================
+
+//NAVBAR
+.navbar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  background-color: var(--accent-color);
+  color: white;
+
+  .logo-div {
+    display: flex;
+    align-items: center;
+    max-height: 100px;
+    width: 30%;
+    height: auto;
+    padding: 10px 0;
+    margin-left: 20px;
+
+    #logo {
+      max-width: 100%;
+    }
+  }
+
+  .mobile-access {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 10px;
+    position: relative;
+    @media (min-width: 700px) {
+      display: none;
+    }
+
+    .mobile-menue {
+      position: absolute;
+      background-color: var(--accent-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-top: 20px;
+      top: 30px;
+      right: 0;
+      z-index: 5;
+      gap: 10px;
+      border-bottom-left-radius: 15px;
+      width: 300%;
+
+      a {
+        padding: 20px;
+        font-weight: 600;
+      }
+    }
+  }
+  .desktop-access {
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 20px;
+    gap: 10px;
+    @media (max-width: 700px) {
+      display: none;
+    }
+  }
+}
+
+//FOOTER
+.footer {
+  width: 100%;
+  background-color: var(--accent-color);
+  color: white;
+
+  .contact-div {
+    width: 100%;
+    display: flex;
+
+    @media (max-width: 700px) {
+      flex-direction: column;
+    }
+
+    .contact-card {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      margin-bottom: 20px;
+    }
+
+    .contact-form {
+      @media (max-width: 700px) {
+        width: 80%;
+        margin: 0 auto;
+      }
+      label {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 10px;
+        margin-top: 10px;
+
+        textarea {
+          width: 100%;
+        }
+
+        @media (max-width: 700px) {
+          width: 100%;
+        }
+      }
+    }
+  }
+}

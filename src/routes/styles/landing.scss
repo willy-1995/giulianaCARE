@@ -1,0 +1,84 @@
+#overview {
+  .services-div {
+    width: auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding-top: 100px;
+    gap: 10%;
+
+    @media (max-width: 700px) {
+      display: flex;
+      flex-direction: column;
+      width: 90%;
+      margin: 0 auto;
+      gap: 10px;
+    }
+
+    .service-card {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+
+      img {
+        max-width: 100%;
+      }
+
+      .cover {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        h3 {
+          background-color: var(--cover-color);
+          padding: 10px;
+          border-radius: 15px;
+        }
+      }
+    }
+  }
+}
+
+.about_us-div {
+  display: flex;
+  gap: 20px;
+  margin: 0 auto;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: center;
+    width: 90%;
+  }
+
+  .about-us-img-div {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--accent-color);
+    flex-shrink: 0; // Wichtig: Verhindert das Zusammenquetschen des Bildes
+
+    img {
+      max-width: 100%;
+      scale: 1.4;
+      object-fit: cover;
+    }
+  }
+
+  .about_us-text-div {
+    text-align: center;
+  }
+
+  // Der Shaper bleibt links sitzen und behält seine feste Höhe von 300px (analog zum Bild)
+}

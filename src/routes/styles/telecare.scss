@@ -1,0 +1,413 @@
+#telecare-intro {
+  .slider-container {
+    position: relative;
+    width: 100%;
+    min-height: 150px; // Passe die Höhe nach deinen Design-Bedürfnissen an
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+
+      // Standardmäßig unsichtbar und "unsichtbar" für Pointer-Events
+      opacity: 0;
+      visibility: hidden;
+      transition:
+        opacity 2s ease-in-out,
+        visibility 2s ease-in-out;
+
+      h3 {
+        margin: 0;
+        font-size: 1.5rem; // Kannst du natürlich anpassen
+        max-width: 800px;
+        line-height: 1.4;
+      }
+
+      // Wenn der Slide aktiv ist, fadet er ein
+      &.active {
+        opacity: 1;
+        visibility: visible;
+        z-index: 2; // Holt den aktiven Slide nach vorn
+      }
+    }
+  }
+
+  .intro-div {
+    display: flex;
+    width: 90%;
+    margin: 0 auto;
+    border-radius: 15px;
+    background: linear-gradient(to right, var(--accent-color) 0%, white 50%);
+    padding: 10px;
+
+    @media (max-width: 1200px) {
+      flex-direction: column;
+      height: auto;
+      background: linear-gradient(to bottom, var(--accent-color) 0%, white 50%);
+      padding: 20px 0;
+    }
+
+    @media (max-width: 700px) {
+      margin: 0;
+      margin-bottom: 20px;
+      width: 100%;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    p {
+      width: 60%;
+      text-align: center;
+      font-size: 1.5rem;
+
+      @media (max-width: 1200px) {
+        width: 100%;
+      }
+
+      .intro-text {
+        @media (max-width: 1200px) {
+          width: 90%;
+          margin: 0 auto;
+        }
+      }
+
+      h3 {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      ul {
+        @media (max-width: 500px) {
+          width: 90%;
+          margin: 0 auto;
+        }
+
+        li {
+          margin-bottom: 20px;
+        }
+      }
+
+      .intro-button-div {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        width: 90%;
+        margin: 0 auto;
+        margin-top: 40px;
+        margin-bottom: 40px;
+        gap: 20px;
+
+        button {
+          width: 100%;
+          font-size: 1.5rem;
+        }
+      }
+    }
+    .intro-img-div {
+      width: 70%;
+      border-radius: 15px;
+      position: relative;
+
+      @media (max-width: 1200px) {
+        width: 100%;
+        position: unset;
+      }
+
+      .intro-img {
+        width: 60%;
+        position: absolute;
+        border-radius: 15px;
+        border: 5px solid var(--accent-color);
+
+        @media (max-width: 1200px) {
+          position: unset;
+        }
+      }
+
+      #img-grandma {
+        top: 180px;
+        right: 20px;
+        z-index: 3;
+
+        @media (min-width: 1200px) {
+        }
+
+        @media (max-width: 1200px) {
+        }
+      }
+
+      #img-womanThink {
+        left: 20px;
+        top: 20px;
+
+        @media (min-width: 1200px) {
+        }
+
+        @media (max-width: 1200px) {
+          width: 80%;
+        }
+      }
+
+      @media (max-width: 700px) {
+        width: 100%;
+      }
+    }
+  }
+}
+
+#working {
+  h2 {
+    text-align: center;
+    margin: 20px;
+    margin-top: 75px;
+    @media (max-width: 700px) {
+      width: 90%;
+      margin: 0 auto;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+  }
+  .working-grid {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    margin: 0 auto;
+
+    @media (max-width: 700px) {
+      flex-direction: column;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .working-card {
+      min-height: 120px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      width: 29%;
+      border: 5px solid var(--accent-color);
+
+      @media (max-width: 700px) {
+        width: 90%;
+        margin: 0 auto;
+        margin-bottom: 20px;
+      }
+
+      h2 {
+        color: var(--accent-color);
+      }
+
+      p {
+        text-align: center;
+        width: 90%;
+        margin: auto;
+        font-weight: 600;
+        padding-bottom: 10px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      width: 90%;
+      margin: 0 auto;
+      height: auto;
+    }
+  }
+
+  .service-info-div {
+    width: 100%;
+    background-color: var(--accent-color);
+    padding: 20px 0;
+
+    h2 {
+      margin: 0 auto;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .table-div {
+      display: flex;
+      justify-content: space-evenly;
+      width: 60%;
+      margin: 0 auto;
+
+      @media (max-width: 800px) {
+        display: flex;
+        flex-direction: column;
+        width: 90%;
+      }
+      /*//////////////////////////////////////
+      HIGHLIGHT
+      //////////////////////////////////////*/
+      .table-highlight {
+        box-shadow: 0 0 10px white;
+        opacity: 1;
+
+        h2 {
+          color: white;
+          text-shadow: 0 0 3px white;
+        }
+
+        li {
+          text-shadow: 0 0 2px white;
+        }
+      }
+
+      ul {
+        display: flex;
+        flex-direction: column;
+        width: 40%;
+        border-radius: 15px;
+        border: 2px solid white;
+        overflow: hidden;
+        opacity: 0.7;
+
+        @media (max-width: 800px) {
+          width: 100%;
+          margin-bottom: 20px;
+        }
+
+        h2 {
+          margin: 0 auto;
+          padding: 10px;
+          color: grey;
+        }
+
+        li {
+          text-align: center;
+          padding: 10px;
+          color: white;
+          font-weight: 600;
+
+          &:nth-child(odd) {
+            background-color: var(--accent-color-low);
+          }
+          &:nth-child(even) {
+            background-color: rgb(255, 144, 163);
+          }
+        }
+      }
+
+      h3 {
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px;
+        color: white;
+      }
+    }
+  }
+
+  .price-heading {
+    margin-top: 50px;
+    margin-bottom: 0;
+  }
+
+  .price-div {
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+
+    h2 {
+      margin-top: 50px;
+      margin-bottom: 0;
+    }
+
+    .price-card {
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      font-weight: 600;
+      background-color: white;
+      box-shadow: none;
+      gap: 10px;
+
+      @media (max-width: 1000px) {
+        margin-bottom: 0;
+      }
+
+      h2 {
+        color: var(--accent-color);
+      }
+
+      /*//////////////////////////////////////
+      HIGHLIGHT
+      //////////////////////////////////////*/
+      .price-highlight {
+        box-shadow: 0 0 10px var(--accent-color);
+
+        p {
+          color: white;
+          text-shadow: 0 0 5px white;
+        }
+      }
+
+      .intervall {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        background-color: var(--accent-color);
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        gap: 10px;
+
+        p {
+          font-size: 2.5rem;
+        }
+      }
+    }
+    @media (max-width: 1000px) {
+      width: 90%;
+      margin: 0 auto;
+      flex-direction: column;
+    }
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4); // Dunkelt den Hintergrund leicht ab
+  backdrop-filter: blur(8px); // Erzeugt den modernen Blur-Effekt
+  z-index: 999; // Liegt über der gesamten App
+  display: flex;
+  justify-content: center; // Zentriert horizontal
+  align-items: center; // Zentriert vertikal
+
+  // Verhindert Klicks auf darunterliegende Elemente im gesamten Viewport
+  pointer-events: auto;
+
+  .modal {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    max-width: 450px;
+    width: 90%;
+    position: relative;
+    z-index: 1000; // Liegt sicher über dem Overlay
+  }
+}

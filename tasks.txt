@@ -1,0 +1,3 @@
+useememo für filteresusers
+fotoupload required
+auto redirect, wenn token abgelaufen (oder token ablauf ausstellen)

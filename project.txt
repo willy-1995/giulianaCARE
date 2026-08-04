@@ -1,0 +1,17 @@
+react
+typescript
+php
+
+//library
+country-state-city-react
+fontawesome
+pusher.js
+jwt-decoded
+lottiefiles (animation)
+
+//database
+mysql
+postgresql
+
+//ai
+gpt-4o mini

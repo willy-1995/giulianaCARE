@@ -1,0 +1,761 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { loadClients } from "../assets/loader";
+import { loadContacts } from "../assets/loader";
+import { updateClient, updateContact } from "../assets/updater";
+import { userAge } from "../assets/age";
+import { deleteClient } from "../assets/deleter";
+import { deleteContact } from "../assets/deleter";
+import { checkCallTimes } from "../assets/call_api";
+import SubNavbar from "./components/navbar_sub";
+import Footer from "./components/footer";
+import "./styles/dashboard.scss";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTrash, faSliders } from "@fortawesome/free-solid-svg-icons";
+
+interface Client {
+  id: number;
+  title: string;
+  lastname: string;
+  firstname: string;
+  tel1: string;
+  tel2: string;
+  birthday: string;
+  age: number;
+  german_level: string;
+  language: string;
+  address: string;
+  medication: string;
+  info: string;
+  call_1: string;
+  call_2: string;
+  call_3: string;
+  call_4: string;
+}
+
+interface Contact {
+  id: number;
+  client_id: number;
+  lastname: string;
+  firstname: string;
+  tel1: string;
+  tel2: string;
+  email: string;
+}
+
+const initialClientState = {
+  title: "",
+  firstname: "",
+  lastname: "",
+  tel1: "",
+  tel2: "",
+  birthday: "",
+  language: "",
+  german_level: "native",
+  address: "",
+  medication: "",
+  info: "",
+  call_1: "",
+  call_2: "",
+  call_3: "",
+  call_4: "",
+};
+
+const initialContactState = {
+  firstname: "",
+  lastname: "",
+  tel1: "",
+  tel2: "",
+  email: "",
+};
+
+const formatTime = (totalMinutes: number | undefined) => {
+  if (totalMinutes === undefined || totalMinutes === null) return "--:--";
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} Uhr`;
+};
+
+export default function Dashboard() {
+  //STATES
+  const [clientModal, setClientModal] = useState(false);
+  const [contactModal, setContactModal] = useState(false);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [formDataClients, setFormDataClients] = useState(initialClientState);
+  const [formDataContacts, setFormDataContacts] = useState(initialContactState);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentEditId, setCurrentEditId] = useState<number | null>(null);
+
+  //=====================
+  //GET LISTS
+  //=====================
+
+  //GET CLIENTS LIST
+  useEffect(() => {
+    const getClientData = async () => {
+      const result = await loadClients(setLoading);
+      if (result && result.success) {
+        setClients(result.data);
+      }
+    };
+    getClientData();
+  }, []);
+
+  //GET CONTACT LIST
+  useEffect(() => {
+    const getContactData = async () => {
+      const result = await loadContacts(setLoading);
+      if (result && result.success) {
+        setContacts(result.data);
+      }
+    };
+    getContactData();
+  }, []);
+
+  //==================
+  // CALL API
+  //==================
+  useEffect(() => {
+    const timer = setInterval(() => {
+      checkCallTimes();
+    }, 30000);
+
+    //Cleanup for reload or leaving site
+    return () => clearInterval(timer);
+  }, []);
+
+  //==================
+  //HANDLE MODALS
+  //==================
+
+  // CLIENT MODAL ÖFFNEN (für Neu ODER Bearbeiten)
+  const openClientModal = (client?: Client) => {
+    if (client && client.id) {
+      setIsEditMode(true);
+      setCurrentEditId(client.id);
+      setFormDataClients({ ...client });
+    } else {
+      setIsEditMode(false);
+      setCurrentEditId(null);
+      setFormDataClients(initialClientState);
+    }
+    setClientModal(true);
+  };
+
+  // CONTACT MODAL ÖFFNEN (für Neu ODER Bearbeiten)
+  const openContactModal = (clientId: number, contact?: Contact) => {
+    setSelectedClientId(clientId);
+    if (contact && contact.id) {
+      setIsEditMode(true);
+      setCurrentEditId(contact.id);
+      setFormDataContacts({ ...contact });
+    } else {
+      setIsEditMode(false);
+      setCurrentEditId(null);
+      setFormDataContacts(initialContactState);
+    }
+    setContactModal(true);
+  };
+
+  //CLOSE MODALS
+  const closeModals = () => {
+    setClientModal(false);
+    setContactModal(false);
+    setIsEditMode(false);
+    setCurrentEditId(null);
+  };
+
+  //HANDLE CHANGE (FOR FORM)
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    isContact: boolean = false,
+  ) => {
+    const { name, value } = e.target;
+    if (isContact) {
+      setFormDataContacts((prev) => ({ ...prev, [name]: value }));
+    } else {
+      setFormDataClients((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  //=====================================
+  //HANDLE CLIENTS (ADD & UPDATE)
+  //======================================
+
+  const handleClientSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem("token");
+
+    //Convert times for MySQL
+    const preparedData = {
+      ...formDataClients,
+      call_1: formDataClients.call_1 || null,
+      call_2: formDataClients.call_2 || null,
+      call_3: formDataClients.call_3 || null,
+      call_4: formDataClients.call_4 || null,
+    };
+
+    if (isEditMode && currentEditId) {
+      // UPDATE LOGIC
+      const result = await updateClient(
+        currentEditId,
+        preparedData,
+        setLoading,
+      );
+      if (result && result.success) {
+        setMessage("Klient erfolgreich aktualisiert!");
+        setClientModal(false);
+        const updatedData = await loadClients(setLoading);
+        if (updatedData && updatedData.success) setClients(updatedData.data);
+        setTimeout(() => setMessage(""), 3000);
+      } else {
+        setMessage("Fehler beim Aktualisieren.");
+      }
+    } else {
+      // ADD LOGIC
+      try {
+        const response = await fetch(
+          "http://localhost/giulianaCare/api/clients_manager.php",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(preparedData),
+          },
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          if (result.clientId) {
+            setSelectedClientId(result.clientId);
+          }
+          setClientModal(false);
+          setFormDataClients(initialClientState);
+          setMessage("Person erfolgreich hinzugefügt!");
+          setContactModal(true);
+          const updatedData = await loadClients(setLoading);
+          if (updatedData && updatedData.success) {
+            setClients(updatedData.data);
+          }
+          setTimeout(() => setMessage(""), 3000);
+        } else {
+          setMessage("Hinzufügen fehlgeschlagen!");
+          setTimeout(() => setMessage(""), 3000);
+        }
+      } catch (error) {
+        console.error("Netzwerkfehler", error);
+      }
+    }
+  };
+
+  //=====================================
+  //HANDLE CONTACTS (ADD & UPDATE)
+  //======================================
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem("token");
+
+    if (isEditMode && currentEditId) {
+      // UPDATE LOGIC
+      const result = await updateContact(
+        currentEditId,
+        formDataContacts,
+        setLoading,
+      );
+      if (result && result.success) {
+        setMessage("Kontakt erfolgreich aktualisiert!");
+        setContactModal(false);
+        const updatedData = await loadContacts(setLoading);
+        if (updatedData && updatedData.success) setContacts(updatedData.data);
+        setTimeout(() => setMessage(""), 3000);
+      } else {
+        setMessage("Fehler beim Aktualisieren.");
+      }
+    } else {
+      // ADD LOGIC
+      if (!selectedClientId) return;
+      const payload = { ...formDataContacts, client_id: selectedClientId };
+      try {
+        const response = await fetch(
+          "http://localhost/giulianaCare/api/contacts_manager.php",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          setContactModal(false);
+          setFormDataContacts(initialContactState);
+          setSelectedClientId(null);
+          setMessage("Kontakt erfolgreich hinzugefügt!");
+          const updatedData = await loadContacts(setLoading);
+          if (updatedData && updatedData.success) {
+            setContacts(updatedData.data);
+          }
+          setTimeout(() => setMessage(""), 3000);
+        } else {
+          setMessage("Hinzufügen fehlgeschlagen!");
+          setTimeout(() => setMessage(""), 3000);
+        }
+      } catch (error) {
+        console.error("Netzwerkfehler", error);
+      }
+    }
+  };
+
+  // DELETE CLIENT
+  const handleDeleteClient = async (id: number) => {
+    if (!window.confirm("Möchten Sie diesen Eintrag wirklich löschen?")) return;
+    const result = await deleteClient(id, setLoading);
+    if (result && result.success) {
+      setClients((prevClients) =>
+        prevClients.filter((client) => client.id !== id),
+      );
+      setMessage("Eintrag wurde erfolgreich gelöscht.");
+      setTimeout(() => setMessage(""), 3000);
+    } else {
+      setMessage(
+        "Fehler beim Löschen: " + (result?.message || "Unbekannter Fehler"),
+      );
+    }
+  };
+
+  //DELETE CONTACT
+  const handleDeleteContact = async (id: number) => {
+    if (!window.confirm("Kontakt wirklich löschen?")) return;
+    const result = await deleteContact(id, setLoading);
+    if (result && result.success) {
+      setContacts((prev) => prev.filter((c) => c.id !== id));
+      setMessage("Kontakt entfernt.");
+      setTimeout(() => setMessage(""), 2000);
+    } else {
+      setMessage("Fehler beim Löschen des Kontakts.");
+    }
+  };
+
+  return (
+    <div className="body-div dashboard-div">
+      <SubNavbar />
+
+      <div className="dashboard-status">
+        <h4>Status:</h4>
+      </div>
+
+      {message && <div className="message-div">{message}</div>}
+      <div className="dash-section">
+        <div className="dash-header">
+          <h2>Angemeldete Person(en)</h2>
+          <button onClick={() => openClientModal()}>Person hinzufügen</button>
+        </div>
+
+        <div className="client-div section-sub-div">
+          {loading ? (
+            <div className="spinner">Daten werden geladen... </div>
+          ) : (
+            <div className="client-list">
+              {clients.length > 0 ? (
+                clients.map((client) => (
+                  <div key={client.id} className="client-card">
+                    <div className="card-sub client-area">
+                      {/*
+                      /////////////////////////////////////////////////////////////////
+                      CLIENT CARD HEADING 
+                      ////////////////////////////////////////////////////////////////*/}
+                      <div className="client-heading">
+                        <h2>
+                          {client.title} {client.firstname} {client.lastname}
+                        </h2>
+                        <div className="button-div">
+                          <button
+                            className="icon-button"
+                            onClick={() => openClientModal(client)}
+                          >
+                            <FontAwesomeIcon icon={faSliders} />
+                          </button>
+                          <button
+                            className="icon-button"
+                            onClick={() => handleDeleteClient(client.id)}
+                            aria-label={`${client.firstname} ${client.lastname} löschen`}
+                          >
+                            <FontAwesomeIcon icon={faTrash} />
+                          </button>
+                        </div>
+                      </div>
+                      {/*
+                      /////////////////////////////////////////////////////////////////
+                      CLIENT INFORMATION
+                      ////////////////////////////////////////////////////////////////*/}
+                      <div className="client-grid">
+                        <p>Telefonnummer 1: {client.tel1}</p>
+                        <p>Telefonnummer 2: {client.tel2}</p>
+                        <p>
+                          Geburtsdatum: {client.birthday} ({client.age})
+                        </p>
+                        <p>Adresse: {client.address}</p>
+                      </div>
+                      {/*
+                      /////////////////////////////////////////////////////////////////
+                      CLIENT INFORMATION
+                      ////////////////////////////////////////////////////////////////*/}
+                      <div className="client-calls">
+                        <h3>Anruf(e)</h3>
+                        <div className="calls">
+                          <div className="calls-item">
+                            <p>Anruf 1: {client.call_1}</p>
+                            <p>Info:</p>
+                          </div>
+                          <div className="calls-item">
+                            <p>Anruf 2: {client.call_2}</p>
+                            <p>Info:</p>
+                          </div>
+                          <div className="calls-item">
+                            <p>Anruf 3: {client.call_3}</p>
+                            <p>Info:</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/*
+                      /////////////////////////////////////////////////////////////////
+                      CONTACT AREA
+                      ////////////////////////////////////////////////////////////////*/}
+                    <div className="contact-area">
+                      <div className="contact-heading">
+                        <h3>Notfallkontakte:</h3>
+                        <button onClick={() => openContactModal(client.id)}>
+                          Hinzufügen
+                        </button>
+                      </div>
+                      <div className="contact-list">
+                        {contacts
+                          .filter((contact) => contact.client_id === client.id)
+                          .map((contact) => (
+                            <div key={contact.id} className="contact-card">
+                              <div className="contact-card-grid">
+                                <div className="card-item">
+                                  <h3>Name</h3>
+                                  <span>
+                                    {contact.lastname}, {contact.firstname}
+                                  </span>
+                                </div>
+                                <div className="card-item">
+                                  <h3>Mobilnummer</h3>
+                                  <span>{contact.tel1}</span>
+                                </div>
+                                <div className="card-item">
+                                  <h3>E-Mail</h3>
+                                  <span>{contact.email}</span>
+                                </div>
+                              </div>
+                              <div className="button-div">
+                                <button
+                                  className="icon-button"
+                                  onClick={() =>
+                                    openContactModal(client.id, contact)
+                                  }
+                                >
+                                  <FontAwesomeIcon icon={faSliders} />
+                                </button>
+                                <button
+                                  className="icon-button"
+                                  onClick={() =>
+                                    handleDeleteContact(contact.id)
+                                  }
+                                >
+                                  <FontAwesomeIcon icon={faTrash} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                        {contacts.filter((c) => c.client_id === client.id)
+                          .length === 0 && (
+                          <p>Keine Notfallkontakte hinterlegt.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p>Keine Einträge</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {clientModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <form onSubmit={handleClientSubmit}>
+              <div className="form-div">
+                <fieldset>
+                  <legend>
+                    {isEditMode ? "Person bearbeiten" : "Neue Person"}
+                  </legend>
+                  <label>
+                    Anrede
+                    <select
+                      name="title"
+                      value={formDataClients.title || ""}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="" disabled hidden>
+                        Bitte wählen...
+                      </option>
+                      <option value="Herr">Herr</option>
+                      <option value="Frau">Frau</option>
+                      <option value="Divers">Divers</option>
+                    </select>
+                  </label>
+                  <label>
+                    Nachname
+                    <input
+                      type="text"
+                      name="lastname"
+                      placeholder="Bspw. Müller"
+                      value={formDataClients.lastname}
+                      onChange={handleChange}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Vorname
+                    <input
+                      type="text"
+                      name="firstname"
+                      placeholder="Bspw. Manfred"
+                      value={formDataClients.firstname}
+                      onChange={handleChange}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Telefonnummer 1 (Festnetz oder mobil)
+                    <input
+                      type="tel"
+                      name="tel1"
+                      placeholder="Bspw. 0228 12345678"
+                      value={formDataClients.tel1}
+                      onChange={handleChange}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Telefon (Festnetz oder mobil)
+                    <input
+                      type="tel"
+                      name="tel2"
+                      placeholder="Bspw. 0228 12345678"
+                      value={formDataClients.tel2}
+                      onChange={handleChange}
+                    />
+                  </label>
+                  <label>
+                    Geburtsdatum
+                    <input
+                      type="date"
+                      name="birthday"
+                      value={formDataClients.birthday}
+                      onChange={handleChange}
+                    />
+                  </label>
+                  <label>
+                    Sprachniveau in Deutsch
+                    <select
+                      name="german_level"
+                      value={formDataClients.german_level}
+                      onChange={handleChange}
+                    >
+                      <option value="native">Muttersprache</option>
+                      <option value="conversation_good">
+                        Kommunikation gut möglich
+                      </option>
+                      <option value="conversation_bad">
+                        Kommunikation schwer möglich
+                      </option>
+                      <option value="no_german">Spricht kein Deutsch</option>
+                    </select>
+                  </label>
+                  <label>
+                    Bevorzugte Sprache
+                    <input
+                      name="language"
+                      type="text"
+                      placeholder="z.B. Russisch, Polnisch, Türkisch..."
+                      value={formDataClients.language}
+                      onChange={handleChange}
+                    />
+                  </label>
+                  <label>
+                    Adresse (Straße, Hausnummer, Postleitzahl, Ort)
+                    <input
+                      type="text"
+                      name="address"
+                      placeholder="Beispielstraße 1, 12345 Musterstadt"
+                      value={formDataClients.address}
+                      onChange={handleChange}
+                    />
+                  </label>
+                  <label>
+                    Medikamenteneinnahme
+                    <input
+                      type="text"
+                      name="medication"
+                      placeholder="z. B. Medikament xy morgens und abends..."
+                      value={formDataClients.medication}
+                      onChange={handleChange}
+                    />
+                  </label>
+                  <label>
+                    Zusatzinformation
+                    <input
+                      type="text"
+                      name="info"
+                      placeholder="z.B. Klient ist Dement..."
+                      value={formDataClients.info}
+                      onChange={handleChange}
+                    />
+                  </label>
+                </fieldset>
+                <fieldset>
+                  <h3>Wähle die Anrufzeiten</h3>
+                  <label>
+                    Anruf 1 um:
+                    <input
+                      type="time"
+                      name="call_1"
+                      required
+                      value={formDataClients.call_1}
+                      onChange={handleChange}
+                    />
+                  </label>
+                  <label>
+                    Anruf 2 um:
+                    <input
+                      type="time"
+                      name="call_2"
+                      value={formDataClients.call_2}
+                      onChange={handleChange}
+                    />
+                  </label>
+                  <label>
+                    Anruf 3 um:
+                    <input
+                      type="time"
+                      name="call_3"
+                      value={formDataClients.call_3}
+                      onChange={handleChange}
+                    />
+                  </label>
+                  <label>
+                    Anruf 4 um:
+                    <input
+                      type="time"
+                      name="call_4"
+                      value={formDataClients.call_4}
+                      onChange={handleChange}
+                    />
+                  </label>
+                </fieldset>
+              </div>
+              <button type="submit">Speichern</button>
+              <button type="button" onClick={closeModals}>
+                Abbrechen
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {contactModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <form onSubmit={handleContactSubmit}>
+              <div className="form-div">
+                <fieldset>
+                  <legend>
+                    {isEditMode ? "Kontakt bearbeiten" : "Neuer Notfallkontakt"}
+                  </legend>
+                  <label>
+                    Nachname
+                    <input
+                      type="text"
+                      name="lastname"
+                      placeholder="Bspw. Müller"
+                      value={formDataContacts.lastname}
+                      onChange={(e) => handleChange(e, true)}
+                    />
+                  </label>
+                  <label>
+                    Vorname
+                    <input
+                      type="text"
+                      name="firstname"
+                      placeholder="Bspw. Manfred"
+                      value={formDataContacts.firstname}
+                      onChange={(e) => handleChange(e, true)}
+                    />
+                  </label>
+                  <label>
+                    Telefon (Festnetz)
+                    <input
+                      type="tel"
+                      name="tel1"
+                      placeholder="Bspw. 0228 12345678"
+                      value={formDataContacts.tel1}
+                      onChange={(e) => handleChange(e, true)}
+                    />
+                  </label>
+                  <label>
+                    Telefon (mobil)
+                    <input
+                      type="tel"
+                      name="tel2"
+                      placeholder="Bspw. 0228 12345678"
+                      value={formDataContacts.tel2}
+                      onChange={(e) => handleChange(e, true)}
+                    />
+                  </label>
+                  <label>
+                    E-Mail-Adresse
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="beispiel@muster.de..."
+                      value={formDataContacts.email}
+                      onChange={(e) => handleChange(e, true)}
+                    />
+                  </label>
+                </fieldset>
+              </div>
+              <button type="submit">Speichern</button>
+              <button type="button" onClick={closeModals}>
+                Abbrechen
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      <Footer />
+    </div>
+  );
+}

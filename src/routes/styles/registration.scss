@@ -1,0 +1,30 @@
+.distance-div {
+  .regist-form {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--accent-color);
+    width: 300px;
+    height: auto;
+    padding: 10px;
+    border-radius: 15px;
+    margin-bottom: 10px;
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    input {
+      background-color: white;
+      margin-bottom: 10px;
+    }
+
+    button {
+      margin-bottom: 10px;
+    }
+
+    .error-text {
+      margin-bottom: 10px;
+    }
+  }
+}
