@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { loadClients } from "../assets/loader";
 import { loadContacts } from "../assets/loader";
 import { updateClient, updateContact } from "../assets/updater";
+import { toggleStatus } from "../assets/updater";
 import { userAge } from "../assets/age";
 import { deleteClient } from "../assets/deleter";
 import { deleteContact } from "../assets/deleter";
@@ -352,6 +353,47 @@ export default function Dashboard() {
     }
   };
 
+  //========================================
+  // HANDLE STATUS
+  //========================================
+  // STATUS TOGGLE MIT CONFIRM & OPTIMISTISCHEM UPDATE
+  const handleToggleStatus = async (id: number, currentStatus: string) => {
+    // Dynamische Frage basierend auf dem aktuellen Status definieren
+    const confirmMessage =
+      currentStatus === "active"
+        ? "Anrufassistent deaktivieren?"
+        : "Anrufassistent aktivieren?";
+
+    // Bestätigungs-Dialog anzeigen
+    const isConfirmed = window.confirm(confirmMessage);
+
+    // Abbrechen, falls der Benutzer "Abbrechen" klickt
+    if (!isConfirmed) return;
+
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
+
+    // 1. UI sofort aktualisieren (für nahtlose Reaktion ohne Reload)
+    setClients((prevClients) =>
+      prevClients.map((client) =>
+        client.id === id ? { ...client, status: newStatus } : client,
+      ),
+    );
+
+    // 2. Im Hintergrund an das Backend senden
+    const result = await toggleStatus(id, newStatus);
+
+    // 3. Bei Fehler: Änderung wieder rückgängig machen
+    if (!result || !result.success) {
+      setClients((prevClients) =>
+        prevClients.map((client) =>
+          client.id === id ? { ...client, status: currentStatus } : client,
+        ),
+      );
+      setMessage("Fehler beim Ändern des Status.");
+      setTimeout(() => setMessage(""), 3000);
+    }
+  };
+
   return (
     <div className="body-div dashboard-div">
       <SubNavbar />
@@ -379,9 +421,26 @@ export default function Dashboard() {
                       <div className="client-heading">
                         <h2>
                           {client.title} {client.firstname} {client.lastname}{" "}
-                          <span className="status-display">
-                            {client.status}
-                          </span>
+                          {/*
+                          /////////TOGGLE SWITCH STATUS //////////////
+                          */}
+                          <button
+                            type="button"
+                            className={`status-toggle ${
+                              client.status === "active"
+                                ? "is-active"
+                                : "is-inactive"
+                            }`}
+                            onClick={() =>
+                              handleToggleStatus(client.id, client.status)
+                            }
+                            title="Klicken zum Umschalten"
+                          >
+                            <span className="toggle-slider"></span>
+                            <span className="toggle-text">
+                              {client.status === "active" ? "aktiv" : "inaktiv"}
+                            </span>
+                          </button>
                         </h2>
                         <div className="button-div">
                           <button

@@ -53,6 +53,7 @@ export const updateContact = async (
 //TOGGLE STATUS
 export const toggleStatus = async (
   clientId: number | string,
+  status: string,
   setLoading?: (loading: boolean) => void,
 ) => {
   const token = localStorage.getItem("token");

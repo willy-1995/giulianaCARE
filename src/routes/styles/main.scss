@@ -23,6 +23,13 @@ button {
   padding: 5px 10px;
   box-shadow: 0 0 5px var(--shadow-color);
   font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    transition: all ease-in-out 200ms;
+    color: var(--button-color);
+    background-color: white;
+  }
 }
 
 a {
