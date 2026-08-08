@@ -87,6 +87,41 @@ try {
             break;
 
         // ==========================================
+        // PATCH: Status per Toggle umschalten
+        // ==========================================
+        case 'PATCH':
+            $clientId = $input['id'] ?? $_GET['id'] ?? null;
+
+            if (!$clientId) {
+                http_response_code(400);
+                echo json_encode(["success" => false, "message" => "Client-ID fehlt."]);
+                exit;
+            }
+
+            // Sicherheitscheck: Gehört der Client dem eingeloggten User?
+            $existingClient = $clientsManager->getClient($clientId);
+            if (!$existingClient || $existingClient['user_id'] != $currentUserId) {
+                http_response_code(403);
+                echo json_encode(["success" => false, "message" => "Keine Berechtigung für diese Aktion."]);
+                exit;
+            }
+
+            // Status umschalten und neuen Status erhalten
+            $newStatus = $clientsManager->toggleStatus($clientId);
+
+            if ($newStatus) {
+                echo json_encode([
+                    "success" => true,
+                    "message" => "Status erfolgreich geändert.",
+                    "newStatus" => $newStatus
+                ]);
+            } else {
+                http_response_code(500);
+                echo json_encode(["success" => false, "message" => "Status konnte nicht geändert werden."]);
+            }
+            break;
+
+        // ==========================================
         // DELETE: Client löschen
         // ==========================================
         case 'DELETE':

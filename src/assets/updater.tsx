@@ -49,3 +49,33 @@ export const updateContact = async (
     setLoading(false);
   }
 };
+
+//TOGGLE STATUS
+export const toggleStatus = async (
+  clientId: number | string,
+  setLoading?: (loading: boolean) => void,
+) => {
+  const token = localStorage.getItem("token");
+  if (!token) return { success: false, message: "Kein Token vorhanden" };
+  if (setLoading) setLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/clients_manager.php`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id: clientId }),
+    });
+
+    const rawdata = await response.text();
+    console.log("Antwort Toggle: ", rawdata);
+    const data = JSON.parse(rawdata);
+
+    return data;
+  } catch (error) {
+    console.log("Fehler beim Ändern des Status: ", error);
+  } finally {
+    if (setLoading) setLoading(false);
+  }
+};

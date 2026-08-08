@@ -28,16 +28,17 @@ class ClientsManager
             $this->conn->beginTransaction();
 
             $sql = "INSERT INTO clients (
-                        user_id,title, lastname, firstname, tel1, tel2, birthday, 
+                        user_id, status, title, lastname, firstname, tel1, tel2, birthday, 
                         language, german_level, address, medication, info, call_1, call_2, call_3, call_4
                     ) VALUES (
-                        :user_id, :title, :lastname, :firstname, :tel1, :tel2, :birthday, 
+                        :user_id, :status, :title, :lastname, :firstname, :tel1, :tel2, :birthday, 
                         :language, :german_level, :address, :medication, :info, :call_1, :call_2, :call_3, :call_4
                     )";
 
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
                 ':user_id'      => $clientData['user_id'], // ID des Users, der den Client erstellt
+                ':status'   => $clientData['status'] ?? 'active',
                 ':title'     => $clientData['title'] ?? null,
                 ':lastname'     => $clientData['lastname'] ?? null,
                 ':firstname'    => $clientData['firstname'] ?? null,
@@ -96,6 +97,7 @@ class ClientsManager
             $this->conn->beginTransaction();
 
             $sql = "UPDATE clients SET 
+                        status = :staus,
                         title = :title,
                         lastname = :lastname, 
                         firstname = :firstname, 
@@ -115,6 +117,7 @@ class ClientsManager
 
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
+                ':status'       => $clientData['status'] ?? 'active',
                 ':title'     => $clientData['title'],
                 ':lastname'     => $clientData['lastname'],
                 ':firstname'    => $clientData['firstname'],
@@ -139,6 +142,31 @@ class ClientsManager
             if ($this->conn->inTransaction()) $this->conn->rollBack();
             throw $e;
         }
+    }
+
+
+    // ==========================================
+    // UPDATE: Update Status
+    // ==========================================
+    public function toggleStatus($id)
+    {
+        // 1. Status direkt in der DB umschalten
+        $sql = "UPDATE clients 
+                SET status = IF(status = 'active', 'inactive', 'active') 
+                WHERE id = :id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':id' => $id]);
+
+        // 2. Aktualisierten Status auslesen und zurückgeben
+        return $this->getClientStatus($id);
+    }
+
+    private function getClientStatus($id)
+    {
+        $sql = "SELECT status FROM clients WHERE id = :id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetchColumn(); // Liefert 'active' oder 'inactive'
     }
 
     // ==========================================

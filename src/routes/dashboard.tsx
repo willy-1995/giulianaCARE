@@ -16,6 +16,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrash, faSliders } from "@fortawesome/free-solid-svg-icons";
 
 interface Client {
+  status: string;
   id: number;
   title: string;
   lastname: string;
@@ -46,6 +47,7 @@ interface Contact {
 }
 
 const initialClientState = {
+  status: "",
   title: "",
   firstname: "",
   lastname: "",
@@ -354,10 +356,6 @@ export default function Dashboard() {
     <div className="body-div dashboard-div">
       <SubNavbar />
 
-      <div className="dashboard-status">
-        <h4>Status:</h4>
-      </div>
-
       {message && <div className="message-div">{message}</div>}
       <div className="dash-section">
         <div className="dash-header">
@@ -380,7 +378,10 @@ export default function Dashboard() {
                       ////////////////////////////////////////////////////////////////*/}
                       <div className="client-heading">
                         <h2>
-                          {client.title} {client.firstname} {client.lastname}
+                          {client.title} {client.firstname} {client.lastname}{" "}
+                          <span className="status-display">
+                            {client.status}
+                          </span>
                         </h2>
                         <div className="button-div">
                           <button
