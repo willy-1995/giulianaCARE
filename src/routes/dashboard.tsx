@@ -401,8 +401,10 @@ export default function Dashboard() {
       {message && <div className="message-div">{message}</div>}
       <div className="dash-section">
         <div className="dash-header">
-          <h2>Angemeldete Person(en)</h2>
-          <button onClick={() => openClientModal()}>Person hinzufügen</button>
+          <h2>
+            Angemeldete Person(en)
+            <button onClick={() => openClientModal()}>Person hinzufügen</button>
+          </h2>
         </div>
 
         <div className="client-div section-sub-div">
@@ -442,6 +444,7 @@ export default function Dashboard() {
                             </span>
                           </button>
                         </h2>
+
                         <div className="button-div">
                           <button
                             className="icon-button"
@@ -458,6 +461,7 @@ export default function Dashboard() {
                           </button>
                         </div>
                       </div>
+                      <h3 id="data-grid-heading">Personendaten</h3>
                       {/*
                       /////////////////////////////////////////////////////////////////
                       CLIENT INFORMATION
@@ -498,10 +502,12 @@ export default function Dashboard() {
                       ////////////////////////////////////////////////////////////////*/}
                     <div className="contact-area">
                       <div className="contact-heading">
-                        <h3>Notfallkontakte:</h3>
-                        <button onClick={() => openContactModal(client.id)}>
-                          Hinzufügen
-                        </button>
+                        <h3>
+                          Notfallkontakte:{" "}
+                          <button onClick={() => openContactModal(client.id)}>
+                            Hinzufügen
+                          </button>
+                        </h3>
                       </div>
                       <div className="contact-list">
                         {contacts
@@ -566,176 +572,163 @@ export default function Dashboard() {
           <div className="modal">
             <form onSubmit={handleClientSubmit}>
               <div className="form-div">
-                <fieldset>
-                  <legend>
-                    {isEditMode ? "Person bearbeiten" : "Neue Person"}
-                  </legend>
-                  <label>
-                    Anrede
-                    <select
-                      name="title"
-                      value={formDataClients.title || ""}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="" disabled hidden>
-                        Bitte wählen...
-                      </option>
-                      <option value="Herr">Herr</option>
-                      <option value="Frau">Frau</option>
-                      <option value="Divers">Divers</option>
-                    </select>
-                  </label>
-                  <label>
-                    Nachname
-                    <input
-                      type="text"
-                      name="lastname"
-                      placeholder="Bspw. Müller"
-                      value={formDataClients.lastname}
-                      onChange={handleChange}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Vorname
-                    <input
-                      type="text"
-                      name="firstname"
-                      placeholder="Bspw. Manfred"
-                      value={formDataClients.firstname}
-                      onChange={handleChange}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Telefonnummer 1 (Festnetz oder mobil)
-                    <input
-                      type="tel"
-                      name="tel1"
-                      placeholder="Bspw. 0228 12345678"
-                      value={formDataClients.tel1}
-                      onChange={handleChange}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Telefon (Festnetz oder mobil)
-                    <input
-                      type="tel"
-                      name="tel2"
-                      placeholder="Bspw. 0228 12345678"
-                      value={formDataClients.tel2}
-                      onChange={handleChange}
-                    />
-                  </label>
-                  <label>
-                    Geburtsdatum
-                    <input
-                      type="date"
-                      name="birthday"
-                      value={formDataClients.birthday}
-                      onChange={handleChange}
-                    />
-                  </label>
-                  <label>
-                    Sprachniveau in Deutsch
-                    <select
-                      name="german_level"
-                      value={formDataClients.german_level}
-                      onChange={handleChange}
-                    >
-                      <option value="native">Muttersprache</option>
-                      <option value="conversation_good">
-                        Kommunikation gut möglich
-                      </option>
-                      <option value="conversation_bad">
-                        Kommunikation schwer möglich
-                      </option>
-                      <option value="no_german">Spricht kein Deutsch</option>
-                    </select>
-                  </label>
-                  <label>
-                    Bevorzugte Sprache
-                    <input
-                      name="language"
-                      type="text"
-                      placeholder="z.B. Russisch, Polnisch, Türkisch..."
-                      value={formDataClients.language}
-                      onChange={handleChange}
-                    />
-                  </label>
-                  <label>
-                    Adresse (Straße, Hausnummer, Postleitzahl, Ort)
-                    <input
-                      type="text"
-                      name="address"
-                      placeholder="Beispielstraße 1, 12345 Musterstadt"
-                      value={formDataClients.address}
-                      onChange={handleChange}
-                    />
-                  </label>
-                  <label>
-                    Medikamenteneinnahme
-                    <input
-                      type="text"
-                      name="medication"
-                      placeholder="z. B. Medikament xy morgens und abends..."
-                      value={formDataClients.medication}
-                      onChange={handleChange}
-                    />
-                  </label>
-                  <label>
-                    Zusatzinformation
-                    <input
-                      type="text"
-                      name="info"
-                      placeholder="z.B. Klient ist Dement..."
-                      value={formDataClients.info}
-                      onChange={handleChange}
-                    />
-                  </label>
-                </fieldset>
-                <fieldset>
-                  <h3>Wähle die Anrufzeiten</h3>
-                  <label>
-                    Anruf 1 um:
-                    <input
-                      type="time"
-                      name="call_1"
-                      required
-                      value={formDataClients.call_1}
-                      onChange={handleChange}
-                    />
-                  </label>
-                  <label>
-                    Anruf 2 um:
-                    <input
-                      type="time"
-                      name="call_2"
-                      value={formDataClients.call_2}
-                      onChange={handleChange}
-                    />
-                  </label>
-                  <label>
-                    Anruf 3 um:
-                    <input
-                      type="time"
-                      name="call_3"
-                      value={formDataClients.call_3}
-                      onChange={handleChange}
-                    />
-                  </label>
-                  <label>
-                    Anruf 4 um:
-                    <input
-                      type="time"
-                      name="call_4"
-                      value={formDataClients.call_4}
-                      onChange={handleChange}
-                    />
-                  </label>
-                </fieldset>
+                <h3> {isEditMode ? "Person bearbeiten" : "Neue Person"}</h3>
+
+                <label>
+                  Anrede
+                  <select
+                    name="title"
+                    value={formDataClients.title || ""}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="" disabled hidden>
+                      Bitte wählen...
+                    </option>
+                    <option value="Herr">Herr</option>
+                    <option value="Frau">Frau</option>
+                    <option value="Divers">Divers</option>
+                  </select>
+                </label>
+                <label>
+                  Nachname
+                  <input
+                    type="text"
+                    name="lastname"
+                    placeholder="Bspw. Müller"
+                    value={formDataClients.lastname}
+                    onChange={handleChange}
+                    required
+                  />
+                </label>
+                <label>
+                  Vorname
+                  <input
+                    type="text"
+                    name="firstname"
+                    placeholder="Bspw. Manfred"
+                    value={formDataClients.firstname}
+                    onChange={handleChange}
+                    required
+                  />
+                </label>
+                <label>
+                  Telefonnummer 1
+                  <input
+                    type="tel"
+                    name="tel1"
+                    placeholder="Bspw. 0228 12345678"
+                    value={formDataClients.tel1}
+                    onChange={handleChange}
+                    required
+                  />
+                </label>
+                <label>
+                  Telefonnummer 2
+                  <input
+                    type="tel"
+                    name="tel2"
+                    placeholder="Bspw. 0228 12345678"
+                    value={formDataClients.tel2}
+                    onChange={handleChange}
+                  />
+                </label>
+                <label>
+                  Geburtsdatum
+                  <input
+                    type="date"
+                    name="birthday"
+                    value={formDataClients.birthday}
+                    onChange={handleChange}
+                  />
+                </label>
+                <label>
+                  Sprachniveau in Deutsch
+                  <select
+                    name="german_level"
+                    value={formDataClients.german_level}
+                    onChange={handleChange}
+                  >
+                    <option value="native">Muttersprache</option>
+                    <option value="conversation_good">
+                      Kommunikation gut möglich
+                    </option>
+                    <option value="conversation_bad">
+                      Kommunikation schwer möglich
+                    </option>
+                    <option value="no_german">Spricht kein Deutsch</option>
+                  </select>
+                </label>
+                <label>
+                  Bevorzugte Sprache
+                  <input
+                    name="language"
+                    type="text"
+                    placeholder="z.B. Russisch, Polnisch, Türkisch..."
+                    value={formDataClients.language}
+                    onChange={handleChange}
+                  />
+                </label>
+                <label>
+                  Adresse (Straße, Hausnummer, Postleitzahl, Ort)
+                  <input
+                    type="text"
+                    name="address"
+                    placeholder="Beispielstraße 1, 12345 Musterstadt"
+                    value={formDataClients.address}
+                    onChange={handleChange}
+                  />
+                </label>
+                <label>
+                  Medikamenteneinnahme
+                  <input
+                    type="text"
+                    name="medication"
+                    placeholder="z. B. Medikament xy morgens und abends..."
+                    value={formDataClients.medication}
+                    onChange={handleChange}
+                  />
+                </label>
+                <label>
+                  Zusatzinformation
+                  <input
+                    type="text"
+                    name="info"
+                    placeholder="z.B. Klient ist Dement..."
+                    value={formDataClients.info}
+                    onChange={handleChange}
+                  />
+                </label>
+
+                <h3 id="call-change-heading">Wähle die Anrufzeiten</h3>
+                <label>
+                  Anruf 1 um:
+                  <input
+                    type="time"
+                    name="call_1"
+                    required
+                    value={formDataClients.call_1}
+                    onChange={handleChange}
+                  />
+                </label>
+                <label>
+                  Anruf 2 um:
+                  <input
+                    type="time"
+                    name="call_2"
+                    value={formDataClients.call_2}
+                    onChange={handleChange}
+                  />
+                </label>
+                <label>
+                  Anruf 3 um:
+                  <input
+                    type="time"
+                    name="call_3"
+                    value={formDataClients.call_3}
+                    onChange={handleChange}
+                  />
+                </label>
               </div>
               <button type="submit">Speichern</button>
               <button type="button" onClick={closeModals}>

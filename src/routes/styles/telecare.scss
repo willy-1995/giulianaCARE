@@ -77,9 +77,12 @@
       }
 
       .intro-text {
+        width: 90%;
+        margin: 0 auto;
         @media (max-width: 1200px) {
           width: 90%;
           margin: 0 auto;
+          text-align: center;
         }
       }
 
@@ -125,44 +128,127 @@
         width: 100%;
         position: unset;
       }
-
-      .intro-img {
-        width: 60%;
-        position: absolute;
-        border-radius: 15px;
+      .img-container {
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        overflow: hidden;
         border: 5px solid var(--accent-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        @media (max-width: 700px) {
+          margin: 0 auto;
+          margin-bottom: 20px;
+          width: 400px;
+          height: 400px;
+        }
+
+        .intro-img {
+          max-width: 100%;
+          scale: 1.9;
+
+          @media (max-width: 1200px) {
+            position: unset;
+          }
+        }
+      }
+
+      #img-1 {
+        width: 290px;
+        height: 290px;
+        position: absolute;
+        left: 60px;
+
+        @media (max-width: 1350px) {
+          left: 30px;
+        }
+
+        @media (max-width: 1300px) {
+          left: 30px;
+          width: 270px;
+          height: 270px;
+        }
 
         @media (max-width: 1200px) {
           position: unset;
+          width: 500px;
+          height: 500px;
+          margin: 0 auto;
+          margin-bottom: 40px;
+        }
+
+        @media (max-width: 700px) {
+          width: 300px;
+          height: 300px;
         }
       }
 
-      #img-grandma {
-        top: 180px;
-        right: 20px;
-        z-index: 3;
+      #img-2 {
+        width: 360px;
+        height: 360px;
+        position: absolute;
+        left: 330px;
+        top: 150px;
 
-        @media (min-width: 1200px) {
+        @media (max-width: 1350px) {
+          left: 300px;
+          top: 170px;
+        }
+
+        @media (max-width: 1300px) {
+          left: 280px;
+          top: 170px;
+          width: 330px;
+          height: 330px;
         }
 
         @media (max-width: 1200px) {
+          position: unset;
+          width: 500px;
+          height: 500px;
+          margin: 0 auto;
+          margin-bottom: 40px;
+        }
+
+        @media (max-width: 700px) {
+          width: 300px;
+          height: 300px;
         }
       }
 
-      #img-womanThink {
-        left: 20px;
-        top: 20px;
+      #img-3 {
+        width: 250px;
+        height: 250px;
+        position: absolute;
+        left: 100px;
+        top: 400px;
 
-        @media (min-width: 1200px) {
+        @media (max-width: 1350px) {
+          left: 60px;
+          top: 480px;
+        }
+
+        @media (max-width: 1300px) {
+          left: 100px;
+          top: 480px;
+          width: 220px;
+          height: 220px;
         }
 
         @media (max-width: 1200px) {
-          width: 80%;
+          position: unset;
+          width: 500px;
+          height: 500px;
+          margin: 0 auto;
+          margin-bottom: 40px;
         }
-      }
 
-      @media (max-width: 700px) {
-        width: 100%;
+        @media (max-width: 700px) {
+          width: 300px;
+          height: 300px;
+        }
       }
     }
   }

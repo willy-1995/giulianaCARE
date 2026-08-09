@@ -1,6 +1,6 @@
 :root {
   --accent-color: #ffc0cb;
-  --accent-color-low: #ff7a90;
+  --accent-color-low: #f79aaa;
   --container-color: rgba(255, 192, 203, 0.3);
   --shadow-color: rgb(103, 102, 102);
   --cover-color: rgba(0, 0, 0, 0.401);
@@ -32,6 +32,16 @@ button {
   }
 }
 
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
 a {
   color: white;
   text-decoration: none;
@@ -45,6 +55,7 @@ body {
   width: 100%;
   font-family: sans-serif;
   color: grey;
+  font-size: 1.05rem;
 }
 
 .body-div {
@@ -84,14 +95,12 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.4); // Dunkelt den Hintergrund leicht ab
-  backdrop-filter: blur(8px); // Erzeugt den modernen Blur-Effekt
-  z-index: 999; // Liegt über der gesamten App
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 999;
   display: flex;
-  justify-content: center; // Zentriert horizontal
-  align-items: center; // Zentriert vertikal
-
-  // Verhindert Klicks auf darunterliegende Elemente im gesamten Viewport
+  justify-content: center;
+  align-items: center;
   pointer-events: auto;
 
   .modal {
@@ -101,8 +110,11 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     max-width: 450px;
     width: 90%;
+    max-height: 90vh; /* Begrenzt das Modal auf 90% der Bildschirmhöhe */
+    display: flex; /* Macht das Modal flexibel */
+    flex-direction: column;
     position: relative;
-    z-index: 1000; // Liegt sicher über dem Overlay
+    z-index: 1000;
   }
 }
 
@@ -110,12 +122,55 @@ body {
 form {
   display: flex;
   flex-direction: column;
+  height: 100%; /* Wichtig: Füllt den begrenzten Platz des Modals aus */
+  overflow: hidden; /* Buttons bleiben fixiert, nur der innere Container scrollt */
+
+  .form-div {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* Aktiviert die Scrollbar nur für die Eingabefelder */
+    flex-grow: 1; /* Nimmt den dynamischen Platz ein */
+    padding: 5px; /* Verhindert, dass der Text an der Scrollbar klebt */
+    margin-bottom: 20px; /* Abstand zu den Buttons */
+
+    h3 {
+      background-image: linear-gradient(
+        to right,
+        var(--accent-color) 70%,
+        #ffffff 100%
+      );
+      color: white;
+      padding: 5px;
+      margin-bottom: 20px;
+    }
+
+    #call-change-heading {
+      margin-top: 40px;
+    }
+
+    label {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 20px;
+      gap: 10px;
+
+      input,
+      select {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 0 10px var(--shadow-color);
+        padding: 5px 10px;
+        font-size: 1.05rem;
+      }
+    }
+  }
 }
 
-input {
-  border-radius: 15px;
-  border: none;
-  padding: 5px 10px;
+button {
+  margin: 0 auto;
+  margin-bottom: 20px;
+  width: 90%;
 }
 
 //===================================================
@@ -140,7 +195,7 @@ input {
     margin-left: 20px;
 
     #logo {
-      max-width: 100%;
+      max-width: 50%;
     }
   }
 

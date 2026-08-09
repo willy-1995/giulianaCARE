@@ -122,18 +122,30 @@ function TeleCare() {
             </div>
           </p>
           <div className="intro-img-div">
-            <img
-              src={getAssetUrl("media/grandma_tel.png")}
-              alt=""
-              id="img-grandma"
-              className="intro-img"
-            />
-            <img
-              src={getAssetUrl("media/woman_thinks.png")}
-              alt=""
-              id="img-womanThink"
-              className="intro-img"
-            />
+            <div className="img-container" id="img-1">
+              <img
+                src={getAssetUrl("media/grandma_tel.png")}
+                alt=""
+                id="img-grandma"
+                className="intro-img"
+              />
+            </div>
+            <div className="img-container" id="img-2">
+              <img
+                src={getAssetUrl("media/team.png")}
+                alt=""
+                id="img-womanThink"
+                className="intro-img"
+              />
+            </div>
+            <div className="img-container" id="img-3">
+              <img
+                src={getAssetUrl("media/team.png")}
+                alt=""
+                id="img-womanThink"
+                className="intro-img"
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -26,6 +26,19 @@
     padding: 10px 0;
     margin-left: 10px;
     margin-right: 10px;
+
+    h2 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 500px;
+      gap: 20px;
+
+      button {
+        max-width: 150px;
+        margin: 0;
+      }
+    }
   }
 
   .client-div {
@@ -56,10 +69,20 @@
             justify-content: space-between;
             padding: 10px;
             color: white;
+
+            h2 {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
             //STATUS
             .status-toggle {
+              width: 100px;
+              margin-bottom: 0;
+              margin-left: 10px;
               display: inline-flex;
               align-items: center;
+              justify-content: center;
               gap: 8px;
               padding: 4px 12px;
               border-radius: 20px;
@@ -88,7 +111,7 @@
 
               /* AKTIV -> GRÜN */
               &.is-active {
-                background-color: #2e7d32;
+                background-color: #21a728;
 
                 &:hover {
                   background-color: #1b5e20;
@@ -111,11 +134,11 @@
 
             .button-div {
               display: flex;
-              gap: 10px;
+              gap: 20px;
 
               button {
-                width: 30px;
-                height: 30px;
+                width: 40px;
+                height: 40px;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
@@ -123,6 +146,11 @@
               }
             }
           }
+
+          #data-grid-heading {
+            padding: 10px;
+          }
+
           .client-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -173,6 +201,7 @@
               .calls-item {
                 padding: 10px;
                 width: 28%;
+                font-weight: 600;
 
                 @media (max-width: 700px) {
                   width: 100%;
@@ -199,6 +228,16 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px;
+    margin-top: 40px;
+    margin-bottom: 20px;
+
+    h3 {
+      button {
+        width: 150px;
+        margin: 0;
+        margin-left: 10px;
+      }
+    }
   }
   .contact-list {
     display: flex;
@@ -218,22 +257,12 @@
       .card-item {
         margin-bottom: 10px;
       }
-
       .button-div {
-        padding-top: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 20px;
-
-        button {
-          width: 30px;
-          height: 30px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+        padding: 10px;
       }
     }
   }
