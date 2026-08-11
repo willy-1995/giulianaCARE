@@ -244,52 +244,66 @@ button {
   }
 }
 
+//========================
 //FOOTER
 .footer {
   width: 100%;
   background-color: var(--accent-color);
   color: white;
+  display: flex;
+  flex-direction: column;
 
-  .contact-div {
-    width: 100%;
+  .footer-content {
     display: flex;
+    margin: 20px 0;
 
     @media (max-width: 700px) {
       flex-direction: column;
     }
 
-    .contact-card {
-      width: 100%;
+    .contact-div {
+      width: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-direction: column;
-      margin-bottom: 20px;
-    }
+      gap: 10px;
 
-    .contact-form {
       @media (max-width: 700px) {
-        width: 80%;
-        margin: 0 auto;
-      }
-      label {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         flex-direction: column;
-        gap: 10px;
-        margin-bottom: 10px;
-        margin-top: 10px;
+        width: 100%;
+        font-size: 1.3rem;
+        gap: 20px;
+      }
 
-        textarea {
-          width: 100%;
-        }
-
-        @media (max-width: 700px) {
-          width: 100%;
-        }
+      h2 {
+        text-align: center;
       }
     }
+  }
+
+  footer {
+    width: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+
+    @media (max-width: 700px) {
+      width: 100%;
+      margin-top: 40px;
+      font-size: 1.3rem;
+      gap: 20px;
+    }
+
+    .legal-link {
+      text-align: center;
+    }
+  }
+
+  .right-advise {
+    text-align: center;
+    padding: 10px;
   }
 }

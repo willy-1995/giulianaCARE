@@ -13,9 +13,10 @@ function Footer() {
   const isProtectedDashboard = location.pathname === "/dashboard";
   return (
     <div className="component-div footer">
-      <h2>Kontakt</h2>
-      <div className="contact-div">
-        <div className="contact-card">
+      <div className="footer-content">
+        <div className="contact-div">
+          <h2>Kontakt</h2>
+
           <a
             href="https://wa.me/4915141650792"
             target="_blank"
@@ -31,22 +32,22 @@ function Footer() {
             </h3>
           </Link>
         </div>
+        <footer>
+          <Link to={"/legals"} className="legal-link">
+            Impressum
+          </Link>
+          <Link to={"/legals"} className="legal-link">
+            Datenschutz
+          </Link>
+          <Link to={"/legals"} className="legal-link">
+            AGB
+          </Link>
+        </footer>
       </div>
-      <footer>
-        <div className="footer-div">
-          <div className="footer-card">
-            <p>Impressum</p>
-            <p>Datenschutz</p>
-            <p>AGB</p>
-          </div>
-          <div className="footer-card">
-            <h3>Kontakt</h3>
-            <p>Telefon:</p>
-            <p>Email:</p>
-          </div>
-        </div>
-        <p>© 2026 giulianaCARE. Alle Rechte vorbehalten.</p>
-      </footer>
+
+      <p className="right-advise">
+        © 2026 giulianaCARE. Alle Rechte vorbehalten.
+      </p>
     </div>
   );
 }

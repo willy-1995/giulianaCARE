@@ -254,7 +254,9 @@ function TeleCare() {
             </div>
           </div>
         </div>
-        <p>*Preise gelten pro Monat</p>
+        <p className="price-disclaimer">
+          *Preise gelten pro Monat, monatlich kündbar
+        </p>
       </div>
       <Footer />
     </div>

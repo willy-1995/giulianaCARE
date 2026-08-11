@@ -441,8 +441,8 @@
         box-shadow: 0 0 10px var(--accent-color);
 
         p {
-          color: white;
-          text-shadow: 0 0 5px white;
+          //color: white;
+          //text-shadow: 0 0 5px white;
         }
       }
 
@@ -456,9 +456,15 @@
         height: 300px;
         border-radius: 50%;
         gap: 10px;
+        color: grey;
 
         p {
           font-size: 2.5rem;
+        }
+
+        button {
+          width: 150px;
+          margin-top: 10px;
         }
       }
     }
@@ -467,6 +473,14 @@
       margin: 0 auto;
       flex-direction: column;
     }
+  }
+}
+
+.price-disclaimer {
+  margin-left: 20px;
+
+  @media (max-width: 900px) {
+    margin-top: 20px;
   }
 }
 
