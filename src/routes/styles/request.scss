@@ -1,0 +1,25 @@
+.contact-form-div {
+  height: 100vh;
+
+  h2 {
+    margin: 40px 20px;
+  }
+
+  .contact-form {
+    width: 30%;
+    min-width: 300px;
+    margin: 0 auto;
+    padding: 5px;
+    .contact-label {
+      margin-bottom: 20px;
+    }
+
+    textarea {
+      height: 200px;
+    }
+
+    button {
+      width: 200px;
+    }
+  }
+}

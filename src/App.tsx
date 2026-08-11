@@ -10,6 +10,7 @@ import UserDataForm from "./assets/userdataform";
 import { ProtectedRoute } from "./routes/protectedRoutes";
 import Dashboard from "./routes/dashboard";
 import Settings from "./routes/settings";
+import Request from "./routes/request";
 import "./routes/styles/main.scss";
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
           <Route path="/telecare" element={<TeleCare />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/request" element={<Request />} />
           {/*protected sites */}
           <Route
             path="/dashboard"

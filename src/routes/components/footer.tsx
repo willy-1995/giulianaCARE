@@ -26,7 +26,7 @@ function Footer() {
               <FontAwesomeIcon icon={faWhatsapp} /> Whatsapp
             </h3>
           </a>
-          <Link to={"/email"}>
+          <Link to={"/request"}>
             <h3>
               <FontAwesomeIcon icon={faEnvelope} /> E-Mail
             </h3>

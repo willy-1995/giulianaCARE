@@ -147,22 +147,23 @@ form {
     #call-change-heading {
       margin-top: 40px;
     }
+  }
 
-    label {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 20px;
-      gap: 10px;
+  label {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+    gap: 10px;
 
-      input,
-      select {
-        border-radius: 15px;
-        border: none;
-        box-shadow: 0 0 10px var(--shadow-color);
-        padding: 5px 10px;
-        font-size: 1.05rem;
-      }
+    input,
+    select,
+    textarea {
+      border-radius: 15px;
+      border: none;
+      box-shadow: 0 0 10px var(--shadow-color);
+      padding: 5px 10px;
+      font-size: 1.05rem;
     }
   }
 }
