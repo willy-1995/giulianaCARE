@@ -168,6 +168,95 @@ function escalateCall($db, $clientId, $cycle, $telType)
         // Finaler Fail
         updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht.');
         // HIER NOTFALL ALARM (E-Mail/SMS)
+        notifyEmergencyContacts($db, $clientId);
+    }
+}
+
+// --- BENACHRICHTIGUNGS- & NOTFALLFUNKTIONEN ---
+
+/**
+ * Benachrichtigt alle Notfallkontakte eines Klienten per E-Mail und SMS (falls aktiviert).
+ */
+function notifyEmergencyContacts(PDO $db, int $clientId): void
+{
+    // 1. Klientendaten inkl. sms_status laden
+    $stmt = $db->prepare("SELECT lastname, firstname, title, sms_status FROM clients WHERE id = ?");
+    $stmt->execute([$clientId]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$client) return;
+
+    $clientName = trim(($client['title'] ?? '') . ' ' . $client['firstname'] . " " . $client['lastname']);
+
+    // Prüfen, ob SMS-Versand für diesen Klienten aktiviert ist
+    $smsEnabled = !empty($client['sms_status']);
+
+    // 2. Notfallkontakte laden
+    $stmtContacts = $db->prepare("SELECT lastname, firstname, email, phone FROM contacts WHERE client_id = ?");
+    $stmtContacts->execute([$clientId]);
+    $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($contacts)) return;
+
+    $subject = "NOTFALL-ALARM: $clientName wurde nicht erreicht!";
+    $messageText = "ACHTUNG: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
+
+    // 3. Kontakte durchlaufen
+    foreach ($contacts as $contact) {
+
+        // A) E-Mail versenden (wenn vorhanden)
+        if (!empty($contact['email'])) {
+            $headers = [
+                'From' => 'no-reply@giulianacare.de',
+                'Reply-To' => 'support@giulianacare.de',
+                'Content-Type' => 'text/plain; charset=UTF-8',
+                'X-Mailer' => 'PHP/' . phpversion()
+            ];
+
+            mail($contact['email'], $subject, $messageText, $headers);
+        }
+
+        // B) SMS versenden (NUR wenn sms_status = true UND Telefonnummer vorhanden)
+        if ($smsEnabled && !empty($contact['tel1'])) {
+            sendSmsNotification($contact['tel1'], $messageText);
+        }
+    }
+}
+
+/**
+ * Hilfsfunktion zum Versenden von SMS via API (z. B. Seven.io, Twilio, etc.)
+ */
+function sendSmsNotification(string $phoneNumber, string $message): void
+{
+    // Sicherheitsprüfung: Sind die Konstanten in der config.php definiert?
+    if (!defined('TWILIO_ACCOUNT_SID') || !defined('TWILIO_AUTH_TOKEN') || !defined('TWILIO_PHONE_NUMBER')) {
+        error_log("Twilio SMS-Fehler: Zugangsdaten (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER) fehlen in config.php.");
+        return;
+    }
+
+    $url = "https://api.twilio.com/2010-04-01/Accounts/" . TWILIO_ACCOUNT_SID . "/Messages.json";
+
+    $postData = [
+        'From' => TWILIO_PHONE_NUMBER,
+        'To'   => $phoneNumber,
+        'Body' => $message
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+
+    // Twilio HTTP Basic Auth via Account SID & Auth Token
+    curl_setopt($ch, CURLOPT_USERPWD, TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    // Fehler-Logging, falls Twilio keinen 201-Created-Status zurückgibt
+    if ($httpCode !== 201) {
+        error_log("Twilio SMS-Fehler (Status $httpCode): " . $response);
     }
 }
 
