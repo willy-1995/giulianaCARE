@@ -3,6 +3,7 @@ require_once "cors.php";
 require_once "config.php";
 require_once "envloader.php";
 require_once "database.php";
+require_once "rate_limiter.php";
 
 
 // 1. INPUT ERFASSEN
@@ -42,6 +43,10 @@ switch ($action) {
         break;
 
     case 'test_call': // NEU: Der Fall für die Landingpage
+
+        // Erlaubt maximal 2 Testanrufe pro IP-Adresse innerhalb von 1 Stunde (3600 Sek.)
+        checkRateLimit('landingpage_test_call', 2, 3600);
+
         if ($directPhoneNumber) {
             // Wir erstellen ein temporäres Payload ohne DB-Abfrage
             executeDirectTestCall($directPhoneNumber);

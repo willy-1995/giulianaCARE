@@ -1,8 +1,9 @@
 <?php
-// CORS Headers for React frontend requests
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
+require_once "cors.php";
+require_once "rate_limiter.php"; // <-- Datei einbinden
+
+// Rate Limiter ausführen (baut DB-Verbindung selbst auf)
+checkRateLimit('contact_request', 5, 600);
 
 // Respond immediately to preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
