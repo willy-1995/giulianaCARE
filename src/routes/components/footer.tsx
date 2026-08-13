@@ -33,13 +33,13 @@ function Footer() {
           </Link>
         </div>
         <footer>
-          <Link to={"/legals"} className="legal-link">
+          <Link to={"/legal"} className="legal-link">
             Impressum
           </Link>
-          <Link to={"/legals"} className="legal-link">
+          <Link to={"/legal"} className="legal-link">
             Datenschutz
           </Link>
-          <Link to={"/legals"} className="legal-link">
+          <Link to={"/legal"} className="legal-link">
             AGB
           </Link>
         </footer>

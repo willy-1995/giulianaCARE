@@ -11,6 +11,7 @@ import { ProtectedRoute } from "./routes/protectedRoutes";
 import Dashboard from "./routes/dashboard";
 import Settings from "./routes/settings";
 import Request from "./routes/request";
+import Legal from "./routes/legals";
 import "./routes/styles/main.scss";
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/registration" element={<Registration />} />
           <Route path="/login" element={<Login />} />
           <Route path="/request" element={<Request />} />
+          <Route path="/legal" element={<Legal />} />
           {/*protected sites */}
           <Route
             path="/dashboard"
