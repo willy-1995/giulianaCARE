@@ -1,9 +1,12 @@
+//BASE URL
+import { API_BASE } from "../assets/base_url";
+
 export const loadClients = async (setLoading: (loading: boolean) => void) =>{
     const token = localStorage.getItem("token");
     if (!token) return { success: false, message: "Kein Token vorhanden" };
     setLoading(true);
     try{const response = await fetch(
-      "http://localhost/giulianaCare/api/clients_manager.php",
+      `${API_BASE}/api/clients_manager.php`,
       {
         method: "GET",
         headers: {
@@ -34,7 +37,7 @@ export const loadClients = async (setLoading: (loading: boolean) => void) =>{
     if (!token) return { success: false, message: "Kein Token vorhanden" };
     setLoading(true);
     try{const response = await fetch(
-      "http://localhost/giulianaCare/api/contacts_manager.php",
+      `${API_BASE}/api/contacts_manager.php`,
       {
         method: "GET",
         headers: {

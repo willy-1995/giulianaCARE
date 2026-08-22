@@ -3,6 +3,8 @@ import Footer from "./components/footer";
 import Navbar from "./components/navbar";
 import "./styles/request.scss";
 import "./styles/main.scss";
+//BASE URL
+import { API_BASE } from "../assets/base_url";
 
 const MAX_LENGTH = 500;
 
@@ -41,13 +43,10 @@ export default function Request() {
       body.append("content", formData.content);
 
       // Pfad zu deinem PHP-Skript anpassen (z. B. "/api/kontakt.php")
-      const response = await fetch(
-        "http://localhost/giulianaCare/api/request.php",
-        {
-          method: "POST",
-          body: body,
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/request.php`, {
+        method: "POST",
+        body: body,
+      });
 
       if (response.ok) {
         setStatus({

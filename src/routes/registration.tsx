@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ApiResponse } from "../types/api";
 import "./styles/main.scss";
-
+//BASE URL
+import { API_BASE } from "../assets/base_url";
 import Navbar from "./components/navbar";
 import Footer from "./components/footer";
 import "./styles/registration.scss";
@@ -43,7 +44,7 @@ function Registration() {
 
     try {
       const response = await fetch(
-        "http://localhost/giulianaCare/api/users_manager.php", // Deine API Route
+        `${API_BASE}/api/users_manager.php`, // Deine API Route
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

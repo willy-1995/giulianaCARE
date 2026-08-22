@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+//BASE URL
+import { API_BASE } from "../assets/base_url";
 
 const TestCallForm: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -48,15 +50,12 @@ const TestCallForm: React.FC = () => {
 
     try {
       // Absenden an deine call_manager.php auf dem Server (bzw. Localhost)
-      const response = await fetch(
-        "http://localhost/giulianaCARE/api/call_manager.php",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          // Wir senden eine neue Action "test_call" und die Nummer direkt mit
-          body: `action=test_call&phone_number=${encodeURIComponent(phoneNumber)}`,
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/call_manager.php`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        // Wir senden eine neue Action "test_call" und die Nummer direkt mit
+        body: `action=test_call&phone_number=${encodeURIComponent(phoneNumber)}`,
+      });
 
       console.log("Fetch geschickt!");
       const result = await response.json();

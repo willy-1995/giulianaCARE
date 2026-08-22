@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost/giulianaCare/api";
+//BASE URL
+import { API_BASE } from "../assets/base_url";
 
 export const updateClient = async (
   id: number,

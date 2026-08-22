@@ -7,6 +7,8 @@ import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import Navbar from "./components/navbar";
 import Footer from "./components/footer";
 import "./styles/login.scss";
+//BASE URL
+import { API_BASE } from "../assets/base_url";
 
 function Login() {
   //STATES
@@ -24,14 +26,11 @@ function Login() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        "http://localhost/giulianaCare/api/auth/auth.php",
-        {
-          method: "POST",
-          body: JSON.stringify({ email, password }),
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/auth/auth.php`, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+        headers: { "Content-Type": "application/json" },
+      });
 
       const rawData = await response.text();
       console.log("Serverantwort: ", rawData);
