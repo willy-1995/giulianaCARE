@@ -178,6 +178,13 @@ function TeleCare() {
             </p>
           </div>
         </div>
+        <div className="video-div">
+          <video
+            src="/media/placeholder_vid.mp4"
+            className="telecare-video"
+            controls
+          ></video>
+        </div>
         <div className="service-info-div">
           <h2>
             Im Gegensatz zum klassischen Hausnotruf beugen Sie mit giulianaCare

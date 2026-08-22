@@ -511,3 +511,21 @@
     z-index: 1000; // Liegt sicher über dem Overlay
   }
 }
+
+.video-div {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 50px 0;
+  .telecare-video {
+    width: 50%;
+    border-radius: 5px;
+    box-shadow: 0 0 10px var(--shadow-color);
+
+    @media (max-width: 700px) {
+      width: 80%;
+    }
+  }
+}
