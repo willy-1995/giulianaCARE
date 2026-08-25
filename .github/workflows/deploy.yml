@@ -10,6 +10,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout Repository
@@ -18,22 +19,32 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install Dependencies & Build React App
         run: |
           npm install
           npm run build
 
-      - name: Prepare Deployment Files
-        run: |
-          cp -r dist/* .
-
-      - name: SFTP Deploy to IONOS
+      # 1. React Frontend hochladen
+      - name: Deploy Frontend (React)
         uses: wlixcc/SFTP-Deploy-Action@v1.2.5
         with:
           server: ${{ secrets.SFTP_SERVER }}
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
+          local_path: "./dist/*"
           remote_path: "./"
           sftp_only: true
+
+      # 2. PHP API hochladen (ohne vendor zu überschreiben)
+      - name: Deploy Backend (PHP API)
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.5
+        with:
+          server: ${{ secrets.SFTP_SERVER }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          local_path: "./api/*"
+          remote_path: "./api"
+          sftp_only: true
+          sftpArgs: "-x" # Ignoriert den existierenden vendor-Ordner beim Upload
