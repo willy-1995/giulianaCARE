@@ -5,8 +5,6 @@ import Landing from "./routes/landing";
 import TeleCare from "./routes/telecare";
 import Registration from "./routes/registration";
 import Login from "./routes/login";
-import { EditUserAccount } from "./routes/editUserAccount";
-import UserDataForm from "./assets/userdataform";
 import { ProtectedRoute } from "./routes/protectedRoutes";
 import Dashboard from "./routes/dashboard";
 import Settings from "./routes/settings";
@@ -48,14 +46,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <Settings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/editUserAccount"
-            element={
-              <ProtectedRoute>
-                <EditUserAccount />
               </ProtectedRoute>
             }
           />
