@@ -28,7 +28,7 @@ jobs:
           cp -r dist/* .
 
       - name: SFTP Deploy to IONOS
-        uses: SamKirsch/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.SFTP_SERVER }}
           username: ${{ secrets.SFTP_USERNAME }}
