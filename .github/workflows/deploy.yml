@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - master
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -28,19 +30,11 @@ jobs:
           cp -r dist/* .
 
       - name: SFTP Deploy to IONOS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.5
         with:
-          server: ${{ secrets.SFTP_SERVER }}
+          host: ${{ secrets.SFTP_SERVER }}
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
-          server-dir: ${{ secrets.SFTP_TARGET_FOLDER }}/
-          port: 22
-          security: strict
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/src/**
-            README.md
-            package.json
-            package-lock.json
+          remote_path: ${{ secrets.SFTP_TARGET_FOLDER }}
+          sftp_only: true
+          delete_remote: false
