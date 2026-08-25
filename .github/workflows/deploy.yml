@@ -35,6 +35,6 @@ jobs:
           server: ${{ secrets.SFTP_SERVER }}
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
-          remote_path: ${{ secrets.SFTP_TARGET_FOLDER }}
+          remote_path: "./giulianacare"
           sftp_only: true
           delete_remote: false
