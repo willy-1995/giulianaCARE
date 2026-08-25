@@ -1,0 +1,44 @@
+name: Deploy to IONOS Webhosting
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Dependencies & Build React App
+        run: |
+          npm install
+          npm run build
+
+      - name: Prepare Deployment Files
+        run: |
+          cp -r dist/* .
+
+      - name: SFTP Deploy to IONOS
+        uses: SamKirsch/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.SFTP_SERVER }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          server-dir: ${{ secrets.SFTP_TARGET_FOLDER }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/src/**
+            README.md
+            package.json
+            package-lock.json
