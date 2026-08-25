@@ -37,7 +37,7 @@ jobs:
           remote_path: "./"
           sftp_only: true
 
-      # 2. PHP API hochladen (ohne vendor zu überschreiben)
+      # 2. PHP API hochladen
       - name: Deploy Backend (PHP API)
         uses: wlixcc/SFTP-Deploy-Action@v1.2.5
         with:
@@ -47,4 +47,3 @@ jobs:
           local_path: "./api/*"
           remote_path: "./api"
           sftp_only: true
-          sftpArgs: "-x" # Ignoriert den existierenden vendor-Ordner beim Upload
