@@ -34,8 +34,8 @@ jobs:
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
           server-dir: ${{ secrets.SFTP_TARGET_FOLDER }}/
-          protocol: sftp
           port: 22
+          security: strict
           exclude: |
             **/.git*
             **/.git*/**
