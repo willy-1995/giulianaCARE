@@ -9,7 +9,6 @@ use Firebase\JWT\Key;
  */
 function createJWT(int $userId, string $email, string $username): string
 {
-    // Holt sich den Key direkt aus der Umgebungsvariable
     $secretKey = $_ENV['JWT_SECRET'] ?? '';
 
     $payload = [
@@ -35,19 +34,30 @@ function verifyJWT(string $token): object
 /**
  * Holt die User-ID aus dem Authorization-Header
  */
-function getUserIdFromToken() // <-- KEIN Parameter mehr nötig!
+function getUserIdFromToken()
 {
-    $secretKey = $_ENV['JWT_SECRET'] ?? ''; // Holt sich den Key selbst
+    $secretKey = $_ENV['JWT_SECRET'] ?? '';
 
-    $headers = getallheaders();
-    // Fix für Server, die "authorization" kleinschreiben
-    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    // Robust alle möglichen Server-Quellen für den Authorization-Header prüfen
+    $authHeader = '';
+    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+    } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    } elseif (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    }
 
-    if (preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+    // Steuerzeichen & Zeilenumbrüche säubern
+    $authHeader = str_replace(["\r", "\n"], '', trim($authHeader));
+
+    // Regex akzeptiert beliebige Abstände zwischen Bearer und Token
+    if (!empty($authHeader) && preg_match('/Bearer\s+(.+)/i', $authHeader, $matches)) {
+        $token = trim($matches[1]);
+
         try {
-            // Hier nutzen wir das interne $secretKey
-            $decoded = JWT::decode($matches[1], new Key($secretKey, 'HS256'));
-
+            $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
             $finalId = $decoded->id ?? $decoded->user_id ?? null;
 
             if ($finalId) {
@@ -56,11 +66,17 @@ function getUserIdFromToken() // <-- KEIN Parameter mehr nötig!
             throw new Exception("ID nicht im Token enthalten");
         } catch (Exception $e) {
             http_response_code(401);
-            echo json_encode(["success" => false, "message" => "JWT FEHLER " . $e->getMessage()]);
+            echo json_encode(["success" => false, "message" => "JWT FEHLER: " . $e->getMessage()]);
             exit;
         }
     }
+
+    // Fallback: Wenn der Header schlicht nicht gegriffen hat
     http_response_code(401);
-    echo json_encode(["success" => false, "message" => "Nicht autorisiert"]);
+    echo json_encode([
+        "success" => false,
+        "message" => "Nicht autorisiert (Header nicht gefunden)",
+        "received_header" => $authHeader
+    ]);
     exit;
 }
