@@ -38,25 +38,22 @@ function getUserIdFromToken()
 {
     $secretKey = $_ENV['JWT_SECRET'] ?? '';
 
-    // Durchsucht ALLE Server-Variablen nach dem Wort AUTHORIZATION (case-insensitive)
-    $authHeader = '';
-    foreach ($_SERVER as $key => $value) {
-        if (stristr($key, 'authorization') !== false && !empty($value)) {
-            $authHeader = $value;
-            break;
+    // 1. Liest den Custom-Header aus (wird von IONOS NIEMALS gefiltert)
+    $token = $_SERVER['HTTP_X_ACCESS_TOKEN'] ?? '';
+
+    // 2. Fallback: Falls doch noch der Standard-Header da ist
+    if (empty($token)) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION']
+            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+            ?? '';
+        if (preg_match('/Bearer\s+(\S+)/i', trim($authHeader), $matches)) {
+            $token = $matches[1];
         }
     }
 
-    // Fallback falls getallheaders doch was liefert
-    if (empty($authHeader) && function_exists('getallheaders')) {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-    }
+    $token = trim($token);
 
-    // Token verifizieren
-    if (preg_match('/Bearer\s+(\S+)/i', trim($authHeader), $matches)) {
-        $token = $matches[1];
-
+    if (!empty($token)) {
         try {
             $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
             $finalId = $decoded->id ?? $decoded->user_id ?? null;
@@ -73,6 +70,6 @@ function getUserIdFromToken()
     }
 
     http_response_code(401);
-    echo json_encode(["success" => false, "message" => "Nicht autorisiert"]);
+    echo json_encode(["success" => false, "message" => "Nicht autorisiert (Kein Token übergeben)"]);
     exit;
 }

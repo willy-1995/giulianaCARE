@@ -15,7 +15,7 @@ if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed
 }
 
 header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Access-Token");
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, OPTIONS, DELETE");
 header("Content-Type: application/json; charset=UTF-8");
 

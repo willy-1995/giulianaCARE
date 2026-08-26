@@ -229,7 +229,7 @@ export default function Dashboard() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${cleanToken}`,
+            "X-Access-Token": cleanToken,
           },
           body: JSON.stringify(preparedData),
         });
