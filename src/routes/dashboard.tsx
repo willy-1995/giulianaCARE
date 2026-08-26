@@ -197,6 +197,9 @@ export default function Dashboard() {
     const token = localStorage.getItem("token");
     const cleanToken = token ? token.replace(/[\r\n]/g, "").trim() : "";
 
+    console.log("LocalStorage 'token' Inhalt:", token);
+    console.log("Gesendetes cleanToken:", cleanToken);
+
     //Convert times for MySQL
     const preparedData = {
       ...formDataClients,
