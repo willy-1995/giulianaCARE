@@ -195,6 +195,7 @@ export default function Dashboard() {
   const handleClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
+    const cleanToken = token ? token.replace(/[\r\n]/g, "").trim() : "";
 
     //Convert times for MySQL
     const preparedData = {
@@ -228,7 +229,7 @@ export default function Dashboard() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${cleanToken}`,
           },
           body: JSON.stringify(preparedData),
         });
@@ -265,6 +266,7 @@ export default function Dashboard() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
+    const cleanToken = token ? token.replace(/[\r\n]/g, "").trim() : "";
 
     if (isEditMode && currentEditId) {
       // UPDATE LOGIC
@@ -291,7 +293,7 @@ export default function Dashboard() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${cleanToken}`,
           },
           body: JSON.stringify(payload),
         });
