@@ -38,23 +38,32 @@ function getUserIdFromToken()
 {
     $secretKey = $_ENV['JWT_SECRET'] ?? '';
 
-    // Robust alle möglichen Server-Quellen für den Authorization-Header prüfen
-    $authHeader = '';
-    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-        $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
-    } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-        $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-    } elseif (function_exists('getallheaders')) {
+    // Versuche alle 4 Wege, wie Apache/IONOS den Header an PHP übergeben kann:
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION']
+        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+        ?? $_SERVER['Authorization']
+        ?? '';
+
+    // Falls die Server-Variablen leer sind, erst dann getallheaders versuchen
+    if (empty($authHeader) && function_exists('getallheaders')) {
         $headers = getallheaders();
         $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
     }
 
-    // Steuerzeichen & Zeilenumbrüche säubern
-    $authHeader = str_replace(["\r", "\n"], '', trim($authHeader));
+    // DEBUG: Falls immer noch leer, breche ab und zeige alle Server-Keys an
+    if (empty($authHeader)) {
+        http_response_code(401);
+        echo json_encode([
+            "success" => false,
+            "message" => "Header auf dem Server nicht gefunden. .htaccess prüfen!",
+            "available_server_keys" => array_keys($_SERVER) // Zeigt uns, wo IONOS den Header versteckt
+        ]);
+        exit;
+    }
 
-    // Regex akzeptiert beliebige Abstände zwischen Bearer und Token
-    if (!empty($authHeader) && preg_match('/Bearer\s+(.+)/i', $authHeader, $matches)) {
-        $token = trim($matches[1]);
+    // Token extrahieren und verifizieren
+    if (preg_match('/Bearer\s+(\S+)/i', trim($authHeader), $matches)) {
+        $token = $matches[1];
 
         try {
             $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
@@ -71,12 +80,7 @@ function getUserIdFromToken()
         }
     }
 
-    // Fallback: Wenn der Header schlicht nicht gegriffen hat
     http_response_code(401);
-    echo json_encode([
-        "success" => false,
-        "message" => "Nicht autorisiert (Header nicht gefunden)",
-        "received_header" => $authHeader
-    ]);
+    echo json_encode(["success" => false, "message" => "Nicht autorisiert (Bearer Format falsch)"]);
     exit;
 }
