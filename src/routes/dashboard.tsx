@@ -15,6 +15,7 @@ import Footer from "./components/footer";
 import "./styles/dashboard.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrash, faSliders } from "@fortawesome/free-solid-svg-icons";
+import { API_BASE } from "../assets/base_url";
 
 interface Client {
   status: string;
@@ -223,17 +224,14 @@ export default function Dashboard() {
     } else {
       // ADD LOGIC
       try {
-        const response = await fetch(
-          "http://localhost/giulianaCare/api/clients_manager.php",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(preparedData),
+        const response = await fetch(`${API_BASE}/api/clients_manager.php`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-        );
+          body: JSON.stringify(preparedData),
+        });
 
         const result = await response.json();
 
@@ -289,17 +287,14 @@ export default function Dashboard() {
       if (!selectedClientId) return;
       const payload = { ...formDataContacts, client_id: selectedClientId };
       try {
-        const response = await fetch(
-          "http://localhost/giulianaCare/api/contacts_manager.php",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
+        const response = await fetch(`${API_BASE}/api/contacts_manager.php`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-        );
+          body: JSON.stringify(payload),
+        });
 
         const result = await response.json();
 
