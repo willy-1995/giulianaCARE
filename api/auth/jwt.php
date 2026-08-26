@@ -38,19 +38,22 @@ function getUserIdFromToken()
 {
     $secretKey = $_ENV['JWT_SECRET'] ?? '';
 
-    // 1. Authorization Header aus allen Server-Quellen abrufen
-    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
-        ?? $_SERVER['HTTP_AUTHORIZATION']
-        ?? $_SERVER['Authorization']
-        ?? '';
+    // Durchsucht ALLE Server-Variablen nach dem Wort AUTHORIZATION (case-insensitive)
+    $authHeader = '';
+    foreach ($_SERVER as $key => $value) {
+        if (stristr($key, 'authorization') !== false && !empty($value)) {
+            $authHeader = $value;
+            break;
+        }
+    }
 
-    // Fallback über getallheaders(), falls Server-Variablen leer sind
+    // Fallback falls getallheaders doch was liefert
     if (empty($authHeader) && function_exists('getallheaders')) {
         $headers = getallheaders();
         $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
     }
 
-    // 2. Token extrahieren (akzeptiert zeilenumbruchsfreie Bearer-Tokens)
+    // Token verifizieren
     if (preg_match('/Bearer\s+(\S+)/i', trim($authHeader), $matches)) {
         $token = $matches[1];
 
@@ -69,12 +72,7 @@ function getUserIdFromToken()
         }
     }
 
-    // Falls gar kein Token gefunden werden konnte
     http_response_code(401);
-    echo json_encode([
-        "success" => false,
-        "message" => "Authorization-Header konnte nicht ausgelesen werden",
-        "debug_raw" => $authHeader
-    ]);
+    echo json_encode(["success" => false, "message" => "Nicht autorisiert"]);
     exit;
 }
