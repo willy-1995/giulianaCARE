@@ -1,0 +1,14 @@
+#Diese Datei vermeidet den Reload Fail und leitet immer wieder auf die index.html um
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Wenn eine Datei oder ein Ordner wirklich existiert, lade diese direkt (z.B. main.js, logo.png)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  
+  # Alle anderen Aufrufe (wie /dashboard, /clients etc.) auf index.html umleiten
+  RewriteRule ^ index.html [L]
+</IfModule>
