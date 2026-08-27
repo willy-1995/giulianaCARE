@@ -291,6 +291,7 @@
       width: 29%;
       background-color: var(--accent-color);
       padding: 40px 0;
+      box-shadow: 0 0 10px var(--shadow-color);
 
       @media (max-width: 700px) {
         width: 90%;
