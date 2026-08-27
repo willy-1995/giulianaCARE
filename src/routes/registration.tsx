@@ -16,12 +16,9 @@ function Registration() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    role: "patient", // Standardmäßig Patient
-    // Patienten-Felder
-    first_name: "",
-    last_name: "",
-    // Praxis-Felder
-    practice_name: "",
+    area_code: "",
+    country: "",
+    agbAccepted: false,
   });
 
   const handleChange = (
@@ -29,10 +26,17 @@ function Registration() {
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >,
   ) => {
-    const { name, value } = e.target;
+    const target = e.target;
+    const { name, value } = target;
+
+    const newValue =
+      target instanceof HTMLInputElement && target.type === "checkbox"
+        ? target.checked
+        : value;
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: newValue,
     }));
   };
 
@@ -77,6 +81,29 @@ function Registration() {
         <form onSubmit={registHandler} className="regist-form">
           <h1>Registrierung</h1>
 
+          <select
+            name="country"
+            value={formData.country}
+            onChange={handleChange}
+            required
+          >
+            <option value="" disabled hidden>
+              Land wählen
+            </option>
+            <option value="Deutschland">Deutschland</option>
+            <option value="Österreich">Österreich</option>
+            <option value="Schweiz">Schweiz</option>
+          </select>
+
+          <input
+            type="text"
+            name="area_code"
+            placeholder="Postleitzahl"
+            value={formData.area_code}
+            onChange={handleChange}
+            required
+          />
+
           <input
             type="email"
             name="email"
@@ -98,6 +125,25 @@ function Registration() {
           {!isPasswordValid && formData.password.length > 0 && (
             <p className="error-text">Min. 8 Zeichen benötigt.</p>
           )}
+
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              name="agbAccepted"
+              checked={formData.agbAccepted}
+              onChange={handleChange}
+              required
+            />
+            Ich akzeptiere die{" "}
+            <a href="/agb" target="_blank">
+              AGB
+            </a>{" "}
+            und die{" "}
+            <a href="/datenschutz" target="_blank">
+              Datenschutzerklärung
+            </a>
+            .
+          </label>
 
           <button disabled={!isPasswordValid}>Jetzt Registrieren</button>
         </form>
