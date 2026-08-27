@@ -290,11 +290,13 @@
       flex-direction: column;
       width: 29%;
       background-color: var(--accent-color);
+      padding: 40px 0;
 
       @media (max-width: 700px) {
         width: 90%;
         margin: 0 auto;
         margin-bottom: 20px;
+        padding: 0;
       }
 
       h2 {
@@ -307,6 +309,7 @@
         width: 90%;
         margin: auto;
         font-weight: 600;
+        color: gray;
       }
     }
 
