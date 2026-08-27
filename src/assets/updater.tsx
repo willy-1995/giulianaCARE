@@ -61,7 +61,7 @@ export const toggleStatus = async (
   if (!token) return { success: false, message: "Kein Token vorhanden" };
   if (setLoading) setLoading(true);
   try {
-    const response = await fetch(`${API_BASE}/clients_manager.php`, {
+    const response = await fetch(`${API_BASE}/api/clients_manager.php`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
