@@ -24,10 +24,10 @@ export default function Settings() {
       </div>
       <div className="setting-sections-div">
         <div className="setting-section">
-          <h2>Account</h2>
+          <h2>Dein Account</h2>
         </div>
         <div className="setting-section">
-          <h2>Abonnement</h2>
+          <h3>Abonnement</h3>
         </div>
         <div className="settings-section">
           <button onClick={handleLogout} className="logout">
