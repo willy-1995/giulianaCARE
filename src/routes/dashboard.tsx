@@ -398,10 +398,7 @@ export default function Dashboard() {
       {message && <div className="message-div">{message}</div>}
       <div className="dash-section">
         <div className="dash-header">
-          <h2>
-            Angemeldete Person(en)
-            <button onClick={() => openClientModal()}>Person hinzufügen</button>
-          </h2>
+          <h2>Angemeldete Person(en)</h2>
         </div>
 
         <div className="client-div section-sub-div">
@@ -557,7 +554,12 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : (
-                <p className="noListInfo">Keine Einträge</p>
+                <div className="noListInfo">
+                  <p>Keine Einträge</p>
+                  <button onClick={() => openClientModal()}>
+                    Person hinzufügen
+                  </button>
+                </div>
               )}
             </div>
           )}
