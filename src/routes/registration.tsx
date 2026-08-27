@@ -85,6 +85,7 @@ function Registration() {
             name="country"
             value={formData.country}
             onChange={handleChange}
+            className="country_select"
             required
           >
             <option value="" disabled hidden>
