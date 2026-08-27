@@ -156,23 +156,23 @@ function TeleCare() {
         </h2>
         <div className="working-grid">
           <div className="working-card card">
+            <h2>1. Anmelden</h2>
             <p>
-              <h2>1. Anmelden</h2>
               Registrieren Sie sich bei giulianaCare und wählen Sie bis zu 3
               Anrufzeiten aus. Diese können jederzeit später werden!
             </p>
           </div>
           <div className="working-card card">
+            <h2>2. Tägliche Anrufe</h2>
             <p>
-              <h2>2. Tägliche Anrufe</h2>
               Die zu betreuende Person kriegt täglich bis zu 3 Anrufe, in
               welchem nach dem Wohlbefinden gefragt oder an Wichtiges erinnert
               wird.
             </p>
           </div>
           <div className="working-card card">
+            <h2>3. Kontaktiert Angehörige</h2>
             <p>
-              <h2>3. Kontaktiert Angehörige</h2>
               Geht niemand ran? Sie erhalten sofort eine Nachricht per SMS und
               E-Mail.
             </p>
