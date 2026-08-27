@@ -30,6 +30,11 @@
 
     .checkbox-label {
       display: unset;
+      text-align: center;
+
+      input {
+        margin-right: 5px;
+      }
     }
 
     .error-text {

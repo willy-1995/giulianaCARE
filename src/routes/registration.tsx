@@ -102,6 +102,8 @@ function Registration() {
             placeholder="Postleitzahl"
             value={formData.area_code}
             onChange={handleChange}
+            maxLength={5}
+            minLength={5}
             required
           />
 
