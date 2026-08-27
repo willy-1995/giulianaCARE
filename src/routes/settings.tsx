@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useEffect } from "react";
 import SubNavbar from "./components/navbar_sub";
 import Footer from "./components/footer";
+import "./styles/settings.scss";
 
 export default function Settings() {
   //LOGOUT
