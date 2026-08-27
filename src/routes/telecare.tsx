@@ -78,7 +78,7 @@ function TeleCare() {
               alleinstehende Seniorinnen und Senioren. Im Gegensatz zum
               Hausnotruf wirkt giulianaCare <b>präventiv</b>. Bis zu drei
               tägliche, freundliche SicherheitsAnrufe. Und geht keiner ran,
-              werden Sie sofort benachrichtigt.
+              wirst Du sofort benachrichtigt.
             </p>
             <br />
             <br />
@@ -187,8 +187,8 @@ function TeleCare() {
         </div>
         <div className="service-info-div">
           <h2>
-            Im Gegensatz zum klassischen Hausnotruf beugen Sie mit giulianaCare
-            Telebetreuung Ernstfällen bequem vor und können diese frühzeitig
+            Im Gegensatz zum klassischen Hausnotruf beugst Du mit giulianaCare
+            Telebetreuung Ernstfällen bequem vor und kannst diese frühzeitig
             erkennen.{" "}
           </h2>
           <div className="table-div">

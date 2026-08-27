@@ -555,7 +555,7 @@ export default function Dashboard() {
                 ))
               ) : (
                 <div className="noListInfo">
-                  <p>Keine Einträge</p>
+                  <p>Trage deine zu betreuende Person ein</p>
                   <button onClick={() => openClientModal()}>
                     Person hinzufügen
                   </button>
