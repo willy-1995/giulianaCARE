@@ -155,16 +155,16 @@ form {
     flex-direction: column;
     margin-bottom: 20px;
     gap: 10px;
+  }
 
-    input,
-    select,
-    textarea {
-      border-radius: 15px;
-      border: none;
-      box-shadow: 0 0 10px var(--shadow-color);
-      padding: 5px 10px;
-      font-size: 1.05rem;
-    }
+  input,
+  select,
+  textarea {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 0 10px var(--shadow-color);
+    padding: 5px 10px;
+    font-size: 1.05rem;
   }
 }
 
@@ -172,6 +172,16 @@ button {
   margin: 0 auto;
   margin-bottom: 20px;
   width: 90%;
+}
+
+input,
+select,
+textarea {
+  border-radius: 15px;
+  border: none;
+  box-shadow: 0 0 10px var(--shadow-color);
+  padding: 5px 10px;
+  font-size: 1.05rem;
 }
 
 //===================================================
