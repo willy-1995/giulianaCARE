@@ -145,7 +145,9 @@ function Registration() {
             .
           </label>
 
-          <button disabled={!isPasswordValid}>Jetzt Registrieren</button>
+          <button disabled={!isPasswordValid || !formData.agbAccepted}>
+            Jetzt Registrieren
+          </button>
         </form>
 
         {message && <div className="message-div">{message}</div>}
