@@ -35,7 +35,6 @@ interface Client {
   call_1: string;
   call_2: string;
   call_3: string;
-  call_4: string;
 }
 
 interface Contact {
@@ -64,7 +63,6 @@ const initialClientState = {
   call_1: "",
   call_2: "",
   call_3: "",
-  call_4: "",
 };
 
 const initialContactState = {
@@ -206,7 +204,6 @@ export default function Dashboard() {
       call_1: formDataClients.call_1 || null,
       call_2: formDataClients.call_2 || null,
       call_3: formDataClients.call_3 || null,
-      call_4: formDataClients.call_4 || null,
     };
 
     if (isEditMode && currentEditId) {
@@ -560,7 +557,7 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : (
-                <p>Keine Einträge</p>
+                <p className="noListInfo">Keine Einträge</p>
               )}
             </div>
           )}
