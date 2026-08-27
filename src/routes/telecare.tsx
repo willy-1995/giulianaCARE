@@ -140,7 +140,7 @@ function TeleCare() {
             </div>
             <div className="img-container" id="img-3">
               <img
-                src={getAssetUrl("media/woman.png")}
+                src={getAssetUrl("media/woman.jpg")}
                 alt=""
                 id="img-womanThink"
                 className="intro-img"
