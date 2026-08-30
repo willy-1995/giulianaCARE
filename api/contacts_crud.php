@@ -27,10 +27,10 @@ class ContactsManager
 
             $sql = "INSERT INTO contacts (
                         client_id, lastname, firstname, address, 
-                        tel1, tel2, email
+                        tel1, email
                     ) VALUES (
                         :client_id, :lastname, :firstname, :address, 
-                        :tel1, :tel2, :email
+                        :tel1, :email
                     )";
 
             $stmt = $this->conn->prepare($sql);
@@ -40,7 +40,6 @@ class ContactsManager
                 ':firstname' => $contactData['firstname'] ?? null,
                 ':address'   => $contactData['address'] ?? null,
                 ':tel1' => $contactData['tel1'] ?? null,
-                ':tel2'    => $contactData['tel2'] ?? null,
                 ':email'     => $contactData['email'] ?? null
             ]);
 
@@ -103,7 +102,6 @@ class ContactsManager
                         firstname = :firstname, 
                         address = :address, 
                         tel1 = :tel1, 
-                        tel2 = :tel2, 
                         email = :email
                     WHERE id = :id";
 
@@ -113,7 +111,6 @@ class ContactsManager
                 ':firstname' => $contactData['firstname'],
                 ':address'   => $contactData['address'],
                 ':tel1' => $contactData['tel1'],
-                ':tel2'    => $contactData['tel2'],
                 ':email'     => $contactData['email'],
                 ':id'        => $id
             ]);
