@@ -17,10 +17,14 @@
   display: flex;
   flex-direction: column;
 
-  setting-section {
+  .setting-section {
     display: flex;
     flex-direction: column;
     padding-left: 10px;
+
+    h3 {
+      margin-bottom: 20px;
+    }
 
     .setting-button {
       width: 100px;
