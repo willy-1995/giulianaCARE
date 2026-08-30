@@ -93,7 +93,7 @@ export default function Settings() {
             onClick={() => setIsModalOpen(true)}
             className="logout setting-button"
           >
-            Daten ändern
+            Bearbeiten
           </button>
           <button onClick={handleLogout} className="logout setting-button">
             Ausloggen
@@ -105,7 +105,7 @@ export default function Settings() {
         <div className="settings-section">
           <button
             onClick={handleDeleteAccount}
-            className="deleteAccount settin-button"
+            className="deleteAccount setting-button"
           >
             Kündigen
           </button>
