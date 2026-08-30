@@ -102,7 +102,7 @@ export default function Settings() {
         <div className="setting-section">
           <h3>Abonnement</h3>
         </div>
-        <div className="settings-section">
+        <div className="setting-section">
           <button
             onClick={handleDeleteAccount}
             className="deleteAccount setting-button"
