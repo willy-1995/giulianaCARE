@@ -106,6 +106,7 @@ function executeCall($db, $clientId, $telType, $cycle)
     error_log("--- SCHRITT 2: Sende Anruf an Nummer: $phone ---");
 
     // 2. Vapi Payload
+    // 2. Vapi Payload
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
@@ -121,15 +122,16 @@ function executeCall($db, $clientId, $telType, $cycle)
                     ]
                 ]
             ],
-            'endCallFunctionEnabled' => true
-        ],
-        'customer' => [
-            'number' => $phone,
-            'extension' => [
-                'clientId' => $clientId,
-                'cycle'    => $cycle,
+            'endCallFunctionEnabled' => true,
+            // HIER DIE EIGENEN VARIABLEN HINZU FÜGEN:
+            'variableValues' => [
+                'clientId' => (string)$clientId,
+                'cycle'    => (string)$cycle,
                 'telType'  => $telType
             ]
+        ],
+        'customer' => [
+            'number' => $phone
         ]
     ];
 
