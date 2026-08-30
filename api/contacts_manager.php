@@ -15,7 +15,7 @@ $clientsManager = new ClientsManager();
 
 try {
     // Authentifizierung: Wer fragt an?
-    $currentUserId = getUserIdFromToken($jwt_key);
+    $currentUserId = getUserIdFromToken();
 
     switch ($method) {
         // ==========================================
