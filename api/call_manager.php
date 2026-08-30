@@ -1,4 +1,8 @@
 <?php
+
+// Aktiviert das Schreiben von Fehlern in eine benutzerdefinierte Datei
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/my_php_errors.log');
 require_once "cors.php";
 require_once "config.php";
 require_once "envloader.php";
@@ -68,6 +72,7 @@ switch ($action) {
 }
 
 // --- FUNKTIONEN ---
+//execute call with logs
 function executeCall($db, $clientId, $telType, $cycle)
 {
     error_log("--- SCHRITT 1: executeCall gestartet für Client ID: $clientId ---");
