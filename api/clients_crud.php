@@ -112,7 +112,7 @@ class ClientsManager
                         info = :info,
                         call_1 = :call_1,
                         call_2 = :call_2,
-                        call_3 = :call_3,
+                        call_3 = :call_3
                     WHERE id = :id";
 
             $stmt = $this->conn->prepare($sql);
