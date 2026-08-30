@@ -12,6 +12,7 @@ import Request from "./routes/request";
 import Legal from "./routes/legals";
 import Feedback from "./routes/feedback";
 import "./routes/styles/main.scss";
+import { useEffect } from "react";
 
 function App() {
   // Hier definieren wir die Zustände für Token und ID
@@ -21,6 +22,11 @@ function App() {
   const [myId, setMyId] = useState<number | null>(
     localStorage.getItem("myId") ? Number(localStorage.getItem("myId")) : null,
   );
+
+  useEffect(() => {
+    document.title = "Feedback - giulianaCare";
+  }, []);
+
   return (
     <div>
       <Router>
