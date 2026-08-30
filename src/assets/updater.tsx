@@ -34,6 +34,12 @@ export const updateContact = async (
 ) => {
   setLoading(true);
   const token = localStorage.getItem("token");
+
+  if (!token) {
+    setLoading(false);
+    return { success: false, message: "Kein Token vorhanden" };
+  }
+
   try {
     const response = await fetch(`${API_BASE}/api/contacts_manager.php`, {
       method: "PUT",
@@ -43,10 +49,20 @@ export const updateContact = async (
       },
       body: JSON.stringify({ id, ...data }),
     });
-    return await response.json();
+
+    // 1. Antwort als Text einlesen
+    const rawText = await response.text();
+    console.log("Rohdaten vom Server:", rawText);
+
+    // 2. Versuchen als JSON zu parsen
+    const jsonResult = JSON.parse(rawText);
+    return jsonResult;
   } catch (error) {
     console.error("Update Contact Fehler:", error);
-    return { success: false, message: "Netzwerkfehler beim Update" };
+    return {
+      success: false,
+      message: "Fehler beim Verarbeiten der Server-Antwort",
+    };
   } finally {
     setLoading(false);
   }
