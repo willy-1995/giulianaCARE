@@ -50,18 +50,12 @@ export const updateContact = async (
       body: JSON.stringify({ id, ...data }),
     });
 
-    // 1. Antwort als Text einlesen
-    const rawText = await response.text();
-    console.log("Rohdaten vom Server:", rawText);
-
-    // 2. Versuchen als JSON zu parsen
-    const jsonResult = JSON.parse(rawText);
-    return jsonResult;
+    return await response.json();
   } catch (error) {
     console.error("Update Contact Fehler:", error);
     return {
       success: false,
-      message: "Fehler beim Verarbeiten der Server-Antwort",
+      message: "Netzwerkfehler beim Update des Kontakts",
     };
   } finally {
     setLoading(false);
