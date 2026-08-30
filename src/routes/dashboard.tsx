@@ -768,20 +768,10 @@ export default function Dashboard() {
                     />
                   </label>
                   <label>
-                    Telefon (Festnetz)
+                    Telefon
                     <input
                       type="tel"
                       name="tel1"
-                      placeholder="Bspw. 0228 12345678"
-                      value={formDataContacts.tel1}
-                      onChange={(e) => handleChange(e, true)}
-                    />
-                  </label>
-                  <label>
-                    Telefon (mobil)
-                    <input
-                      type="tel"
-                      name="tel2"
                       placeholder="Bspw. 0228 12345678"
                       value={formDataContacts.tel2}
                       onChange={(e) => handleChange(e, true)}
