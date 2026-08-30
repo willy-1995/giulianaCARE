@@ -79,6 +79,14 @@ function executeCall($db, $clientId, $telType, $cycle)
     if (!$client) return;
 
     $phone = ($telType === 'tel1') ? $client['tel1'] : $client['tel2'];
+    // Formatierung erzwingen: Leerzeichen & Sonderzeichen entfernen
+    $phone = preg_replace('/[^0-9+]/', '', $phone);
+
+    // Falls die Nummer mit 0 beginnt, mit +49 (Deutschland) ersetzen
+    if (strpos($phone, '0') === 0) {
+        $phone = '+49' . substr($phone, 1);
+    }
+
     if (empty($phone)) return;
 
     // Titel sicher formatieren (z. B. "Herr " oder leer, falls null)
@@ -118,6 +126,7 @@ function executeCall($db, $clientId, $telType, $cycle)
     ];
 
     // 3. Absenden an Vapi
+    // Neu / Korrigiert:
     $ch = curl_init('https://api.vapi.ai/call/phone');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -126,8 +135,19 @@ function executeCall($db, $clientId, $telType, $cycle)
         'Authorization: Bearer ' . VAPI_PRIVATE_KEY,
         'Content-Type: application/json'
     ]);
-    curl_exec($ch);
+
+    // Antwort von Vapi ausführen und abfangen
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
+
+    // Logging in der error_log der Server-Konsole
+    if ($httpCode !== 201) {
+        error_log("VAPI ERROR [Client $clientId]: Status $httpCode - Response: $response - cURL Err: $curlError");
+    } else {
+        error_log("VAPI SUCCESS [Client $clientId]: Anruf erfolgreich bei Vapi eingereiht.");
+    }
 }
 
 function handleVapiWebhook($db, $data)
