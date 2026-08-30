@@ -30,7 +30,7 @@ try {
                 ai_response_speed,
                 ai_retry_attempts_done,
                 ai_emergency_contacts_called,
-                overallSatisfaction,
+                overall_satisfaction,
                 comments
             ) VALUES (
                 :user_id,
@@ -47,7 +47,7 @@ try {
                 :ai_response_speed,
                 :ai_retry_attempts_done,
                 :ai_emergency_contacts_called,
-                :overallSatisfaction,
+                :overall_satisfaction,
                 :comments
             )";
 
@@ -68,7 +68,7 @@ try {
         ':ai_response_speed'            => $data['aiResponseSpeed'],
         ':ai_retry_attempts_done'       => (int) $data['aiRetryAttemptsDone'],
         ':ai_emergency_contacts_called' => (int) $data['aiEmergencyContactsCalled'],
-        ':overallSatisfaction' => (int) $data['overallSatisfaction'],
+        ':overall_satisfaction' => (int) $data['overallSatisfaction'],
         ':comments'                     => $data['comments'] ?? null
     ]);
 
