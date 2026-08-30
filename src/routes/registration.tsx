@@ -23,7 +23,7 @@ function Registration() {
     area_code: "",
     country: "",
     price: "",
-    agbAccepted: false,
+    agb_accepted: false,
   });
 
   const handleChange = (
@@ -158,7 +158,7 @@ function Registration() {
             <input
               type="checkbox"
               name="agbAccepted"
-              checked={formData.agbAccepted}
+              checked={formData.agb_accepted}
               onChange={handleChange}
               required
             />
@@ -173,7 +173,7 @@ function Registration() {
             .
           </label>
 
-          <button disabled={!isPasswordValid || !formData.agbAccepted}>
+          <button disabled={!isPasswordValid || !formData.agb_accepted}>
             Jetzt Registrieren
           </button>
         </form>

@@ -17,9 +17,9 @@ try {
         // CREATE (REGISTRIERUNG)
         // ==========================================
         case 'POST':
-            if (empty($input['email']) || empty($input['password']) || empty($input['area_code']) || empty($input['country']) || empty($input['price'])) {
+            if (empty($input['email']) || empty($input['password']) || empty($input['area_code']) || empty($input['country']) || empty($input['price']) || empty($input['agb_accepted'])) {
                 http_response_code(400);
-                echo json_encode(["success" => false, "message" => "Email, Passwort und Rolle sind Pflichtfelder."]);
+                echo json_encode(["success" => false, "message" => "Bitte alle Felder ausfüllen."]);
                 exit;
             }
 
