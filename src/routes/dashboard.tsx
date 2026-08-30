@@ -69,7 +69,6 @@ const initialContactState = {
   firstname: "",
   lastname: "",
   tel1: "",
-  tel2: "",
   email: "",
 };
 
@@ -773,7 +772,7 @@ export default function Dashboard() {
                       type="tel"
                       name="tel1"
                       placeholder="Bspw. 0228 12345678"
-                      value={formDataContacts.tel2}
+                      value={formDataContacts.tel1}
                       onChange={(e) => handleChange(e, true)}
                     />
                   </label>
