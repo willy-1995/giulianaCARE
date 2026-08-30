@@ -1,6 +1,7 @@
 //BASE URL
 import { API_BASE } from "../assets/base_url";
 
+//UPDATE CLIENT
 export const updateClient = async (
   id: number,
   data: any,
@@ -9,7 +10,7 @@ export const updateClient = async (
   setLoading(true);
   const token = localStorage.getItem("token");
   try {
-    const response = await fetch(`${API_BASE}/clients_manager.php`, {
+    const response = await fetch(`${API_BASE}/api/clients_manager.php`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

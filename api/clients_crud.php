@@ -30,10 +30,10 @@ class ClientsManager
 
             $sql = "INSERT INTO clients (
                         user_id, status, title, lastname, firstname, tel1, tel2, birthday, 
-                        language, german_level, address, medication, info, call_1, call_2, call_3, call_4
+                        language, german_level, address, medication, info, call_1, call_2, call_3,
                     ) VALUES (
                         :user_id, :status, :title, :lastname, :firstname, :tel1, :tel2, :birthday, 
-                        :language, :german_level, :address, :medication, :info, :call_1, :call_2, :call_3, :call_4
+                        :language, :german_level, :address, :medication, :info, :call_1, :call_2, :call_3,
                     )";
 
             $stmt = $this->conn->prepare($sql);
@@ -54,7 +54,7 @@ class ClientsManager
                 ':call_1'         => $clientData['call_1'] ?? null,
                 ':call_2'         => $clientData['call_2'] ?? null,
                 ':call_3'         => $clientData['call_3'] ?? null,
-                ':call_4'         => $clientData['call_4'] ?? null,
+
             ]);
 
             $clientId = $this->conn->lastInsertId();
@@ -98,7 +98,7 @@ class ClientsManager
             $this->conn->beginTransaction();
 
             $sql = "UPDATE clients SET 
-                        status = :staus,
+                        status = :status,
                         title = :title,
                         lastname = :lastname, 
                         firstname = :firstname, 
@@ -113,7 +113,6 @@ class ClientsManager
                         call_1 = :call_1,
                         call_2 = :call_2,
                         call_3 = :call_3,
-                        call_4 = :call_4
                     WHERE id = :id";
 
             $stmt = $this->conn->prepare($sql);
@@ -133,7 +132,6 @@ class ClientsManager
                 ':call_1'         => $clientData['call_1'] ?? null,
                 ':call_2'         => $clientData['call_2'] ?? null,
                 ':call_3'         => $clientData['call_3'] ?? null,
-                ':call_4'         => $clientData['call_4'] ?? null,
                 ':id'           => $id
             ]);
 
