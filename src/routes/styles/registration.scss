@@ -1,4 +1,12 @@
 .distance-div {
+  .deleteMessage {
+    margin-bottom: 40px;
+    text-align: center;
+
+    @media (max-width: 750px) {
+      width: 90%;
+    }
+  }
   .regist-form {
     display: flex;
     align-items: center;
