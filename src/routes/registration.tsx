@@ -18,6 +18,7 @@ function Registration() {
     password: "",
     area_code: "",
     country: "",
+    price: "",
     agbAccepted: false,
   });
 
@@ -80,6 +81,27 @@ function Registration() {
       <div className="distance-div">
         <form onSubmit={registHandler} className="regist-form">
           <h1>Registrierung</h1>
+
+          <select
+            name="price"
+            value={formData.price}
+            onChange={handleChange}
+            className="price"
+            required
+          >
+            <option value="" disabled hidden>
+              Betreuungspaket wählen
+            </option>
+            <option value="sicherheit">
+              Sicherheit - 19€ <br />1 Anruf pro Tag
+            </option>
+            <option value="gutBetreut">
+              Gut bretreut - 26€ <br />2 Anrufe pro Tag
+            </option>
+            <option value="rundumSorglos">
+              Rundum Sorglos - 32€ <br />3 Anrufe pro Tag
+            </option>
+          </select>
 
           <select
             name="country"

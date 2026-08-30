@@ -253,7 +253,7 @@ function TeleCare() {
             <h2>Rundum sorglos</h2>
             <div className="price"></div>
             <div className="intervall">
-              <p>35€</p>
+              <p>32€</p>
               <span>
                 3 Anrufe <br /> pro Tag
               </span>
