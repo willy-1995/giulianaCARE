@@ -233,11 +233,6 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
                   label="Ich habe die Einstellungen schnell gefunden."
                   field="settingsFoundQuickly"
                 />
-
-                <LikertQuestion
-                  label="Ich bin zufrieden mit der Dienstleistung von giulianaCare Telefonbetreuung."
-                  field="overallSatisfaction"
-                />
               </fieldset>
 
               {/* ABSCHNITT 3: KI Assistent */}
@@ -290,6 +285,11 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
                 <YesNoQuestion
                   label="Als die KI mich nach allen Anrufversuchen nicht erreicht hat, wurden meine Notfallkontakte kontaktiert."
                   field="aiEmergencyContactsCalled"
+                />
+
+                <LikertQuestion
+                  label="Ich bin zufrieden mit der Dienstleistung von giulianaCare Telefonbetreuung."
+                  field="overallSatisfaction"
                 />
               </fieldset>
 
