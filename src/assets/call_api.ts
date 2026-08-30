@@ -5,7 +5,6 @@ interface ClientCalls {
   call_1: string | null;
   call_2: string | null;
   call_3: string | null;
-  call_4: string | null;
 }
 
 // Speicher für bereits ausgeführte Aktionen (Minute als Key)
@@ -22,7 +21,7 @@ export const checkCallTimes = async () => {
 
   if (result && result.success && Array.isArray(result.data)) {
     for (const client of result.data) {
-      const callTimes = [client.call_1, client.call_2, client.call_3, client.call_4];
+      const callTimes = [client.call_1, client.call_2, client.call_3];
       
       for (const time of callTimes) {
         if (time && time.substring(0, 5) === currentMinute) {

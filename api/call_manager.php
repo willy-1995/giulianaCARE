@@ -71,8 +71,8 @@ switch ($action) {
 
 function executeCall($db, $clientId, $telType, $cycle)
 {
-    // 1. Klientendaten aus der DB holen (Name für die Ansprache!)
-    $stmt = $db->prepare("SELECT name, tel1, tel2 FROM clients WHERE id = ?");
+    // 1. Klientendaten aus der DB holen (inklusive 'title'!)
+    $stmt = $db->prepare("SELECT title, name, tel1, tel2 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -81,13 +81,16 @@ function executeCall($db, $clientId, $telType, $cycle)
     $phone = ($telType === 'tel1') ? $client['tel1'] : $client['tel2'];
     if (empty($phone)) return;
 
+    // Titel sicher formatieren (z. B. "Herr " oder leer, falls null)
+    $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
+
     // 2. Vapi API Call vorbereiten
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
             // Dynamische Ansprache für den echten Kunden
-            'firstMessage' => "Guten Tag " . $client['title'] . $client['name'] . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
+            'firstMessage' => "Guten Tag " . $titlePrefix . $client['name'] . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
 
             // Erzwingt das Azure OpenAI Modell aus Frankfurt
             'model' => [
