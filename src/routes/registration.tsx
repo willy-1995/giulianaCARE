@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import type { ApiResponse } from "../types/api";
 import "./styles/main.scss";
 //BASE URL
@@ -11,6 +11,10 @@ import "./styles/registration.scss";
 function Registration() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
+  const location = useLocation();
+
+  // Übergebene Nachricht aus dem Navigation-State abfangen (falls vorhanden)
+  const deleteMessage = location.state?.message || message;
 
   // ===== STATES =====
   const [formData, setFormData] = useState({
@@ -79,6 +83,7 @@ function Registration() {
     <div className="body-div registration-div">
       <Navbar />
       <div className="distance-div">
+        {deleteMessage && <div className="deleteMessage">{deleteMessage}</div>}
         <form onSubmit={registHandler} className="regist-form">
           <h1>Registrierung</h1>
 

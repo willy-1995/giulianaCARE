@@ -25,8 +25,8 @@ class UserManager
             // Wir behalten die Transaction bei, falls du später wieder erweitern willst
             $this->conn->beginTransaction();
 
-            $sql = "INSERT INTO users (email, password, price, country, area_code) 
-                    VALUES (:email, :password, :price, :country, :area_code)";
+            $sql = "INSERT INTO users (email, password, price, country, area_code, agb_accepted) 
+                    VALUES (:email, :password, :price, :country, :area_code, :agb_accepted)";
             $stmt = $this->conn->prepare($sql);
             $hashedPassword = password_hash($userData['password'], PASSWORD_BCRYPT);
 
@@ -36,6 +36,7 @@ class UserManager
                 ':price'     => $userData['price'] ?? null,
                 ':country'   => $userData['country'] ?? null,
                 ':area_code' => $userData['area_code'] ?? null,
+                ':agb_accepted' => $userData['agb_accepted'] ?? null,
             ]);
 
             $userId = $this->conn->lastInsertId();
