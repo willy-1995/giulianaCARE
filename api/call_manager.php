@@ -72,7 +72,7 @@ switch ($action) {
 function executeCall($db, $clientId, $telType, $cycle)
 {
     // 1. Klientendaten aus der DB holen (inklusive 'title'!)
-    $stmt = $db->prepare("SELECT title, name, tel1, tel2 FROM clients WHERE id = ?");
+    $stmt = $db->prepare("SELECT title, lastname, tel1, tel2 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
