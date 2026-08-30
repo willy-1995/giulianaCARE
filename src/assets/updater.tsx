@@ -26,6 +26,7 @@ export const updateClient = async (
   }
 };
 
+//UPDATE CONTACT
 export const updateContact = async (
   id: number,
   data: any,
@@ -34,7 +35,7 @@ export const updateContact = async (
   setLoading(true);
   const token = localStorage.getItem("token");
   try {
-    const response = await fetch(`${API_BASE}/contacts_manager.php`, {
+    const response = await fetch(`${API_BASE}/api/contacts_manager.php`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
