@@ -17,7 +17,7 @@ try {
         // CREATE (REGISTRIERUNG)
         // ==========================================
         case 'POST':
-            if (empty($input['email']) || empty($input['password']) || empty($input['area_code']) || empty($input['country']) || empty($input['price']) || empty($input['agb_accepted'])) {
+            if (empty($input['email']) || empty($input['password']) || empty($input['area_code']) || empty($input['country']) || empty($input['price']) || !isset($input['agb_accepted'])) {
                 http_response_code(400);
                 echo json_encode(["success" => false, "message" => "Bitte alle Felder ausfüllen."]);
                 exit;
@@ -27,7 +27,7 @@ try {
 
             // Nutzt deine createJWT aus jwt.php
             // Hinweis: 'username' wird hier als Rolle/Name übergeben, je nachdem was du im Token brauchst
-            $token = createJWT((int)$userId, $input['email'], $input['role']);
+            $token = createJWT((int)$userId, $input['email'], $input['price']);
 
             http_response_code(201);
             echo json_encode([

@@ -7,7 +7,7 @@ use Firebase\JWT\Key;
 /**
  * JWT erstellen
  */
-function createJWT(int $userId, string $email, string $username): string
+function createJWT(int $userId, string $email, string $username = ""): string
 {
     $secretKey = $_ENV['JWT_SECRET'] ?? '';
 
