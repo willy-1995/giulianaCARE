@@ -24,7 +24,7 @@ function App() {
   );
 
   useEffect(() => {
-    document.title = "Feedback - giulianaCare";
+    document.title = "giulianaCARE";
   }, []);
 
   return (
