@@ -14,6 +14,7 @@ export interface FeedbackData {
   clientSetupEasy: number;
   dashboardClear: number;
   settingsFoundQuickly: number;
+  overallSatisfaction: number; // Neu hinzugefügt
   aiCallOnTime: string; // "ja" | "nein"
   aiFluentConversation: number;
   aiResponseSpeed: string;
@@ -41,6 +42,7 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
     clientSetupEasy: 0,
     dashboardClear: 0,
     settingsFoundQuickly: 0,
+    overallSatisfaction: 0, // Neu
     aiCallOnTime: "",
     aiFluentConversation: 0,
     aiResponseSpeed: "",
@@ -230,6 +232,11 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
                 <LikertQuestion
                   label="Ich habe die Einstellungen schnell gefunden."
                   field="settingsFoundQuickly"
+                />
+
+                <LikertQuestion
+                  label="Ich bin zufrieden mit der Dienstleistung von giulianaCare Telefonbetreuung."
+                  field="overallSatisfaction"
                 />
               </fieldset>
 
