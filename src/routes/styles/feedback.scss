@@ -1,0 +1,167 @@
+.feedback-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+
+  h2 {
+    margin-bottom: 0.5rem;
+    color: #333;
+  }
+
+  .feedback-intro {
+    color: #666;
+    margin-bottom: 2rem;
+  }
+
+  .form-section {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+
+    legend {
+      font-weight: bold;
+      padding: 0 0.5rem;
+      color: #007bff;
+    }
+  }
+
+  .question-block {
+    margin-bottom: 1.8rem;
+
+    .question-label {
+      font-weight: 500;
+      margin-bottom: 0.8rem;
+      color: #2c3e50;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+      resize: vertical;
+    }
+  }
+
+  /* Likert Skala Styling */
+  .scale-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #f8f9fa;
+    padding: 0.8rem;
+    border-radius: 6px;
+    gap: 0.5rem;
+
+    .scale-legend {
+      font-size: 0.85rem;
+      color: #777;
+      width: 100px;
+      text-align: center;
+    }
+
+    .scale-options {
+      display: flex;
+      gap: 1rem;
+
+      .scale-option {
+        cursor: pointer;
+
+        input {
+          display: none; // Original-Radio verstecken
+
+          &:checked + .custom-radio {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+          }
+        }
+
+        .custom-radio {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          border: 2px solid #ccc;
+          border-radius: 50%;
+          font-weight: bold;
+          transition: all 0.2s ease;
+
+          &:hover {
+            border-color: #007bff;
+          }
+        }
+      }
+    }
+  }
+
+  /* Radio Gruppe für KI-Geschwindigkeit */
+  .radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      background: #f8f9fa;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+
+      &:hover {
+        background: #eef5ff;
+      }
+    }
+  }
+
+  .submit-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background-color: #0056b3;
+    }
+
+    &:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.feedback-success {
+  text-align: center;
+  padding: 3rem;
+  background: #eefaee;
+  border-radius: 8px;
+  color: #2e7d32;
+}
+
+/* Responsive Design für Mobilgeräte */
+@media (max-width: 600px) {
+  .scale-container {
+    flex-direction: column;
+    gap: 1rem;
+
+    .scale-legend {
+      width: 100%;
+    }
+  }
+}

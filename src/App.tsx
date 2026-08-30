@@ -10,6 +10,7 @@ import Dashboard from "./routes/dashboard";
 import Settings from "./routes/settings";
 import Request from "./routes/request";
 import Legal from "./routes/legals";
+import Feedback from "./routes/feedback";
 import "./routes/styles/main.scss";
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/request" element={<Request />} />
           <Route path="/legal" element={<Legal />} />
+          <Route path="/feedback" element={<Feedback />} />
           {/*protected sites */}
           <Route
             path="/dashboard"
