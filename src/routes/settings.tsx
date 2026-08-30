@@ -56,18 +56,17 @@ export default function Settings() {
       <div className="setting-sections-div">
         <div className="setting-section">
           <h2>Dein Account</h2>
+          <button onClick={handleLogout} className="logout">
+            Ausloggen
+          </button>
         </div>
         <div className="setting-section">
           <h3>Abonnement</h3>
         </div>
         <div className="settings-section">
-          <button onClick={handleLogout} className="logout">
-            Ausloggen
+          <button onClick={handleDeleteAccount} className="deleteAccount">
+            Kündigen
           </button>
-          <button
-            onClick={handleDeleteAccount}
-            className="deleteAccount"
-          ></button>
         </div>
       </div>
       <Footer />

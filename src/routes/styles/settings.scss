@@ -14,12 +14,16 @@
 .setting-sections-div {
   width: 100%;
   min-height: 70vh;
+  display: flex;
+  flex-direction: column;
 
-  h2 {
-    margin-left: 10px;
-  }
+  setting-section {
+    display: flex;
+    flex-direction: column;
+    padding-left: 10px;
 
-  .logout {
-    width: 100px;
+    .logout {
+      width: 100px;
+    }
   }
 }
