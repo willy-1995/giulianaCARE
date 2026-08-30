@@ -86,7 +86,7 @@ function Registration() {
             name="price"
             value={formData.price}
             onChange={handleChange}
-            className="price"
+            className="regist_select"
             required
           >
             <option value="" disabled hidden>
@@ -107,7 +107,7 @@ function Registration() {
             name="country"
             value={formData.country}
             onChange={handleChange}
-            className="country_select"
+            className="regist_select"
             required
           >
             <option value="" disabled hidden>
