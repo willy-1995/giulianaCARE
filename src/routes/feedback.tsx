@@ -14,11 +14,11 @@ export interface FeedbackData {
   clientSetupEasy: number;
   dashboardClear: number;
   settingsFoundQuickly: number;
-  aiCallOnTime: number;
+  aiCallOnTime: string; // "ja" | "nein"
   aiFluentConversation: number;
   aiResponseSpeed: string;
-  aiRetryAttemptsDone: number;
-  aiEmergencyContactsCalled: number;
+  aiRetryAttemptsDone: string; // "ja" | "nein"
+  aiEmergencyContactsCalled: string; // "ja" | "nein"
   comments: string;
 }
 
@@ -31,7 +31,7 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Initialer State mit 0 / leeren Werten
+  // Initialer State
   const [formData, setFormData] = useState<FeedbackData>({
     firstVisitUnderstoodService: 0,
     howItWorksUnderstood: 0,
@@ -41,11 +41,11 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
     clientSetupEasy: 0,
     dashboardClear: 0,
     settingsFoundQuickly: 0,
-    aiCallOnTime: 0,
+    aiCallOnTime: "",
     aiFluentConversation: 0,
     aiResponseSpeed: "",
-    aiRetryAttemptsDone: 0,
-    aiEmergencyContactsCalled: 0,
+    aiRetryAttemptsDone: "",
+    aiEmergencyContactsCalled: "",
     comments: "",
   });
 
@@ -54,7 +54,7 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Handler für Freitext und Radio-Buttons (z. B. KI-Geschwindigkeit)
+  // Handler für Radio-Buttons (Ja/Nein/Geschwindigkeit) und Textarea
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -124,6 +124,37 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
           ))}
         </div>
         <span className="scale-legend">Stimme voll und ganz zu</span>
+      </div>
+    </div>
+  );
+
+  // Hilfs-Komponente für Ja / Nein Fragen
+  const YesNoQuestion = ({
+    label,
+    field,
+  }: {
+    label: string;
+    field: keyof FeedbackData;
+  }) => (
+    <div className="question-block">
+      <p className="question-label">{label}</p>
+      <div className="radio-group">
+        {[
+          { val: "ja", label: "Ja" },
+          { val: "nein", label: "Nein" },
+        ].map((opt) => (
+          <label key={opt.val} className="radio-label">
+            <input
+              type="radio"
+              name={field}
+              value={opt.val}
+              checked={formData[field] === opt.val}
+              onChange={handleChange}
+              required
+            />
+            <span>{opt.label}</span>
+          </label>
+        ))}
       </div>
     </div>
   );
@@ -206,7 +237,7 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
               <fieldset className="form-section">
                 <legend>KI Assistent</legend>
 
-                <LikertQuestion
+                <YesNoQuestion
                   label="Der Anruf kam zu den angegebenen Zeiten."
                   field="aiCallOnTime"
                 />
@@ -216,7 +247,7 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
                   field="aiFluentConversation"
                 />
 
-                {/* Antwort-Geschwindigkeit mit benutzerdefinierten Optionen */}
+                {/* Antwort-Geschwindigkeit */}
                 <div className="question-block">
                   <p className="question-label">
                     Die KI hat in einer angemessenen Geschwindigkeit
@@ -244,12 +275,12 @@ export default function Feedback({ onSubmitSuccess }: FeedbackProps) {
                   </div>
                 </div>
 
-                <LikertQuestion
+                <YesNoQuestion
                   label="Als die KI mich nicht erreicht hat, wurden 2 weitere Anruf-Versuche gestartet."
                   field="aiRetryAttemptsDone"
                 />
 
-                <LikertQuestion
+                <YesNoQuestion
                   label="Als die KI mich nach allen Anrufversuchen nicht erreicht hat, wurden meine Notfallkontakte kontaktiert."
                   field="aiEmergencyContactsCalled"
                 />

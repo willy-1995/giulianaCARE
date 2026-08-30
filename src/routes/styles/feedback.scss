@@ -86,14 +86,26 @@
 
       .scale-option {
         cursor: pointer;
+        position: relative; // Für fokussierbare, unsichtbare Inputs
 
         input {
-          display: none; // Original-Radio verstecken
+          /* Korrektur für "Not Focusable"-Fehler */
+          position: absolute;
+          opacity: 0;
+          width: 0;
+          height: 0;
+          margin: 0;
+          pointer-events: none;
 
           &:checked + .custom-radio {
             background-color: var(--accent-color, #007bff);
             color: white;
             border-color: var(--accent-color, #007bff);
+          }
+
+          &:focus-visible + .custom-radio {
+            outline: 2px solid var(--accent-color, #007bff);
+            outline-offset: 2px;
           }
         }
 
