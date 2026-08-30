@@ -26,20 +26,22 @@ export default function Settings() {
 
   //Delete Account
   const handleDeleteAccount = async () => {
-    const navigate = useNavigate();
+    if (confirm("Abonnement kündigen und Account wirklich löschen?")) {
+      const navigate = useNavigate();
 
-    const result = await deleteUser(setLoading);
+      const result = await deleteUser(setLoading);
 
-    if (result.success) {
-      navigate("/registration", {
-        state: {
-          message:
-            "Dein Account wurde gelöscht und das Abonnement zum nächstmöglichen Zeitpunkt gekündigt.",
-        },
-      });
-    } else {
-      // Fehlerbehandlung (z. B. Banner oder Toast anzeigen)
-      alert(result.message || "Fehler beim Löschen des Accounts");
+      if (result.success) {
+        navigate("/registration", {
+          state: {
+            message:
+              "Dein Account wurde gelöscht und das Abonnement zum nächstmöglichen Zeitpunkt gekündigt.",
+          },
+        });
+      } else {
+        // Fehlerbehandlung (z. B. Banner oder Toast anzeigen)
+        alert(result.message || "Fehler beim Löschen des Accounts");
+      }
     }
   };
 
@@ -62,6 +64,10 @@ export default function Settings() {
           <button onClick={handleLogout} className="logout">
             Ausloggen
           </button>
+          <button
+            onClick={handleDeleteAccount}
+            className="deleteAccount"
+          ></button>
         </div>
       </div>
       <Footer />
