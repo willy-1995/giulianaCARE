@@ -68,7 +68,85 @@ switch ($action) {
 }
 
 // --- FUNKTIONEN ---
+function executeCall($db, $clientId, $telType, $cycle)
+{
+    error_log("--- SCHRITT 1: executeCall gestartet für Client ID: $clientId ---");
 
+    // 1. Klientendaten laden
+    $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2 FROM clients WHERE id = ?");
+    $stmt->execute([$clientId]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$client) {
+        error_log("--- FEHLER: Client ID $clientId wurde NICHT in der Datenbank gefunden! ---");
+        return;
+    }
+
+    $phone = ($telType === 'tel1') ? ($client['tel1'] ?? '') : ($client['tel2'] ?? '');
+
+    if (empty($phone)) {
+        error_log("--- FEHLER: Keine Telefonnummer für Client ID $clientId vorhanden! ---");
+        return;
+    }
+
+    // Telefonnummer formatieren (E.164 Pflicht für Vapi)
+    $phone = preg_replace('/[^0-9+]/', '', $phone);
+    if (strpos($phone, '0') === 0) {
+        $phone = '+49' . substr($phone, 1);
+    }
+
+    $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
+    $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
+
+    error_log("--- SCHRITT 2: Sende Anruf an Nummer: $phone ---");
+
+    // 2. Vapi Payload
+    $payload = [
+        'assistantId' => VAPI_ASSISTANT_ID,
+        'phoneNumberId' => VAPI_PHONE_ID,
+        'assistantOverrides' => [
+            'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
+            'model' => [
+                'provider' => 'azure-openai',
+                'model'    => 'gpt-5.4-mini',
+                'messages' => [
+                    [
+                        'role'    => 'system',
+                        'content' => 'Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär. Antworte immer kurz, empathisch und ausschließlich auf Deutsch.'
+                    ]
+                ]
+            ],
+            'endCallFunctionEnabled' => true
+        ],
+        'customer' => [
+            'number' => $phone,
+            'extension' => [
+                'clientId' => $clientId,
+                'cycle'    => $cycle,
+                'telType'  => $telType
+            ]
+        ]
+    ];
+
+    // 3. cURL Aufruf
+    $ch = curl_init('https://api.vapi.ai/call/phone');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . VAPI_PRIVATE_KEY,
+        'Content-Type: application/json'
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    error_log("--- SCHRITT 3: Vapi Response HTTP Code: $httpCode | Antwort: $response | cURL Fehler: $curlError ---");
+}
+
+/*
 function executeCall($db, $clientId, $telType, $cycle)
 {
     // 1. Klientendaten aus der DB holen (inklusive 'title'!)
@@ -146,9 +224,11 @@ function executeCall($db, $clientId, $telType, $cycle)
     if ($httpCode !== 201) {
         error_log("VAPI ERROR [Client $clientId]: Status $httpCode - Response: $response - cURL Err: $curlError");
     } else {
-        error_log("VAPI SUCCESS [Client $clientId]: Anruf erfolgreich bei Vapi eingereiht.");
+        error_log("VAPI SUCCESS [Client $clientId]: Anruf erfolgreich bei Vapi eingereiht."); //DIESEN BLOCK NACH TEST ENTFERNEN!!!!
     }
 }
+
+*/
 
 function handleVapiWebhook($db, $data)
 {
