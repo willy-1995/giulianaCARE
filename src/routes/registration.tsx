@@ -157,7 +157,7 @@ function Registration() {
           <label className="checkbox-label">
             <input
               type="checkbox"
-              name="agbAccepted"
+              name="agb_accepted"
               checked={formData.agb_accepted}
               onChange={handleChange}
               required
