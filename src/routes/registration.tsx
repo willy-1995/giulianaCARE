@@ -97,14 +97,12 @@ function Registration() {
             <option value="" disabled hidden>
               Betreuungspaket wählen
             </option>
-            <option value="sicherheit">
-              Sicherheit - 19€ <br />1 Anruf pro Tag
-            </option>
+            <option value="sicherheit">Sicherheit 19€ - 1 Anruf pro Tag</option>
             <option value="gutBetreut">
-              Gut bretreut - 26€ <br />2 Anrufe pro Tag
+              Gut bretreut 26€ - 2 Anrufe pro Tag
             </option>
             <option value="rundumSorglos">
-              Rundum Sorglos - 32€ <br />3 Anrufe pro Tag
+              Rundum Sorglos 32€ - 3 Anrufe pro Tag
             </option>
           </select>
 

@@ -81,3 +81,42 @@ export const toggleStatus = async (
     if (setLoading) setLoading(false);
   }
 };
+
+// UPDATE USER
+export const updateUser = async (
+  data: {
+    email?: string;
+    price?: string;
+    country?: string;
+    area_code?: string;
+  },
+  setLoading: (state: boolean) => void,
+) => {
+  setLoading(true);
+  const token = localStorage.getItem("token");
+  if (!token) {
+    setLoading(false);
+    return { success: false, message: "Kein Token vorhanden" };
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/users_manager.php`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error("Update User Fehler:", error);
+    return {
+      success: false,
+      message: "Netzwerkfehler beim Update des Profils",
+    };
+  } finally {
+    setLoading(false);
+  }
+};
