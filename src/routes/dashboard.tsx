@@ -62,7 +62,6 @@ const initialClientState = {
   language: "",
   german_level: "native",
   address: "",
-  medication: "",
   info: "",
   call_1: "",
   call_2: "",
@@ -112,6 +111,19 @@ export default function Dashboard() {
     // Falls du Clients und Kontakte auch hier lädst:
     // loadClients(setLoading);
     // loadContacts(setLoading);
+  }, []);
+
+  //Automatisches Neuladen beim Tab-Fokus (wenn in der DB etwas geändert wurde)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadUserHandler();
+      loadClients(setLoading).then((res) => {
+        if (res && res.success) setClients(res.data);
+      });
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   //GET CLIENTS LIST
@@ -190,16 +202,26 @@ export default function Dashboard() {
   };
 
   //HANDLE CHANGE (FOR FORM)
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-    isContact: boolean = false,
+  // Change-Handler für Client-Formular
+  const handleClientChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     const { name, value } = e.target;
-    if (isContact) {
-      setFormDataContacts((prev) => ({ ...prev, [name]: value }));
-    } else {
-      setFormDataClients((prev) => ({ ...prev, [name]: value }));
-    }
+    setFormDataClients((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Change-Handler für Contact-Formular
+  const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormDataContacts((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   //=====================================
@@ -606,7 +628,7 @@ export default function Dashboard() {
                   <select
                     name="title"
                     value={formDataClients.title || ""}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                     required
                   >
                     <option value="" disabled hidden>
@@ -624,7 +646,7 @@ export default function Dashboard() {
                     name="lastname"
                     placeholder="Bspw. Müller"
                     value={formDataClients.lastname}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                     required
                   />
                 </label>
@@ -635,7 +657,7 @@ export default function Dashboard() {
                     name="firstname"
                     placeholder="Bspw. Manfred"
                     value={formDataClients.firstname}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                     required
                   />
                 </label>
@@ -646,7 +668,7 @@ export default function Dashboard() {
                     name="tel1"
                     placeholder="Bspw. 0228 12345678"
                     value={formDataClients.tel1}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                     required
                   />
                 </label>
@@ -657,7 +679,7 @@ export default function Dashboard() {
                     name="tel2"
                     placeholder="Bspw. 0228 12345678"
                     value={formDataClients.tel2}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                   />
                 </label>
                 <label>
@@ -666,7 +688,7 @@ export default function Dashboard() {
                     type="date"
                     name="birthday"
                     value={formDataClients.birthday}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                   />
                 </label>
                 <label>
@@ -674,7 +696,7 @@ export default function Dashboard() {
                   <select
                     name="german_level"
                     value={formDataClients.german_level}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                   >
                     <option value="native">Muttersprache</option>
                     <option value="conversation_good">
@@ -693,7 +715,7 @@ export default function Dashboard() {
                     type="text"
                     placeholder="z.B. Russisch, Polnisch, Türkisch..."
                     value={formDataClients.language}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                   />
                 </label>
                 <label>
@@ -703,7 +725,7 @@ export default function Dashboard() {
                     name="address"
                     placeholder="Beispielstraße 1, 12345 Musterstadt"
                     value={formDataClients.address}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                   />
                 </label>
 
@@ -714,11 +736,10 @@ export default function Dashboard() {
                     name="info"
                     placeholder="z.B. Klient ist Dement..."
                     value={formDataClients.info}
-                    onChange={handleChange}
+                    onChange={handleClientChange}
                   />
                 </label>
 
-                <h3 id="call-change-heading">Wähle die Anrufzeiten</h3>
                 <h3 id="call-change-heading">Wähle die Anrufzeiten</h3>
 
                 {/* ================= ANRUF 1 (Für alle Tarife sichtbar) ================= */}
@@ -729,7 +750,7 @@ export default function Dashboard() {
                   name="call_1"
                   required
                   value={formDataClients.call_1 || ""}
-                  onChange={handleChange}
+                  onChange={handleClientChange}
                 />
 
                 <label htmlFor="medication_1">
@@ -738,7 +759,7 @@ export default function Dashboard() {
                     id="medication_1"
                     name="medication_1"
                     value={formDataClients.medication_1 || ""}
-                    onChange={(e) => handleChange}
+                    onChange={handleClientChange}
                   ></textarea>
                 </label>
 
@@ -753,7 +774,7 @@ export default function Dashboard() {
                         id="call_2"
                         name="call_2"
                         value={formDataClients.call_2 || ""}
-                        onChange={handleChange}
+                        onChange={handleClientChange}
                       />
                     </label>
 
@@ -763,7 +784,7 @@ export default function Dashboard() {
                         id="medication_2"
                         name="medication_2"
                         value={formDataClients.medication_2 || ""}
-                        onChange={(e) => handleChange}
+                        onChange={handleClientChange}
                       ></textarea>
                     </label>
                   </>
@@ -779,7 +800,7 @@ export default function Dashboard() {
                         id="call_3"
                         name="call_3"
                         value={formDataClients.call_3 || ""}
-                        onChange={handleChange}
+                        onChange={handleClientChange}
                       />
                     </label>
 
@@ -789,7 +810,7 @@ export default function Dashboard() {
                         id="medication_3"
                         name="medication_3"
                         value={formDataClients.medication_3 || ""}
-                        onChange={(e) => handleChange}
+                        onChange={handleClientChange}
                       ></textarea>
                     </label>
                   </>
@@ -820,7 +841,7 @@ export default function Dashboard() {
                       name="lastname"
                       placeholder="Bspw. Müller"
                       value={formDataContacts.lastname}
-                      onChange={(e) => handleChange(e, true)}
+                      onChange={handleContactChange}
                     />
                   </label>
                   <label>
@@ -830,7 +851,7 @@ export default function Dashboard() {
                       name="firstname"
                       placeholder="Bspw. Manfred"
                       value={formDataContacts.firstname}
-                      onChange={(e) => handleChange(e, true)}
+                      onChange={handleContactChange}
                     />
                   </label>
                   <label>
@@ -840,7 +861,7 @@ export default function Dashboard() {
                       name="tel1"
                       placeholder="Bspw. 0228 12345678"
                       value={formDataContacts.tel1}
-                      onChange={(e) => handleChange(e, true)}
+                      onChange={handleContactChange}
                     />
                   </label>
                   <label>
@@ -850,7 +871,7 @@ export default function Dashboard() {
                       name="email"
                       placeholder="beispiel@muster.de..."
                       value={formDataContacts.email}
-                      onChange={(e) => handleChange(e, true)}
+                      onChange={handleContactChange}
                     />
                   </label>
                 </fieldset>
