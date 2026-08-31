@@ -9,6 +9,7 @@ import { toggleStatus } from "../assets/updater";
 import { userAge } from "../assets/age";
 import { deleteClient } from "../assets/deleter";
 import { deleteContact } from "../assets/deleter";
+import { loadUser } from "../assets/loader";
 import { checkCallTimes } from "../assets/call_api";
 import SubNavbar from "./components/navbar_sub";
 import Footer from "./components/footer";
@@ -35,6 +36,9 @@ interface Client {
   call_1: string;
   call_2: string;
   call_3: string;
+  medication_1: string;
+  medication_2: string;
+  medication_3: string;
 }
 
 interface Contact {
@@ -63,6 +67,9 @@ const initialClientState = {
   call_1: "",
   call_2: "",
   call_3: "",
+  medication_1: "",
+  medication_2: "",
+  medication_3: "",
 };
 
 const initialContactState = {
@@ -92,10 +99,20 @@ export default function Dashboard() {
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEditId, setCurrentEditId] = useState<number | null>(null);
+  const [userPrice, setUserPrice] = useState<string>(""); // for call display
 
   //=====================
   //GET LISTS
   //=====================
+
+  //GET USER DATA
+  useEffect(() => {
+    // Beim Laden des Dashboards User-Daten abrufen
+    loadUserHandler();
+    // Falls du Clients und Kontakte auch hier lädst:
+    // loadClients(setLoading);
+    // loadContacts(setLoading);
+  }, []);
 
   //GET CLIENTS LIST
   useEffect(() => {
@@ -182,6 +199,18 @@ export default function Dashboard() {
       setFormDataContacts((prev) => ({ ...prev, [name]: value }));
     } else {
       setFormDataClients((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  //=====================================
+  //HANDLE USER (GET/ LOAD DATA)
+  //======================================
+  //
+  const loadUserHandler = async () => {
+    const data = await loadUser(setLoading);
+    if (data && data.success && data.user) {
+      // Setzt das Preisschema des Benutzers
+      setUserPrice(data.user.price);
     }
   };
 
@@ -677,16 +706,7 @@ export default function Dashboard() {
                     onChange={handleChange}
                   />
                 </label>
-                <label>
-                  Medikamenteneinnahme
-                  <input
-                    type="text"
-                    name="medication"
-                    placeholder="z. B. Medikament xy morgens und abends..."
-                    value={formDataClients.medication}
-                    onChange={handleChange}
-                  />
-                </label>
+
                 <label>
                   Zusatzinformation
                   <input
@@ -699,34 +719,81 @@ export default function Dashboard() {
                 </label>
 
                 <h3 id="call-change-heading">Wähle die Anrufzeiten</h3>
-                <label>
-                  Anruf 1 um:
-                  <input
-                    type="time"
-                    name="call_1"
-                    required
-                    value={formDataClients.call_1}
-                    onChange={handleChange}
-                  />
+                <h3 id="call-change-heading">Wähle die Anrufzeiten</h3>
+
+                {/* ================= ANRUF 1 (Für alle Tarife sichtbar) ================= */}
+                <label htmlFor="call_1">Anruf 1 um:</label>
+                <input
+                  type="time"
+                  id="call_1"
+                  name="call_1"
+                  required
+                  value={formDataClients.call_1 || ""}
+                  onChange={handleChange}
+                />
+
+                <label htmlFor="medication_1">
+                  Medikation / Info Anruf 1:
+                  <textarea
+                    id="medication_1"
+                    name="medication_1"
+                    value={formDataClients.medication_1 || ""}
+                    onChange={(e) => handleChange}
+                  ></textarea>
                 </label>
-                <label>
-                  Anruf 2 um:
-                  <input
-                    type="time"
-                    name="call_2"
-                    value={formDataClients.call_2}
-                    onChange={handleChange}
-                  />
-                </label>
-                <label>
-                  Anruf 3 um:
-                  <input
-                    type="time"
-                    name="call_3"
-                    value={formDataClients.call_3}
-                    onChange={handleChange}
-                  />
-                </label>
+
+                {/* ================= ANRUF 2 (Sichtbar bei "gutBetreut" und "rundumSorglos") ================= */}
+                {(userPrice === "gutBetreut" ||
+                  userPrice === "rundumSorglos") && (
+                  <>
+                    <label htmlFor="call_2">
+                      Anruf 2 um:
+                      <input
+                        type="time"
+                        id="call_2"
+                        name="call_2"
+                        value={formDataClients.call_2 || ""}
+                        onChange={handleChange}
+                      />
+                    </label>
+
+                    <label htmlFor="medication_2">
+                      Medikation / Info Anruf 2:
+                      <textarea
+                        id="medication_2"
+                        name="medication_2"
+                        value={formDataClients.medication_2 || ""}
+                        onChange={(e) => handleChange}
+                      ></textarea>
+                    </label>
+                  </>
+                )}
+
+                {/* ================= ANRUF 3 (Nur sichtbar bei "rundumSorglos") ================= */}
+                {userPrice === "rundumSorglos" && (
+                  <>
+                    <label htmlFor="call_3">
+                      Anruf 3 um:
+                      <input
+                        type="time"
+                        id="call_3"
+                        name="call_3"
+                        value={formDataClients.call_3 || ""}
+                        onChange={handleChange}
+                      />
+                    </label>
+
+                    <label htmlFor="medication_3">
+                      Medikation / Info Anruf 3:
+                      <textarea
+                        id="medication_3"
+                        name="medication_3"
+                        value={formDataClients.medication_3 || ""}
+                        onChange={(e) => handleChange}
+                      ></textarea>
+                    </label>
+                  </>
+                )}
               </div>
               <button type="submit">Speichern</button>
               <button type="button" onClick={closeModals}>

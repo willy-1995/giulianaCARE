@@ -61,3 +61,29 @@ export const loadClients = async (setLoading: (loading: boolean) => void) =>{
     
   };
 
+//GET USER DATA
+// GET USER PROFILE
+export const loadUser = async (setLoading: (loading: boolean) => void) => {
+  const token = localStorage.getItem("token");
+  if (!token) return { success: false, message: "Kein Token vorhanden" };
+  setLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/api/user_manager.php`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const rawdata = await response.text();
+    console.log("User Antwort: ", rawdata);
+    const data = JSON.parse(rawdata);
+
+    return data;
+  } catch (error) {
+    console.log("Fehler beim Laden des Users: ", error);
+  } finally {
+    setLoading(false);
+  }
+};
