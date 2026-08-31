@@ -67,7 +67,7 @@ export const loadUser = async (setLoading: (loading: boolean) => void) => {
   if (!token) return { success: false, message: "Kein Token vorhanden" };
   setLoading(true);
   try {
-    const response = await fetch(`${API_BASE}/api/user_manager.php`, {
+    const response = await fetch(`${API_BASE}/api/users_manager.php`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
