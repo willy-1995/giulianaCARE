@@ -30,10 +30,12 @@ class ClientsManager
 
             $sql = "INSERT INTO clients (
                         user_id, status, title, lastname, firstname, tel1, tel2, birthday, 
-                        language, german_level, address, medication, info, call_1, call_2, call_3
+                        language, german_level, address, info, 
+                        call_1, medication_1, call_2, medication_2, call_3, medication_3
                     ) VALUES (
                         :user_id, :status, :title, :lastname, :firstname, :tel1, :tel2, :birthday, 
-                        :language, :german_level, :address, :medication, :info, :call_1, :call_2, :call_3
+                        :language, :german_level, :address, :info, 
+                        :call_1, :medication_1, :call_2, :medication_2, :call_3, :medication_3
                     )";
 
             $stmt = $this->conn->prepare($sql);
@@ -49,11 +51,13 @@ class ClientsManager
                 ':language'     => $clientData['language'] ?? null,
                 ':german_level' => $clientData['german_level'] ?? null,
                 ':address'      => $clientData['address'] ?? null,
-                ':medication'   => $clientData['medication'] ?? null,
                 ':info'         => $clientData['info'] ?? null,
-                ':call_1'         => $clientData['call_1'] ?? null,
-                ':call_2'         => $clientData['call_2'] ?? null,
-                ':call_3'         => $clientData['call_3'] ?? null,
+                ':call_1'        => $clientData['call_1'] ?? null,
+                ':medication_1'  => $clientData['medication_1'] ?? null,
+                ':call_2'        => $clientData['call_2'] ?? null,
+                ':medication_2'  => $clientData['medication_2'] ?? null,
+                ':call_3'        => $clientData['call_3'] ?? null,
+                ':medication_3'  => $clientData['medication_3'] ?? null,
 
             ]);
 
@@ -108,11 +112,14 @@ class ClientsManager
                         language = :language, 
                         german_level = :german_level, 
                         address = :address, 
-                        medication = :medication, 
-                        info = :info,
                         call_1 = :call_1,
+                        medication_1 = :medication_1,
                         call_2 = :call_2,
-                        call_3 = :call_3
+                        medication_2 = :medication_2,
+                        call_3 = :call_3,
+                        medication_3 = :medication_3
+                        info = :info,
+                       
                     WHERE id = :id";
 
             $stmt = $this->conn->prepare($sql);
@@ -127,11 +134,13 @@ class ClientsManager
                 ':language'     => $clientData['language'],
                 ':german_level' => $clientData['german_level'],
                 ':address'      => $clientData['address'],
-                ':medication'   => $clientData['medication'],
                 ':info'         => $clientData['info'],
-                ':call_1'         => $clientData['call_1'] ?? null,
-                ':call_2'         => $clientData['call_2'] ?? null,
-                ':call_3'         => $clientData['call_3'] ?? null,
+                ':call_1'       => $clientData['call_1'] ?? null,
+                ':medication_1' => $clientData['medication_1'] ?? null,
+                ':call_2'       => $clientData['call_2'] ?? null,
+                ':medication_2' => $clientData['medication_2'] ?? null,
+                ':call_3'       => $clientData['call_3'] ?? null,
+                ':medication_3' => $clientData['medication_3'] ?? null,
                 ':id'           => $id
             ]);
 
