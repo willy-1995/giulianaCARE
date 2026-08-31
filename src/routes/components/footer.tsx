@@ -6,6 +6,7 @@ import {
   faCheck,
   faPhone,
   faEnvelope,
+  faHandshake,
 } from "@fortawesome/free-solid-svg-icons";
 
 function Footer() {
@@ -29,6 +30,11 @@ function Footer() {
           <Link to={"/request"}>
             <h3>
               <FontAwesomeIcon icon={faEnvelope} /> E-Mail
+            </h3>
+          </Link>
+          <Link to={"/salespartnership"}>
+            <h3>
+              <FontAwesomeIcon icon={faHandshake} /> Vertriebspartner werden
             </h3>
           </Link>
         </div>

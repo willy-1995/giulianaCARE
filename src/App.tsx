@@ -11,6 +11,7 @@ import Settings from "./routes/settings";
 import Request from "./routes/request";
 import Legal from "./routes/legals";
 import Feedback from "./routes/feedback";
+import { Salespartnership } from "./routes/salespartnership";
 import "./routes/styles/main.scss";
 import { useEffect } from "react";
 
@@ -40,6 +41,7 @@ function App() {
           <Route path="/request" element={<Request />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/feedback" element={<Feedback />} />
+          <Route path="/salespartnership" element={<Salespartnership />} />
           {/*protected sites */}
           <Route
             path="/dashboard"

@@ -30,10 +30,10 @@ class ClientsManager
 
             $sql = "INSERT INTO clients (
                         user_id, status, title, lastname, firstname, tel1, tel2, birthday, 
-                        language, german_level, address, medication, info, call_1, call_2, call_3,
+                        language, german_level, address, medication, info, call_1, call_2, call_3
                     ) VALUES (
                         :user_id, :status, :title, :lastname, :firstname, :tel1, :tel2, :birthday, 
-                        :language, :german_level, :address, :medication, :info, :call_1, :call_2, :call_3,
+                        :language, :german_level, :address, :medication, :info, :call_1, :call_2, :call_3
                     )";
 
             $stmt = $this->conn->prepare($sql);

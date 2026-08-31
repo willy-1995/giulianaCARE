@@ -75,22 +75,20 @@ switch ($action) {
 //execute call with logs
 function executeCall($db, $clientId, $telType, $cycle)
 {
-    error_log("--- SCHRITT 1: executeCall gestartet für Client ID: $clientId ---");
-
     // 1. Klientendaten laden
     $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$client) {
-        error_log("--- FEHLER: Client ID $clientId wurde NICHT in der Datenbank gefunden! ---");
+        error_log("VAPI ERROR: Client ID $clientId nicht in Datenbank gefunden.");
         return;
     }
 
     $phone = ($telType === 'tel1') ? ($client['tel1'] ?? '') : ($client['tel2'] ?? '');
 
     if (empty($phone)) {
-        error_log("--- FEHLER: Keine Telefonnummer für Client ID $clientId vorhanden! ---");
+        error_log("VAPI ERROR: Keine Telefonnummer für Client ID $clientId vorhanden.");
         return;
     }
 
@@ -103,9 +101,6 @@ function executeCall($db, $clientId, $telType, $cycle)
     $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
     $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
 
-    error_log("--- SCHRITT 2: Sende Anruf an Nummer: $phone ---");
-
-    // 2. Vapi Payload
     // 2. Vapi Payload
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
@@ -118,12 +113,21 @@ function executeCall($db, $clientId, $telType, $cycle)
                 'messages' => [
                     [
                         'role'    => 'system',
-                        'content' => 'Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär. Antworte immer kurz, empathisch und ausschließlich auf Deutsch.'
+                        'content' => 'Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär. '
+                            . 'Ziel des Anrufs: Nur kurz erfragen, ob beim Klienten alles in Ordnung ist. '
+                            . 'Verhaltensregeln: '
+                            . '1. Halte deine Antworten extrem kurz (max. 1-2 Sätze). '
+                            . '2. Halte das Gespräch nicht unnötig in die Länge. '
+                            . '3. Sobald der Klient bestätigt, dass alles gut ist (oder keine weitere Hilfe braucht), verabschiede dich höflich ("Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiedersehen.") und beende das Gespräch umgehend über die endCall-Funktion.'
+                    ]
+                ],
+                'tools' => [
+                    [
+                        'type' => 'endCall'
                     ]
                 ]
             ],
             'endCallFunctionEnabled' => true,
-            // HIER DIE EIGENEN VARIABLEN HINZU FÜGEN:
             'variableValues' => [
                 'clientId' => (string)$clientId,
                 'cycle'    => (string)$cycle,
@@ -150,7 +154,13 @@ function executeCall($db, $clientId, $telType, $cycle)
     $curlError = curl_error($ch);
     curl_close($ch);
 
-    error_log("--- SCHRITT 3: Vapi Response HTTP Code: $httpCode | Antwort: $response | cURL Fehler: $curlError ---");
+    // 4. Produktiv-Logging (Nur bei Fehlern / HTTP != 201)
+    if ($httpCode !== 201) {
+        // Telefonnummer für das Log anonymisieren/maskieren (z. B. +4917******89)
+        $maskedPhone = substr($phone, 0, 5) . '******' . substr($phone, -2);
+
+        error_log("VAPI ERROR [Client ID: $clientId | Tel: $maskedPhone]: HTTP $httpCode | cURL Err: $curlError | Response: $response");
+    }
 }
 
 /*
@@ -403,7 +413,13 @@ function executeDirectTestCall($phone)
                 'messages' => [
                     [
                         'role'    => 'system',
-                        'content' => 'Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär. Antworte immer kurz, prägnant und ausschließlich auf Deutsch. Wenn sich das Gespräch dem Ende neigt oder der Kunde sich verabschiedet, verabschiede dich höflich und beende den Anruf sofort mit der Auflegen-Funktion. Bleibe immer im Kontext der Senioren-Betreuung!'
+                        'content' => 'Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär. '
+                            . 'Ziel des Anrufs: Nur kurz erfragen, ob beim Klienten alles in Ordnung ist. '
+                            . 'Verhaltensregeln: '
+                            . '1. Halte deine Antworten extrem kurz (max. 1-2 Sätze). '
+                            . '2. Halte das Gespräch nicht unnötig in die Länge. '
+                            . '3. Bleibe immer im Konztext der Seniorenbetreuung. '
+                            . '4. Sobald der Klient bestätigt, dass alles gut ist (oder keine weitere Hilfe braucht), verabschiede dich höflich ("Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiedersehen.") und beende das Gespräch umgehend über die endCall-Funktion.'
                     ]
                 ]
             ],
