@@ -750,7 +750,7 @@ export default function Dashboard() {
 
                 <h3 id="call-change-heading">Wähle die Anrufzeiten</h3>
                 <br />
-                <p>Aktuelles Paket: {user.price}</p>
+                <p>Aktuelles Paket: {user?.price}</p>
 
                 {/* ================= ANRUF 1 (Für alle Tarife sichtbar) ================= */}
                 <label htmlFor="call_1">Anruf 1 um:</label>
