@@ -51,6 +51,14 @@ interface Contact {
   email: string;
 }
 
+interface User {
+  price: string;
+}
+
+const initialUserState = {
+  price: "",
+};
+
 const initialClientState = {
   status: "",
   title: "",
@@ -98,7 +106,7 @@ export default function Dashboard() {
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEditId, setCurrentEditId] = useState<number | null>(null);
-  const [userPrice, setUserPrice] = useState<string>(""); // for call display
+  const [user, setUser] = useState<User | null>(null); // for call display
 
   //=====================
   //GET LISTS
@@ -232,7 +240,7 @@ export default function Dashboard() {
     const data = await loadUser(setLoading);
     if (data && data.success && data.user) {
       // Setzt das Preisschema des Benutzers
-      setUserPrice(data.user.price);
+      setUser(data.user.price);
     }
   };
 
@@ -764,8 +772,8 @@ export default function Dashboard() {
                 </label>
 
                 {/* ================= ANRUF 2 (Sichtbar bei "gutBetreut" und "rundumSorglos") ================= */}
-                {(userPrice === "gutBetreut" ||
-                  userPrice === "rundumSorglos") && (
+                {(user?.price === "gutBetreut" ||
+                  user?.price === "rundumSorglos") && (
                   <>
                     <label htmlFor="call_2">
                       Anruf 2 um:
@@ -791,7 +799,7 @@ export default function Dashboard() {
                 )}
 
                 {/* ================= ANRUF 3 (Nur sichtbar bei "rundumSorglos") ================= */}
-                {userPrice === "rundumSorglos" && (
+                {user?.price === "rundumSorglos" && (
                   <>
                     <label htmlFor="call_3">
                       Anruf 3 um:
