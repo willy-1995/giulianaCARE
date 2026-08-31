@@ -62,7 +62,6 @@ export const loadClients = async (setLoading: (loading: boolean) => void) =>{
   };
 
 //GET USER DATA
-// GET USER PROFILE
 export const loadUser = async (setLoading: (loading: boolean) => void) => {
   const token = localStorage.getItem("token");
   if (!token) return { success: false, message: "Kein Token vorhanden" };

@@ -38,6 +38,27 @@ try {
             ]);
             break;
 
+        // ==========================================
+        // READ (USER-DATEN LADEN)
+        // ==========================================
+        case 'GET':
+            $currentUserId = getUserIdFromToken();
+            $userData = $userManager->getUser($currentUserId); // Methode in deiner UserManager-Klasse
+
+            if ($userData) {
+                // Passwort vor der Ausgabe entfernen!
+                unset($userData['password']);
+
+                echo json_encode([
+                    "success" => true,
+                    "user" => $userData
+                ]);
+            } else {
+                http_response_code(404);
+                echo json_encode(["success" => false, "message" => "User nicht gefunden."]);
+            }
+            break;
+
 
 
         // ==========================================
