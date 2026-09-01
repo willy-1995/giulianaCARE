@@ -90,18 +90,43 @@ class UserManager
         try {
             $this->conn->beginTransaction();
 
-            // Da keine Profile mehr existieren, aktualisieren wir nur die E-Mail
-            // (Passwort-Update müsste separat mit hashing erfolgen)
+            // 1. Variablen für das optionale Leeren der Spalten
+            $clearCall2 = false;
+            $clearCall3 = false;
+
+            // 2. Paket-Prüfung bei Price-Änderung
+            if (isset($userData['price'])) {
+                if ($userData['price'] === 'sicherheit') {
+                    // Paket "Sicherheit" (1 Anruf): Anruf 2 & 3 + Medikamente 2 & 3 löschen
+                    $clearCall2 = true;
+                    $clearCall3 = true;
+                } elseif ($userData['price'] === 'gutBetreut') {
+                    // Paket "Gut betreut" (2 Anrufe): Anruf 3 + Medikamente 3 löschen
+                    $clearCall3 = true;
+                }
+            }
+
+            // 3. SQL mit CASE-Abfragen, um veraltete Werte sauber auf NULL zu setzen
             $sql = "UPDATE users 
-                    SET email = :email, price = :price, country = :country, area_code = :area_code 
+                    SET email = :email, 
+                        price = :price, 
+                        country = :country, 
+                        area_code = :area_code,
+                        call_2 = CASE WHEN :clearCall2 = 1 THEN NULL ELSE call_2 END,
+                        medication_2 = CASE WHEN :clearCall2 = 1 THEN NULL ELSE medication_2 END,
+                        call_3 = CASE WHEN :clearCall3 = 1 THEN NULL ELSE call_3 END,
+                        medication_3 = CASE WHEN :clearCall3 = 1 THEN NULL ELSE medication_3 END
                     WHERE id = :id";
+
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
-                ':email'     => $userData['email'],
-                ':price'     => $userData['price'] ?? null,
-                ':country'   => $userData['country'] ?? null,
-                ':area_code' => $userData['area_code'] ?? null,
-                ':id'        => $id
+                ':email'      => $userData['email'],
+                ':price'      => $userData['price'] ?? null,
+                ':country'    => $userData['country'] ?? null,
+                ':area_code'  => $userData['area_code'] ?? null,
+                ':clearCall2' => $clearCall2 ? 1 : 0,
+                ':clearCall3' => $clearCall3 ? 1 : 0,
+                ':id'         => $id
             ]);
 
             $this->conn->commit();
