@@ -535,16 +535,23 @@ export default function Dashboard() {
                         <div className="calls">
                           <div className="calls-item">
                             <p>Anruf 1: {client.call_1}</p>
-                            <p>Info:</p>
+                            <p>Medikation/ Info: {client.medication_1}</p>
                           </div>
-                          <div className="calls-item">
-                            <p>Anruf 2: {client.call_2}</p>
-                            <p>Info:</p>
-                          </div>
-                          <div className="calls-item">
-                            <p>Anruf 3: {client.call_3}</p>
-                            <p>Info:</p>
-                          </div>
+                          {/* ================= ANRUF 2 (Sichtbar bei "gutBetreut" und "rundumSorglos") ================= */}
+                          {(user?.price === "gutBetreut" ||
+                            user?.price === "rundumSorglos") && (
+                            <div className="calls-item">
+                              <p>Anruf 2: {client.call_2}</p>
+                              <p>Medikation/ Info: {client.medication_2}</p>
+                            </div>
+                          )}
+                          {/* ================= ANRUF 3 (Nur sichtbar bei "rundumSorglos") ================= */}
+                          {user?.price === "rundumSorglos" && (
+                            <div className="calls-item">
+                              <p>Anruf 3: {client.call_3}</p>
+                              <p>Medikation/ Info: {client.medication_3}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
