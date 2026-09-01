@@ -547,12 +547,18 @@ export default function Dashboard() {
                       CLIENT INFORMATION
                       ////////////////////////////////////////////////////////////////*/}
                       <div className="client-grid">
-                        <p>Telefonnummer 1: {client.tel1}</p>
-                        <p>Telefonnummer 2: {client.tel2}</p>
                         <p>
-                          Geburtsdatum: {client.birthday} ({client.age})
+                          <b>Telefonnummer 1:</b> {client.tel1}
                         </p>
-                        <p>Adresse: {client.address}</p>
+                        <p>
+                          <b>Telefonnummer 2:</b> {client.tel2}
+                        </p>
+                        <p>
+                          <b>Geburtsdatum:</b> {client.birthday} ({client.age})
+                        </p>
+                        <p>
+                          <b>Adresse:</b> {client.address}
+                        </p>
                       </div>
                       {/*
                       /////////////////////////////////////////////////////////////////

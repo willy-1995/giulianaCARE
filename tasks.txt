@@ -1,3 +1,5 @@
-useememo für filteresusers
-fotoupload required
-auto redirect, wenn token abgelaufen (oder token ablauf ausstellen)
+status für  call funktionen
+status=active bei registrierung
+formular modal contacts
+formular modal account
+Vertriebsseite
