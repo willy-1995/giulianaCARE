@@ -240,7 +240,7 @@ export default function Dashboard() {
     const data = await loadUser(setLoading);
     if (data && data.success && data.user) {
       // Setzt das Preisschema des Benutzers
-      setUser(data.user.price);
+      setUser(data.user);
     }
   };
 
