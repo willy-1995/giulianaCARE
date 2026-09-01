@@ -86,3 +86,29 @@ export const loadUser = async (setLoading: (loading: boolean) => void) => {
     setLoading(false);
   }
 };
+
+//GET INCIDENTS PROTOCOL
+export const loadProtocol = async (setLoading: (loading: boolean) => void) => {
+  const token = localStorage.getItem("token");
+  if (!token) return { success: false, message: "Kein Token vorhanden" };
+  setLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/api/protocol_manager.php`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const rawdata = await response.text();
+    console.log("Protokoll Antwort: ", rawdata);
+    const data = JSON.parse(rawdata);
+
+    return data;
+  } catch (error) {
+    console.log("Fehler beim Laden des Protokolls: ", error);
+  } finally {
+    setLoading(false);
+  }
+};

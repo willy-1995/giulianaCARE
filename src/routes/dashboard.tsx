@@ -10,6 +10,7 @@ import { userAge } from "../assets/age";
 import { deleteClient } from "../assets/deleter";
 import { deleteContact } from "../assets/deleter";
 import { loadUser } from "../assets/loader";
+import { loadProtocol } from "../assets/loader";
 import { checkCallTimes } from "../assets/call_api";
 import SubNavbar from "./components/navbar_sub";
 import Footer from "./components/footer";
@@ -53,6 +54,15 @@ interface Contact {
 
 interface User {
   price: string;
+}
+
+interface Protocol {
+  id: number;
+  client_id: number;
+  created_at: string;
+  reason: string;
+  lastname: string;
+  firstname: string;
 }
 
 const initialUserState = {
@@ -107,6 +117,7 @@ export default function Dashboard() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEditId, setCurrentEditId] = useState<number | null>(null);
   const [user, setUser] = useState<User | null>(null); // for call display
+  const [protocols, setProtocols] = useState<Protocol[]>([]);
 
   //=====================
   //GET LISTS
@@ -127,6 +138,12 @@ export default function Dashboard() {
       loadUserHandler();
       loadClients(setLoading).then((res) => {
         if (res && res.success) setClients(res.data);
+      });
+      loadContacts(setLoading).then((res) => {
+        if (res && res.success) setContacts(res.data);
+      });
+      loadProtocol(setLoading).then((res) => {
+        if (res && res.success) setProtocols(res.data);
       });
     };
 
@@ -154,6 +171,17 @@ export default function Dashboard() {
       }
     };
     getContactData();
+  }, []);
+
+  // GET PROTOCOL LIST
+  useEffect(() => {
+    const getProtocolData = async () => {
+      const result = await loadProtocol(setLoading);
+      if (result && result.success) {
+        setProtocols(result.data);
+      }
+    };
+    getProtocolData();
   }, []);
 
   //==================
@@ -613,6 +641,39 @@ export default function Dashboard() {
                         {contacts.filter((c) => c.client_id === client.id)
                           .length === 0 && (
                           <p>Keine Notfallkontakte hinterlegt.</p>
+                        )}
+                      </div>
+                    </div>
+                    {/*==============================
+                    PROTOCOL AREA 
+                    =================================
+                    */}
+                    <div className="protocol-area">
+                      <h3>Anruf-Protokoll</h3>
+                      <div className="protocol-list">
+                        {protocols
+                          .filter(
+                            (protocol) => protocol.client_id === client.id,
+                          )
+                          .map((protocol) => (
+                            <div key={protocol.id} className="protocol-card">
+                              <p>
+                                <strong>Datum/Uhrzeit:</strong>{" "}
+                                {new Date(protocol.created_at).toLocaleString(
+                                  "de-DE",
+                                )}
+                              </p>
+                              <p>
+                                <strong>Grund/Ergebnis:</strong>{" "}
+                                {protocol.reason}
+                              </p>
+                            </div>
+                          ))}
+
+                        {protocols.filter(
+                          (protocol) => protocol.client_id === client.id,
+                        ).length === 0 && (
+                          <p>Keine Protokolleinträge vorhanden.</p>
                         )}
                       </div>
                     </div>
