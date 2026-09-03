@@ -21,12 +21,20 @@ export const checkCallTimes = async () => {
 
   if (result && result.success && Array.isArray(result.data)) {
     for (const client of result.data) {
-      const callTimes = [client.call_1, client.call_2, client.call_3];
-      
-      for (const time of callTimes) {
-        if (time && time.substring(0, 5) === currentMinute) {
-          console.log(`[${currentMinute}] Triggering Call for Client ${client.id}`);
-          await triggerCall(client.id); // Wir senden nur die ID, PHP regelt den Rest
+      // Nur aktive Clients berücksichtigen
+      if (client.status !== 'active') continue;
+
+      // Zuordnung der Zeiten zu ihren Typen
+      const callTimes = [
+        { type: "call_1", time: client.call_1 },
+        { type: "call_2", time: client.call_2 },
+        { type: "call_3", time: client.call_3 }
+      ];
+
+      for (const call of callTimes) {
+        if (call.time && call.time.substring(0, 5) === currentMinute) {
+          console.log(`[${currentMinute}] Triggering ${call.type} for Client ${client.id}`);
+          await triggerCall(client.id, call.type);
         }
       }
     }
@@ -38,14 +46,16 @@ export const checkCallTimes = async () => {
   lastExecutedMinute = currentMinute;
 };
 
-const triggerCall = async (clientId: string) => {
+const triggerCall = async (clientId: string | number, callType: string) => {
   try {
     await fetch("https://giuliana-care.de/api/call_manager.php", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `action=start&client_id=${clientId}`,
+      body: `action=start&client_id=${clientId}&call_type=${callType}`,
     });
-  } catch (e) { console.error("Network Error", e); }
+  } catch (e) {
+    console.error("Network Error", e);
+  }
 };
 
 const triggerRetryHandler = async () => {
@@ -54,5 +64,7 @@ const triggerRetryHandler = async () => {
       method: "GET", // Oder POST, falls dein Script das erwartet
     });
     console.log("Retry-Handler triggered");
-  } catch (e) { console.error("Retry-Handler Network Error", e); }
+  } catch (e) {
+    console.error("Retry-Handler Network Error", e);
+  }
 };

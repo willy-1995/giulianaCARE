@@ -72,7 +72,7 @@ switch ($action) {
 function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
 {
     // 1. Klientendaten inkl. Anrufzeiten und Medikamenten laden
-    $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2, call_1, call_2, call_3, medication_1, medication_2, medication_3 FROM clients WHERE id = ?");
+    $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2, call_1, call_2, call_3, medication_1, medication_2, medication_3 FROM clients WHERE id = ? AND status =  'active'"); //proof if call should be triggered
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
