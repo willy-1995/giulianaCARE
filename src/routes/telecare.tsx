@@ -27,7 +27,9 @@ function TeleCare() {
   const slidesData = [
     "Tägliche Betreuungsanrufe, Medikamenten- und Terminerinnerungen. 365 Tage",
     "Keine Extra-Geräte. Keine Installation. Die betreute Person muss nur den Hörer abnehmen!",
+    "Zuschuss von 27 Euro durch die Pflegekasse ab Pflegestufe 1",
     "Sorgen Sie präventiv für die Eigenständigkeit ihres Senioren",
+    "Die Daten sind sicher duch Hohe Datenschutzvorkehrungen und Serverstandort in Deutschland",
   ];
 
   useEffect(() => {
@@ -77,8 +79,8 @@ function TeleCare() {
               giulianaCare ist die <b>tägliche Telefonbetreuung</b> für
               alleinstehende Seniorinnen und Senioren. Im Gegensatz zum
               Hausnotruf wirkt giulianaCare <b>präventiv</b>. Bis zu drei
-              tägliche, freundliche SicherheitsAnrufe. Und geht keiner ran,
-              wirst Du sofort benachrichtigt.
+              tägliche, freundliche SicherheitsAnrufe. Geht keiner ran oder dein
+              Senior äußert Unwohlsein, wirst du sofort kontaktiert.
             </p>
             <br />
             <br />
@@ -98,6 +100,10 @@ function TeleCare() {
                 </li>
                 <li>
                   <FontAwesomeIcon icon={faCheck} /> Wirkt präventiv. Jeden Tag.
+                </li>
+                <li>
+                  <FontAwesomeIcon icon={faCheck} /> Kostenübernahme durch die
+                  Pflegekasse.
                 </li>
               </ul>
             </b>
