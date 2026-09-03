@@ -12,6 +12,7 @@ require_once "rate_limiter.php";
 // 1. INPUT ERFASSEN
 $action = $_POST['action'] ?? null;
 $clientId = $_POST['client_id'] ?? null;
+$callType = $_POST['call_type'] ?? 'call_1'; // Neu: z.B. 'call_1', 'call_2', 'call_3'
 $directPhoneNumber = $_POST['phone_number'] ?? null;
 
 // Falls der Aufruf von Vapi (Webhook) kommt, ist es ein JSON-Body:
@@ -32,8 +33,9 @@ switch ($action) {
     case 'start':
         if ($clientId) {
             initializeCallStatus($db, $clientId);
-            executeCall($db, $clientId, 'tel1', 1);
-            echo json_encode(["success" => true, "message" => "Anruf für Client $clientId gestartet."]);
+            // Übergabe von $callType (default: 'call_1')
+            executeCall($db, $clientId, 'tel1', 1, $callType);
+            echo json_encode(["success" => true, "message" => "Anruf ($callType) für Client $clientId gestartet."]);
         } else {
             echo json_encode(["success" => false, "message" => "Keine Client ID übergeben."]);
         }
@@ -67,10 +69,10 @@ switch ($action) {
 
 // --- FUNKTIONEN ---
 
-function executeCall($db, $clientId, $telType, $cycle)
+function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
 {
-    // 1. Klientendaten laden
-    $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2 FROM clients WHERE id = ?");
+    // 1. Klientendaten inkl. Anrufzeiten und Medikamenten laden
+    $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2, call_1, call_2, call_3, medication_1, medication_2, medication_3 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -95,18 +97,47 @@ function executeCall($db, $clientId, $telType, $cycle)
     $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
     $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
 
+    // --- MEDIKATION BASIEREND AUF $callType BESTIMMEN ---
+    $currentMedication = '';
+    $callTimeText = '';
+
+    switch ($callType) {
+        case 'call_2':
+            $currentMedication = trim($client['medication_2'] ?? '');
+            $callTimeText = trim($client['call_2'] ?? '');
+            break;
+        case 'call_3':
+            $currentMedication = trim($client['medication_3'] ?? '');
+            $callTimeText = trim($client['call_3'] ?? '');
+            break;
+        case 'call_1':
+        default:
+            $currentMedication = trim($client['medication_1'] ?? '');
+            $callTimeText = trim($client['call_1'] ?? '');
+            break;
+    }
+
+    // Medikamenten-Promptbaustein dynamisch erstellen
+    if (!empty($currentMedication)) {
+        $medicationPromptSection = "MEDIKATION HINWEIS:\nDer Klient muss zu dieser Zeit folgende Medikamente einnehmen: \"$currentMedication\". Erkundige dich höflich, ob die Einnahme geklappt hat bzw. erinnere freundlich daran.";
+    } else {
+        $medicationPromptSection = "MEDIKATION HINWEIS:\nFür diesen Anruf ist keine spezifische Medikamenteneinnahme hinterlegt.";
+    }
+
     // --- STRUKTURIERTER PROMPT FÜR DIE KI ---
     $systemPrompt = <<<PROMPT
 Du bist ein empathischer, aufmerksamer Telefon-Assistent für die Seniorenbetreuung von Dschuliana Kär.
 
 ZIEL DES ANRUFS:
-Kurz erfragen, wie es dem Klienten geht und ob alles in Ordnung ist.
+Kurz erfragen, wie es dem Klienten geht und ob alles in Ordnung ist. 
+
+$medicationPromptSection
 
 VERHALTENSREGELN UND REAKTION AUF UNWOHLSEIN:
 1. Grundhaltung: Antworte immer extrem kurz (max. 1-2 Sätze), verständlich und einfühlsam.
-2. Begrüße mit "Guten Tag.." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
-3. Wenn der Klient sagt, dass alles gut ist:
-   Verabschiede dich höflich ("Schön zu hören! Ich wünsche Ihnen einen schönen Tag bzw Abend. Auf Wiederhören.") und beende das Gespräch umgehend über die `endCall`-Funktion.
+2. Begrüße mit "Guten Tag..." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
+3. Wenn der Klient sagt, dass alles gut ist und die Medikamente (falls vorhanden) eingenommen wurden:
+   Verabschiede dich höflich ("Schön zu hören! Ich wünsche Ihnen einen schönen Tag bzw. Abend. Auf Wiederhören.") und beende das Gespräch umgehend über die `endCall`-Funktion.
 4. Wenn der Klient äußert, dass es ihm SCHLECHT geht oder er Hilfe braucht:
    a) Reagiere mit großem Mitgefühl und frage kurz nach den konkreten Beschwerden/Gründen (z. B.: "Das tut mir leid zu hören. Was genau fehlt Ihnen denn oder was ist passiert?").
    b) Informiere den Klienten ausdrücklich: "Soll ich Ihre Notfallkontakte darüber informieren, damit jemand nach Ihnen sieht?"
@@ -118,7 +149,7 @@ VERHALTENSREGELN UND REAKTION AUF UNWOHLSEIN:
       - Wünsche ihm gute Besserung, schärfe ihm ein, sich im Zweifel an einen Arzt zu wenden, und beende den Anruf höflich.
 PROMPT;
 
-    // 2. Vapi Payload inkl. Notfall-Tool
+    // 2. Vapi Payload inkl. Notfall-Tool & erweiterter Metadaten
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
@@ -161,7 +192,8 @@ PROMPT;
             'variableValues' => [
                 'clientId' => (string)$clientId,
                 'cycle'    => (string)$cycle,
-                'telType'  => $telType
+                'telType'  => $telType,
+                'callType' => $callType
             ]
         ],
         'customer' => [
@@ -169,7 +201,8 @@ PROMPT;
             'extension' => [
                 'clientId' => (string)$clientId,
                 'cycle'    => $cycle,
-                'telType'  => $telType
+                'telType'  => $telType,
+                'callType' => $callType
             ]
         ]
     ];
@@ -254,6 +287,7 @@ function handleVapiWebhook($db, $data)
     $clientId = $metadata['clientId'] ?? null;
     $cycle    = $metadata['cycle'] ?? 1;
     $telType  = $metadata['telType'] ?? 'tel1';
+    $callType = $metadata['callType'] ?? 'call_1';
 
     if (!$clientId) return;
 
@@ -269,18 +303,18 @@ function handleVapiWebhook($db, $data)
             updateCallStatus($db, $clientId, 'completed', $summary);
         }
     } else {
-        escalateCall($db, $clientId, $cycle, $telType);
+        escalateCall($db, $clientId, $cycle, $telType, $callType);
     }
 }
 
-function escalateCall($db, $clientId, $cycle, $telType)
+function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 {
     $stmt = $db->prepare("SELECT name, tel1, tel2 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($telType === 'tel1' && !empty($client['tel2'])) {
-        executeCall($db, $clientId, 'tel2', $cycle);
+        executeCall($db, $clientId, 'tel2', $cycle, $callType);
     } elseif ($cycle === 1) {
         $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ? AND status = 'calling'");
         $stmt->execute([$clientId]);
@@ -292,9 +326,6 @@ function escalateCall($db, $clientId, $cycle, $telType)
 
 // --- BENACHRICHTIGUNGSFUNKTIONEN ---
 
-/**
- * Erweitert um den Übergabeparameter $customReason.
- */
 function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = null): void
 {
     $stmt = $db->prepare("SELECT lastname, firstname, title, sms_status FROM clients WHERE id = ?");
