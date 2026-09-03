@@ -264,6 +264,12 @@
       border: 3px solid var(--accent-color);
       border-radius: 15px;
       padding: 10px;
+      box-shadow: 0 0 10px var(--accent-color);
+
+      @media (max-width: 800px) {
+        width: 95%;
+        margin: 0 auto;
+      }
 
       .card-item {
         margin-bottom: 10px;
@@ -277,4 +283,21 @@
       }
     }
   }
+}
+
+.protocol-area {
+  margin-top: 40px;
+
+  h3 {
+    margin-bottom: 20px;
+    margin-left: 10px;
+  }
+
+  .protocol-list {
+    margin-left: 10px;
+  }
+}
+
+.currentPrice {
+  margin-bottom: 20px;
 }

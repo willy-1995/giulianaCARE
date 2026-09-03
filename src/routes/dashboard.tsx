@@ -119,6 +119,14 @@ export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null); // for call display
   const [protocols, setProtocols] = useState<Protocol[]>([]);
 
+  //Price formation for frontend
+  const packageNames = {
+    gutBetreut: "Gut betreut",
+    sicherheit: "Sicherheit",
+    rundumSorglos: "Rundum sorglos",
+    // hier weitere Varianten ergänzen
+  };
+
   //=====================
   //GET LISTS
   //=====================
@@ -697,7 +705,9 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
+      {/*===========================
+        MODALS
+        ==============================*/}
       {clientModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -810,7 +820,7 @@ export default function Dashboard() {
                     onChange={handleClientChange}
                   />
                 </label>
-
+                {/*
                 <label>
                   Zusatzinformation
                   <input
@@ -821,21 +831,28 @@ export default function Dashboard() {
                     onChange={handleClientChange}
                   />
                 </label>
+                
+                */}
 
                 <h3 id="call-change-heading">Wähle die Anrufzeiten</h3>
                 <br />
-                <p>Aktuelles Paket: {user?.price}</p>
+                <p className="currentPrice">
+                  Aktuelles Paket:{" "}
+                  <b>{packageNames[user?.price] || user?.price}</b>
+                </p>
 
                 {/* ================= ANRUF 1 (Für alle Tarife sichtbar) ================= */}
-                <label htmlFor="call_1">Anruf 1 um:</label>
-                <input
-                  type="time"
-                  id="call_1"
-                  name="call_1"
-                  required
-                  value={formDataClients.call_1 || ""}
-                  onChange={handleClientChange}
-                />
+                <label htmlFor="call_1">
+                  Anruf 1 um:
+                  <input
+                    type="time"
+                    id="call_1"
+                    name="call_1"
+                    required
+                    value={formDataClients.call_1 || ""}
+                    onChange={handleClientChange}
+                  />
+                </label>
 
                 <label htmlFor="medication_1">
                   Medikation / Info Anruf 1:
@@ -859,6 +876,7 @@ export default function Dashboard() {
                         name="call_2"
                         value={formDataClients.call_2 || ""}
                         onChange={handleClientChange}
+                        required
                       />
                     </label>
 
@@ -885,6 +903,7 @@ export default function Dashboard() {
                         name="call_3"
                         value={formDataClients.call_3 || ""}
                         onChange={handleClientChange}
+                        required
                       />
                     </label>
 
@@ -914,51 +933,49 @@ export default function Dashboard() {
           <div className="modal">
             <form onSubmit={handleContactSubmit}>
               <div className="form-div">
-                <fieldset>
-                  <legend>
-                    {isEditMode ? "Kontakt bearbeiten" : "Neuer Notfallkontakt"}
-                  </legend>
-                  <label>
-                    Nachname
-                    <input
-                      type="text"
-                      name="lastname"
-                      placeholder="Bspw. Müller"
-                      value={formDataContacts.lastname}
-                      onChange={handleContactChange}
-                    />
-                  </label>
-                  <label>
-                    Vorname
-                    <input
-                      type="text"
-                      name="firstname"
-                      placeholder="Bspw. Manfred"
-                      value={formDataContacts.firstname}
-                      onChange={handleContactChange}
-                    />
-                  </label>
-                  <label>
-                    Telefon
-                    <input
-                      type="tel"
-                      name="tel1"
-                      placeholder="Bspw. 0228 12345678"
-                      value={formDataContacts.tel1}
-                      onChange={handleContactChange}
-                    />
-                  </label>
-                  <label>
-                    E-Mail-Adresse
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="beispiel@muster.de..."
-                      value={formDataContacts.email}
-                      onChange={handleContactChange}
-                    />
-                  </label>
-                </fieldset>
+                <h3>
+                  {isEditMode ? "Kontakt bearbeiten" : "Neuer Notfallkontakt"}
+                </h3>
+                <label>
+                  Nachname
+                  <input
+                    type="text"
+                    name="lastname"
+                    placeholder="Bspw. Müller"
+                    value={formDataContacts.lastname}
+                    onChange={handleContactChange}
+                  />
+                </label>
+                <label>
+                  Vorname
+                  <input
+                    type="text"
+                    name="firstname"
+                    placeholder="Bspw. Manfred"
+                    value={formDataContacts.firstname}
+                    onChange={handleContactChange}
+                  />
+                </label>
+                <label>
+                  Telefon
+                  <input
+                    type="tel"
+                    name="tel1"
+                    placeholder="Bspw. 0228 12345678"
+                    value={formDataContacts.tel1}
+                    onChange={handleContactChange}
+                  />
+                </label>
+                <label>
+                  E-Mail-Adresse
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="beispiel@muster.de..."
+                    value={formDataContacts.email}
+                    onChange={handleContactChange}
+                  />
+                </label>
               </div>
               <button type="submit">Speichern</button>
               <button type="button" onClick={closeModals}>

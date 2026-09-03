@@ -78,6 +78,11 @@ export default function Settings() {
     }
   };
 
+  //CLEAR MESSAGE
+  const clearMessage = () => {
+    setMessage("");
+  };
+
   return (
     <div className="body-div settings-div">
       <SubNavbar />
@@ -95,100 +100,106 @@ export default function Settings() {
           >
             Bearbeiten
           </button>
+          <button className="setting-button">Zahlungsdaten</button>
           <button onClick={handleLogout} className="logout setting-button">
             Ausloggen
           </button>
         </div>
-        <div className="setting-section">
-          <h3>Abonnement</h3>
-        </div>
-        <div className="setting-section">
-          <button
-            onClick={handleDeleteAccount}
-            className="deleteAccount setting-button"
-          >
-            Kündigen
-          </button>
-        </div>
+
+        <button
+          onClick={handleDeleteAccount}
+          className="deleteAccount setting-button"
+        >
+          Kündigen
+        </button>
       </div>
-      {/* MODAL FÜR DATEN-UPDATE */}
+      {/* 
+      =========================
+      MODAL FOR DATA UPDATE
+      =========================
+      */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3>Daten ändern</h3>
+            <h3 className="modal-heading">Daten ändern</h3>
 
             {message && <p className="modal-message">{message}</p>}
 
             <form onSubmit={handleUpdate}>
-              <div className="form-group">
-                <label>E-Mail</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Deine E-Mail"
-                />
-              </div>
+              <div className="form-div">
+                <label>
+                  E-Mail
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="Deine E-Mail"
+                  />
+                </label>
 
-              <div className="form-group">
-                <label>Betreuungspaket</label>
-                <select
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                >
-                  <option value="" disabled hidden>
-                    Paket wählen
-                  </option>
-                  <option value="" disabled hidden>
-                    Betreuungspaket wählen
-                  </option>
-                  <option value="sicherheit">
-                    Sicherheit 19€ - 1 Anruf pro Tag
-                  </option>
-                  <option value="gutBetreut">
-                    Gut bretreut 26€ - 2 Anrufe pro Tag
-                  </option>
-                  <option value="rundumSorglos">
-                    Rundum Sorglos 32€ - 3 Anrufe pro Tag
-                  </option>
-                </select>
-              </div>
+                <label>
+                  Betreuungspaket
+                  <select
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                  >
+                    <option value="" disabled hidden>
+                      Paket wählen
+                    </option>
+                    <option value="" disabled hidden>
+                      Betreuungspaket wählen
+                    </option>
+                    <option value="sicherheit">
+                      Sicherheit 19€ - 1 Anruf pro Tag
+                    </option>
+                    <option value="gutBetreut">
+                      Gut bretreut 26€ - 2 Anrufe pro Tag
+                    </option>
+                    <option value="rundumSorglos">
+                      Rundum Sorglos 32€ - 3 Anrufe pro Tag
+                    </option>
+                  </select>
+                </label>
 
-              <div className="form-group">
-                <label>Land</label>
-                <select
-                  name="country"
-                  value={formData.country}
-                  onChange={handleChange}
-                >
-                  <option value="" disabled hidden>
-                    Land wählen
-                  </option>
-                  <option value="Deutschland">Deutschland</option>
-                  <option value="Österreich">Österreich</option>
-                  <option value="Schweiz">Schweiz</option>
-                </select>
-              </div>
+                <label>
+                  Land
+                  <select
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                  >
+                    <option value="" disabled hidden>
+                      Land wählen
+                    </option>
+                    <option value="Deutschland">Deutschland</option>
+                    <option value="Österreich">Österreich</option>
+                    <option value="Schweiz">Schweiz</option>
+                  </select>
+                </label>
 
-              <div className="form-group">
-                <label>Postleitzahl</label>
-                <input
-                  type="text"
-                  name="area_code"
-                  value={formData.area_code}
-                  onChange={handleChange}
-                  placeholder="Postleitzahl"
-                  maxLength={5}
-                />
+                <label>
+                  Postleitzahl
+                  <input
+                    type="text"
+                    name="area_code"
+                    value={formData.area_code}
+                    onChange={handleChange}
+                    placeholder="Postleitzahl"
+                    maxLength={5}
+                  />
+                </label>
               </div>
 
               <div className="modal-actions">
                 <button
                   type="button"
                   className="cancel-btn"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    clearMessage();
+                  }}
                 >
                   Abbrechen
                 </button>

@@ -1,4 +1,44 @@
 <?php
+
+
+
+require_once "cors.php";
+require_once "envloader.php";
+require_once "database.php";
+require_once __DIR__ . "/auth/jwt.php";
+
+header("Content-Type: application/json; charset=UTF-8");
+
+$userId = getUserIdFromToken();
+
+$dbInstance = new Database();
+$db = $dbInstance->getConnection();
+
+// Lade ALLE Incidents OHNE Filter, um zu sehen was existiert:
+$sql = "
+    SELECT 
+        ci.id AS incident_id,
+        ci.client_id,
+        ci.reason,
+        c.user_id AS klient_gehoert_zu_user_id
+    FROM client_incidents ci
+    LEFT JOIN clients c ON ci.client_id = c.id
+";
+
+$stmt = $db->prepare($sql);
+$stmt->execute();
+$allIncidents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+echo json_encode([
+    "success" => true,
+    "deine_eingeloggte_user_id" => $userId,
+    "gefundene_incidents_in_db" => $allIncidents
+]);
+exit;
+
+
+
+/*
 require_once "cors.php";
 require_once "envloader.php";
 require_once "database.php";
@@ -37,10 +77,14 @@ if ($method === 'GET') {
         $stmt->execute([':user_id' => $userId]);
         $incidents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        
+        
         echo json_encode([
             "success" => true,
             "data" => $incidents
         ]);
+        
+        
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode([
@@ -55,3 +99,5 @@ if ($method === 'GET') {
         "message" => "Methode nicht erlaubt."
     ]);
 }
+
+*/
