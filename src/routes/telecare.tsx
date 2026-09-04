@@ -1,5 +1,4 @@
-import React from "react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
@@ -23,7 +22,18 @@ function TeleCare() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [modal, setModal] = useState(false);
 
-  //SLIDESHOW
+  // State & Bilder-Array für die Mobile-Image-Slideshow
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const getAssetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+
+  const mobileImages = [
+    getAssetUrl("media/grandma_tel.png"),
+    getAssetUrl("media/team.png"),
+    getAssetUrl("media/woman.jpg"),
+  ];
+
+  // SLIDESHOW TEXT
   const slidesData = [
     "Tägliche Betreuungsanrufe, Medikamenten- und Terminerinnerungen. 365 Tage",
     "Keine Extra-Geräte. Keine Installation. Die betreute Person muss nur den Hörer abnehmen!",
@@ -32,19 +42,27 @@ function TeleCare() {
     "Die Daten sind sicher duch Hohe Datenschutzvorkehrungen und Serverstandort in Deutschland",
   ];
 
+  // TIMER SLIDESHOW PHRASES
   useEffect(() => {
-    // Timer für den Wechsel alle 6 Sekunden (6000ms)
     const timer = setInterval(() => {
       setCurrentSlide((prevSlide) => (prevSlide + 1) % slidesData.length);
     }, 6000);
 
-    // Aufräumen, falls die Komponente unmounted wird
     return () => clearInterval(timer);
   }, [slidesData.length]);
 
-  const getAssetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+  // TIMER SLIDESHOW IMAGES MOBILE
+  useEffect(() => {
+    const imageTimer = setInterval(() => {
+      setCurrentImageIndex(
+        (prevIndex) => (prevIndex + 1) % mobileImages.length,
+      );
+    }, 6000);
 
-  //FUNCTIONS
+    return () => clearInterval(imageTimer);
+  }, [mobileImages.length]);
+
+  // FUNCTIONS
   const openModal = () => {
     setModal(true);
   };
@@ -56,7 +74,7 @@ function TeleCare() {
   return (
     <div className="body-div telecare-content">
       <Navbar />
-      {/*SECTION INTRO */}
+      {/* SECTION INTRO */}
       <div className="telecare-section" id="telecare-intro">
         <div className="slider-container">
           {slidesData.map((text, index) => (
@@ -69,21 +87,10 @@ function TeleCare() {
           ))}
         </div>
         <div className="intro-div">
-          <p>
-            <h3>
-              Präventive Betreuung für Senioren <br />{" "}
-              <span>Jeden Tag per Telefon</span>
-            </h3>
-            <p className="intro-text">
-              {" "}
-              giulianaCare ist die <b>tägliche Telefonbetreuung</b> für
-              alleinstehende Seniorinnen und Senioren. Im Gegensatz zum
-              Hausnotruf wirkt giulianaCare <b>präventiv</b>. Bis zu drei
-              tägliche, freundliche SicherheitsAnrufe. Geht keiner ran oder dein
-              Senior äußert Unwohlsein, wirst du sofort kontaktiert.
-            </p>
-            <br />
-            <br />
+          <div className="text-area">
+            <h2>
+              Telefonbetreuung für Senioren <br />
+            </h2>
             <b>
               <ul>
                 <li>
@@ -107,6 +114,31 @@ function TeleCare() {
                 </li>
               </ul>
             </b>
+
+            {/* MOBILE BILDER-SLIDESHOW (Wird unter 1200px genau hier eingeblendet) */}
+            <div className="intro-img-div-mobile">
+              <div className="img-container">
+                {mobileImages.map((src, index) => (
+                  <img
+                    key={index}
+                    src={src}
+                    alt={`Slide ${index + 1}`}
+                    className={`intro-img ${
+                      index === currentImageIndex ? "active" : ""
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <p className="intro-text">
+              giulianaCare ist die <b>tägliche Telefonbetreuung</b> für
+              alleinstehende Seniorinnen und Senioren. Im Gegensatz zum
+              Hausnotruf wirkt giulianaCare <b>präventiv</b>. Bis zu drei
+              tägliche, freundliche SicherheitsAnrufe. Geht keiner ran oder dein
+              Senior äußert Unwohlsein, wirst du sofort kontaktiert.
+            </p>
+
             <div className="intro-button-div">
               <button>
                 14 Tage kostenlos testen <FontAwesomeIcon icon={faThumbsUp} />
@@ -114,19 +146,10 @@ function TeleCare() {
               <button onClick={openModal}>
                 Gratis Testanruf <FontAwesomeIcon icon={faPhone} />
               </button>
-              {/*//////////////////////////////
-              Modal for test-call
-              ///////////////////////////////*/}
-              {modal && (
-                <div className="modal-overlay">
-                  <div className="modal">
-                    <TestCallForm />
-                    <button onClick={closeModal}>Abbrechen</button>
-                  </div>
-                </div>
-              )}
             </div>
-          </p>
+          </div>
+
+          {/* IMG Desktop-Ansicht */}
           <div className="intro-img-div">
             <div className="img-container" id="img-1">
               <img
@@ -195,7 +218,7 @@ function TeleCare() {
           <h2>
             Im Gegensatz zum klassischen Hausnotruf beugst Du mit giulianaCare
             Telebetreuung Ernstfällen bequem vor und kannst diese frühzeitig
-            erkennen.{" "}
+            erkennen.
           </h2>
           <div className="table-div">
             <ul className="table-highlight">
@@ -272,6 +295,15 @@ function TeleCare() {
         </p>
       </div>
       <Footer />
+
+      {modal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <TestCallForm />
+            <button onClick={closeModal}>Abbrechen</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

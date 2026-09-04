@@ -1,8 +1,13 @@
+/* ========================================================================== 
+   1. HERO & TELECARE INTRO SECTION (#telecare-intro) 
+   ========================================================================== */
+
 #telecare-intro {
+  // 1.1 TEXT SLIDER (OBEN)
   .slider-container {
     position: relative;
     width: 100%;
-    min-height: 150px; // Passe die Höhe nach deinen Design-Bedürfnissen an
+    min-height: 150px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -20,8 +25,6 @@
       text-align: center;
       padding: 20px;
       box-sizing: border-box;
-
-      // Standardmäßig unsichtbar und "unsichtbar" für Pointer-Events
       opacity: 0;
       visibility: hidden;
       transition:
@@ -30,44 +33,60 @@
 
       h3 {
         margin: 0;
-        font-size: 1.5rem; // Kannst du natürlich anpassen
+        font-size: 1.5rem;
         max-width: 800px;
         line-height: 1.4;
       }
 
-      // Wenn der Slide aktiv ist, fadet er ein
       &.active {
         opacity: 1;
         visibility: visible;
-        z-index: 2; // Holt den aktiven Slide nach vorn
+        z-index: 2;
       }
     }
   }
 
+  // 1.2 MAIN INTRO CONTAINER (TEXT & BILDER)
   .intro-div {
     display: flex;
-    width: 90%;
+    width: 100%;
     margin: 0 auto;
-    border-radius: 15px;
-    background: linear-gradient(to right, var(--accent-color) 0%, white 50%);
+    background: linear-gradient(
+      to right,
+      var(--accent-color) 0%,
+      var(--accent-color) 50%,
+      white 80%
+    );
     padding: 10px;
 
+    // Angepasst: greift jetzt von 0px bis 1200px für das Spalten-Layout
     @media (max-width: 1200px) {
       flex-direction: column;
       height: auto;
-      background: linear-gradient(to bottom, var(--accent-color) 0%, white 50%);
+      background: linear-gradient(
+        to bottom,
+        var(--accent-color) 0%,
+        var(--accent-color) 50%,
+        white 80%
+      );
       padding: 20px 0;
     }
 
-    @media (max-width: 700px) {
-      margin: 0;
-      margin-bottom: 20px;
-      width: 100%;
+    @media (max-width: 800px) {
+      margin: 0 0 20px 0;
       border-top-left-radius: 0;
       border-top-right-radius: 0;
+      background: linear-gradient(
+        to bottom,
+        var(--accent-color) 0%,
+        var(--accent-color) 30%,
+        white 50%
+      );
     }
 
-    p {
+    // 1.3 TEXT INHALTE & BUTTONS
+    // 1.3 TEXT INHALTE & BUTTONS
+    .text-area {
       width: 60%;
       text-align: center;
       font-size: 1.5rem;
@@ -78,17 +97,12 @@
 
       .intro-text {
         width: 90%;
-        margin: 0 auto;
-        @media (max-width: 1200px) {
-          width: 90%;
-          margin: 0 auto;
-          text-align: center;
-        }
+        margin: 20px auto 0 auto;
       }
 
-      h3 {
-        text-align: center;
-        margin-bottom: 20px;
+      h2 {
+        margin: 0 auto 20px auto;
+        width: 90%;
       }
 
       ul {
@@ -99,6 +113,7 @@
 
         li {
           margin-bottom: 20px;
+          color: white;
         }
       }
 
@@ -108,9 +123,7 @@
         justify-content: center;
         flex-direction: column;
         width: 90%;
-        margin: 0 auto;
-        margin-top: 40px;
-        margin-bottom: 40px;
+        margin: 40px auto;
         gap: 20px;
 
         button {
@@ -119,15 +132,16 @@
         }
       }
     }
+    // 1.4 BILDER-CONTAINER DESKTOP
     .intro-img-div {
       width: 70%;
       border-radius: 15px;
       position: relative;
 
       @media (max-width: 1200px) {
-        width: 100%;
-        position: unset;
+        display: none; // Vollständig ausblenden auf mobilen/kleinen Screens
       }
+
       .img-container {
         width: 300px;
         height: 300px;
@@ -138,23 +152,13 @@
         align-items: center;
         justify-content: center;
 
-        @media (max-width: 700px) {
-          margin: 0 auto;
-          margin-bottom: 20px;
-          width: 400px;
-          height: 400px;
-        }
-
         .intro-img {
           max-width: 100%;
           scale: 1.9;
-
-          @media (max-width: 1200px) {
-            position: unset;
-          }
         }
       }
 
+      // Einzellayouts der 3 Bilder im Collagen-Look
       #img-1 {
         width: 290px;
         height: 290px;
@@ -164,24 +168,10 @@
         @media (max-width: 1350px) {
           left: 30px;
         }
-
         @media (max-width: 1300px) {
           left: 30px;
           width: 270px;
           height: 270px;
-        }
-
-        @media (max-width: 1200px) {
-          position: unset;
-          width: 500px;
-          height: 500px;
-          margin: 0 auto;
-          margin-bottom: 40px;
-        }
-
-        @media (max-width: 700px) {
-          width: 300px;
-          height: 300px;
         }
       }
 
@@ -196,25 +186,11 @@
           left: 300px;
           top: 170px;
         }
-
         @media (max-width: 1300px) {
           left: 280px;
           top: 170px;
           width: 330px;
           height: 330px;
-        }
-
-        @media (max-width: 1200px) {
-          position: unset;
-          width: 500px;
-          height: 500px;
-          margin: 0 auto;
-          margin-bottom: 40px;
-        }
-
-        @media (max-width: 700px) {
-          width: 300px;
-          height: 300px;
         }
       }
 
@@ -229,47 +205,104 @@
           left: 60px;
           top: 480px;
         }
-
         @media (max-width: 1300px) {
           left: 100px;
           top: 480px;
           width: 220px;
           height: 220px;
         }
+      }
+    }
 
-        @media (max-width: 1200px) {
-          position: unset;
-          width: 500px;
-          height: 500px;
-          margin: 0 auto;
-          margin-bottom: 40px;
-        }
+    // 1.5 BILDER-CONTAINER MOBILE SLIDESHOW
+    .intro-img-div-mobile {
+      display: none;
 
-        @media (max-width: 700px) {
+      @media (max-width: 1200px) {
+        display: block;
+        width: 100%;
+        margin-top: 2rem;
+
+        .img-container {
+          position: relative;
           width: 300px;
           height: 300px;
+          margin: 0 auto;
+          overflow: hidden;
+          border-radius: 50%;
+          border: 5px solid var(--accent-color);
+
+          .intro-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+
+            &.active {
+              opacity: 1;
+            }
+          }
+        }
+      }
+    }
+
+    // 1.6 MOBILE INTRO TEXT & TESTCALL
+    .intro-text-mobile {
+      display: none;
+
+      // Nur im Bereich von 801px bis 1200px anzeigen
+      @media (min-width: 801px) and (max-width: 1200px) {
+        display: block;
+        width: 100%;
+        text-align: center;
+        margin-top: 20px;
+
+        .intro-text {
+          width: 90%;
+          margin: 0 auto;
+          font-size: 1.5rem;
+        }
+
+        .intro-button-div {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          width: 90%;
+          margin: 40px auto;
+          gap: 20px;
+
+          button {
+            width: 100%;
+            font-size: 1.5rem;
+          }
         }
       }
     }
   }
 }
 
-//========================================================
-//WORKING AREA
-//========================================================
+/* ========================================================================== 
+   2. HOW IT WORKS SECTION (#working) 
+   ========================================================================== */
 
 #working {
   h2 {
     text-align: center;
-    margin: 20px;
     margin-top: 75px;
+    margin-bottom: 40px;
+
     @media (max-width: 700px) {
       width: 90%;
-      margin: 0 auto;
-      margin-bottom: 20px;
-      text-align: center;
+      margin: 0 auto 20px auto;
     }
   }
+
+  // 2.1 SCHRITTE GRID
   .working-grid {
     display: flex;
     flex-direction: row;
@@ -278,9 +311,10 @@
 
     @media (max-width: 700px) {
       flex-direction: column;
-      width: 100%;
-      margin: 0 auto;
+      width: 90%;
+      height: auto;
     }
+
     .working-card {
       min-height: 120px;
       margin-bottom: 20px;
@@ -294,11 +328,8 @@
       box-shadow: 0 0 10px var(--accent-color);
 
       @media (max-width: 700px) {
-        width: 90%;
-        margin: 0 auto;
-        margin-bottom: 20px;
-        padding-top: 20px;
-        padding-bottom: 20px;
+        width: 100%;
+        padding: 20px 0;
       }
 
       h2 {
@@ -314,22 +345,16 @@
         color: gray;
       }
     }
-
-    @media (max-width: 700px) {
-      width: 90%;
-      margin: 0 auto;
-      height: auto;
-    }
   }
 
+  // 2.2 VERGLEICHSTABELLE (SERVICE INFO)
   .service-info-div {
     width: 100%;
     background-color: var(--accent-color);
     padding: 20px 0;
 
     h2 {
-      margin: 0 auto;
-      margin-bottom: 40px;
+      margin: 0 auto 40px auto;
       text-align: center;
     }
 
@@ -340,25 +365,8 @@
       margin: 0 auto;
 
       @media (max-width: 800px) {
-        display: flex;
         flex-direction: column;
         width: 90%;
-      }
-      /*//////////////////////////////////////
-      HIGHLIGHT
-      //////////////////////////////////////*/
-      .table-highlight {
-        box-shadow: 0 0 10px white;
-        opacity: 1;
-
-        h2 {
-          color: white;
-          text-shadow: 0 0 3px white;
-        }
-
-        li {
-          text-shadow: 0 0 2px white;
-        }
       }
 
       ul {
@@ -396,6 +404,21 @@
         }
       }
 
+      // Hervorgehobene giulianaCare-Spalte
+      .table-highlight {
+        box-shadow: 0 0 10px white;
+        opacity: 1;
+
+        h2 {
+          color: white;
+          text-shadow: 0 0 3px white;
+        }
+
+        li {
+          text-shadow: 0 0 2px white;
+        }
+      }
+
       h3 {
         text-align: center;
         display: flex;
@@ -409,6 +432,7 @@
     }
   }
 
+  // 2.3 PREISTABELLE & DISCLAIMER
   .price-heading {
     margin-top: 50px;
     margin-bottom: 0;
@@ -419,9 +443,10 @@
     align-items: center;
     justify-content: space-evenly;
 
-    h2 {
-      margin-top: 50px;
-      margin-bottom: 0;
+    @media (max-width: 1000px) {
+      width: 90%;
+      margin: 0 auto;
+      flex-direction: column;
     }
 
     .price-card {
@@ -441,18 +466,8 @@
 
       h2 {
         color: var(--accent-color);
-      }
-
-      /*//////////////////////////////////////
-      HIGHLIGHT
-      //////////////////////////////////////*/
-      .price-highlight {
-        box-shadow: 0 0 10px var(--accent-color);
-
-        p {
-          //color: white;
-          //text-shadow: 0 0 5px white;
-        }
+        margin-top: 50px;
+        margin-bottom: 0;
       }
 
       .intervall {
@@ -475,12 +490,11 @@
           width: 150px;
           margin-top: 10px;
         }
+
+        &.price-highlight {
+          box-shadow: 0 0 10px var(--accent-color);
+        }
       }
-    }
-    @media (max-width: 1000px) {
-      width: 90%;
-      margin: 0 auto;
-      flex-direction: column;
     }
   }
 }
@@ -493,20 +507,45 @@
   }
 }
 
+/* ========================================================================== 
+   3. MEDIA ELEMENTS (VIDEO) 
+   ========================================================================== */
+
+.video-div {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 50px 0;
+
+  .telecare-video {
+    width: 50%;
+    border-radius: 5px;
+    box-shadow: 0 0 10px var(--shadow-color);
+
+    @media (max-width: 700px) {
+      width: 80%;
+    }
+  }
+}
+
+/* ========================================================================== 
+   4. MODALS & OVERLAYS 
+   ========================================================================== */
+
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.4); // Dunkelt den Hintergrund leicht ab
-  backdrop-filter: blur(8px); // Erzeugt den modernen Blur-Effekt
-  z-index: 999; // Liegt über der gesamten App
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 999;
   display: flex;
-  justify-content: center; // Zentriert horizontal
-  align-items: center; // Zentriert vertikal
-
-  // Verhindert Klicks auf darunterliegende Elemente im gesamten Viewport
+  justify-content: center;
+  align-items: center;
   pointer-events: auto;
 
   .modal {
@@ -517,24 +556,6 @@
     max-width: 450px;
     width: 90%;
     position: relative;
-    z-index: 1000; // Liegt sicher über dem Overlay
-  }
-}
-
-.video-div {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  padding: 50px 0;
-  .telecare-video {
-    width: 50%;
-    border-radius: 5px;
-    box-shadow: 0 0 10px var(--shadow-color);
-
-    @media (max-width: 700px) {
-      width: 80%;
-    }
+    z-index: 1000;
   }
 }
