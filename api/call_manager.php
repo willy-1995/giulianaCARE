@@ -250,7 +250,7 @@ function handleVapiToolCall($db, $data)
             $reason = $args['reason'] ?? 'Unwohlsein (keine näheren Angaben)';
 
             // Client ID aus den Metadaten beziehen
-            $metadata = $data['message']['customer']['extension'] ?? [];
+            $metadata = $data['message']['call']['metadata'] ?? $data['message']['customer']['extension'] ?? [];
             $clientId = $metadata['clientId'] ?? null;
 
             if ($clientId) {
@@ -291,7 +291,7 @@ function logClientIncident(PDO $db, int $clientId, string $reason): void
 function handleVapiWebhook($db, $data)
 {
     $endedReason = $data['message']['endedReason'] ?? '';
-    $metadata = $data['message']['customer']['extension'] ?? [];
+    $metadata = $data['message']['call']['metadata'] ?? $data['message']['customer']['extension'] ?? [];
 
     $clientId = $metadata['clientId'] ?? null;
     $cycle    = $metadata['cycle'] ?? 1;
