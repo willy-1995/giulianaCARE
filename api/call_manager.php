@@ -162,33 +162,33 @@ PROMPT;
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
             'model' => [
                 'provider' => 'azure-openai',
-                'model'    => 'gpt-5.4-mini',
+                'model'    => 'gpt-4o-mini', // Vapi unterstützt native gpt-4o/gpt-4o-mini Modelle
                 'messages' => [
                     [
                         'role'    => 'system',
                         'content' => $systemPrompt
                     ]
+                ]
+            ],
+            // Tools gehören direkt in assistantOverrides:
+            'tools' => [
+                [
+                    'type' => 'endCall'
                 ],
-                // Definition der verfügbaren Tools
-                'tools' => [
-                    [
-                        'type' => 'endCall'
-                    ],
-                    [
-                        'type' => 'function',
-                        'function' => [
-                            'name' => 'triggerEmergencyCall',
-                            'description' => 'Aktiviert den Notfallalarm, benachrichtigt die Notfallkontakte und speichert die Beschwerden.',
-                            'parameters' => [
-                                'type' => 'object',
-                                'properties' => [
-                                    'reason' => [
-                                        'type' => 'string',
-                                        'description' => 'Die konkreten Beschwerden oder Gründe, die der Klient genannt hat (z. B. Sturz, Schwindel, Schmerzen).'
-                                    ]
-                                ],
-                                'required' => ['reason']
-                            ]
+                [
+                    'type' => 'function',
+                    'function' => [
+                        'name' => 'triggerEmergencyCall',
+                        'description' => 'Aktiviert den Notfallalarm, benachrichtigt die Notfallkontakte und speichert die Beschwerden.',
+                        'parameters' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'reason' => [
+                                    'type' => 'string',
+                                    'description' => 'Die konkreten Beschwerden oder Gründe, die der Klient genannt hat (z. B. Sturz, Schwindel, Schmerzen).'
+                                ]
+                            ],
+                            'required' => ['reason']
                         ]
                     ]
                 ]
