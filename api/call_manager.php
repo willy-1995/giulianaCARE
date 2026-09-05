@@ -155,6 +155,7 @@ VERHALTENSREGELN UND REAKTION AUF UNWOHLSEIN:
 PROMPT;
 
     // 2. Vapi Payload inkl. Notfall-Tool & erweiterter Metadaten
+    // 2. Vapi Payload (An Vapi API v1 angepasst)
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
@@ -162,33 +163,33 @@ PROMPT;
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
             'model' => [
                 'provider' => 'azure-openai',
-                'model'    => 'gpt-4o-mini', // Vapi unterstützt native gpt-4o/gpt-4o-mini Modelle
+                'model'    => 'gpt-4o-mini',
                 'messages' => [
                     [
                         'role'    => 'system',
                         'content' => $systemPrompt
                     ]
-                ]
-            ],
-            // Tools gehören direkt in assistantOverrides:
-            'tools' => [
-                [
-                    'type' => 'endCall'
                 ],
-                [
-                    'type' => 'function',
-                    'function' => [
-                        'name' => 'triggerEmergencyCall',
-                        'description' => 'Aktiviert den Notfallalarm, benachrichtigt die Notfallkontakte und speichert die Beschwerden.',
-                        'parameters' => [
-                            'type' => 'object',
-                            'properties' => [
-                                'reason' => [
-                                    'type' => 'string',
-                                    'description' => 'Die konkreten Beschwerden oder Gründe, die der Klient genannt hat (z. B. Sturz, Schwindel, Schmerzen).'
-                                ]
-                            ],
-                            'required' => ['reason']
+                // HIER: tools gehört ins model-Objekt
+                'tools' => [
+                    [
+                        'type' => 'endCall'
+                    ],
+                    [
+                        'type' => 'function',
+                        'function' => [
+                            'name' => 'triggerEmergencyCall',
+                            'description' => 'Aktiviert den Notfallalarm, benachrichtigt die Notfallkontakte und speichert die Beschwerden.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'reason' => [
+                                        'type' => 'string',
+                                        'description' => 'Die konkreten Beschwerden oder Gründe, die der Klient genannt hat (z. B. Sturz, Schwindel, Schmerzen).'
+                                    ]
+                                ],
+                                'required' => ['reason']
+                            ]
                         ]
                     ]
                 ]
@@ -202,13 +203,15 @@ PROMPT;
             ]
         ],
         'customer' => [
-            'number' => $phone,
-            'extension' => [
-                'clientId' => (string)$clientId,
-                'cycle'    => $cycle,
-                'telType'  => $telType,
-                'callType' => $callType
-            ]
+            'number' => $phone
+            // HIER: 'extension' wurde entfernt
+        ],
+        // HIER: Eigene Metadaten gehören auf oberster Ebene in 'metadata'
+        'metadata' => [
+            'clientId' => (string)$clientId,
+            'cycle'    => (string)$cycle,
+            'telType'  => $telType,
+            'callType' => $callType
         ]
     ];
 
