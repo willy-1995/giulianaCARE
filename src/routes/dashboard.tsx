@@ -576,22 +576,34 @@ export default function Dashboard() {
                         <h3>Anruf(e)</h3>
                         <div className="calls">
                           <div className="calls-item">
-                            <p>Anruf 1: {client.call_1}</p>
-                            <p>Medikation/ Info: {client.medication_1}</p>
+                            <p>
+                              <b>Anruf 1:</b> {client.call_1} Uhr
+                            </p>
+                            <p>
+                              <b>Medikation/ Info:</b> {client.medication_1}
+                            </p>
                           </div>
                           {/* ================= ANRUF 2 (Sichtbar bei "gutBetreut" und "rundumSorglos") ================= */}
                           {(user?.price === "gutBetreut" ||
                             user?.price === "rundumSorglos") && (
                             <div className="calls-item">
-                              <p>Anruf 2: {client.call_2}</p>
-                              <p>Medikation/ Info: {client.medication_2}</p>
+                              <p>
+                                <b>Anruf 2:</b> {client.call_2} Uhr
+                              </p>
+                              <p>
+                                <b>Medikation/ Info:</b> {client.medication_2}
+                              </p>
                             </div>
                           )}
                           {/* ================= ANRUF 3 (Nur sichtbar bei "rundumSorglos") ================= */}
                           {user?.price === "rundumSorglos" && (
                             <div className="calls-item">
-                              <p>Anruf 3: {client.call_3}</p>
-                              <p>Medikation/ Info: {client.medication_3}</p>
+                              <p>
+                                <b>Anruf 3:</b> {client.call_3} Uhr
+                              </p>
+                              <p>
+                                <b>Medikation/ Info:</b> {client.medication_3}
+                              </p>
                             </div>
                           )}
                         </div>
