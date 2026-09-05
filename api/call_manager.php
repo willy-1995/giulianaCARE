@@ -36,8 +36,10 @@ switch ($action) {
             // Übergabe von $callType (default: 'call_1')
             executeCall($db, $clientId, 'tel1', 1, $callType);
             echo json_encode(["success" => true, "message" => "Anruf ($callType) für Client $clientId gestartet."]);
+            exit;
         } else {
             echo json_encode(["success" => false, "message" => "Keine Client ID übergeben."]);
+            exit;
         }
         break;
 
@@ -46,25 +48,28 @@ switch ($action) {
         if ($directPhoneNumber) {
             executeDirectTestCall($directPhoneNumber);
             echo json_encode(["success" => true, "message" => "Testanruf gestartet."]);
+            exit;
         } else {
             echo json_encode(["success" => false, "message" => "Keine Telefonnummer übergeben."]);
+            exit;
         }
         break;
 
     // Vapi ruft Custom Tools auf (z.B. triggerEmergencyCall)
     case 'tool-calls':
         handleVapiToolCall($db, $input);
-        break;
+        exit;
 
-    // Vapi berichtet das Ende des Anrufs
+
+        // Vapi berichtet das Ende des Anrufs
     case 'end-of-call-report':
         handleVapiWebhook($db, $input);
         echo json_encode(["success" => true]);
-        break;
+        exit;
 
     default:
         echo json_encode(["success" => false, "message" => "Aktion nicht erkannt."]);
-        break;
+        exit;
 }
 
 // --- FUNKTIONEN ---
@@ -265,6 +270,7 @@ function handleVapiToolCall($db, $data)
                     ]
                 ]
             ]);
+            exit;
             return;
         }
     }
