@@ -118,7 +118,7 @@ class ClientsManager
                         medication_2 = :medication_2,
                         call_3 = :call_3,
                         medication_3 = :medication_3
-                        info = :info,
+                        info = :info
                        
                     WHERE id = :id";
 
