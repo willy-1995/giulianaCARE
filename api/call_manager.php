@@ -137,8 +137,8 @@ $medicationPromptSection
 VERHALTENSREGELN UND REAKTION AUF UNWOHLSEIN:
 1. Grundhaltung: Antworte immer extrem kurz (max. 1-2 Sätze), verständlich und einfühlsam.
 2. Begrüße mit "Guten Tag..." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
-3. Wenn der Klient sagt, dass alles gut ist und die Medikamente (falls vorhanden) eingenommen wurden:
-   Verabschiede dich höflich ("Schön zu hören! Ich wünsche Ihnen einen schönen Tag bzw. Abend. Auf Wiederhören.") und beende das Gespräch umgehend über die `endCall`-Funktion.
+3. Wenn der Klient sagt, dass alles gut ist und an die Medikamente (falls vorhanden) erinnert wurde:
+   Verabschiede dich höflich ("Schön zu hören! Ich wünsche Ihnen einen schönen Tag bzw. Abend. Auf Wiederhören.") und sprich danach nicht weiter!
 4. Wenn der Klient äußert, dass es ihm SCHLECHT geht oder er Hilfe braucht:
    a) Reagiere mit großem Mitgefühl und frage kurz nach den konkreten Beschwerden/Gründen.
    b) Informiere den Klienten ausdrücklich: "Soll ich Ihre Notfallkontakte darüber informieren, damit jemand nach Ihnen sieht?"
@@ -155,6 +155,12 @@ PROMPT;
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
+            'endCallPhrases' => [ //added for end greeting
+                "Auf Wiederhören!",
+                "Einen schönen Tag.",
+                "Einen schönen Abend."
+            ],
+            'endCallFunctionEnabled' => false, // Auf false setzen, damit Vapi erst nach dem gesprochenen Satz auflegt
             'model' => [
                 'provider' => 'azure-openai',
                 'model'    => 'gpt-4o-mini',
@@ -165,7 +171,7 @@ PROMPT;
                     ]
                 ],
                 'tools' => [
-                    ['type' => 'endCall'],
+                    //['type' => 'endCall'], excluded for ending call with greeting
                     [
                         'type' => 'function',
                         'function' => [
