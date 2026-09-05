@@ -306,7 +306,7 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
         executeCall($db, $clientId, 'tel2', $cycle, $callType);
     } elseif ($cycle === 1) {
         // Nach Versuch 1 (egal ob tel1 oder tel2): Planen für Zyklus 2 in 15 Minuten
-        $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ?");
+        $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 2 MINUTE) WHERE client_id = ?");
         $stmt->execute([$clientId]);
         error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2) in 15 Min vorgemerkt.");
     } else {
