@@ -245,6 +245,19 @@ export default function Dashboard() {
     setCurrentEditId(null);
   };
 
+  //DATE FORMAT
+  // Hilfsfunktion zur Formatierung in deutsches Datumsformat (DD.MM.YYYY)
+  const formatDateGerman = (dateString: string | undefined) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString; // Falls ungültiges Datum
+    return date.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
   //HANDLE CHANGE (FOR FORM)
   // Change-Handler für Client-Formular
   const handleClientChange = (
@@ -562,7 +575,9 @@ export default function Dashboard() {
                           <b>Telefonnummer 2:</b> {client.tel2}
                         </p>
                         <p>
-                          <b>Geburtsdatum:</b> {client.birthday} ({client.age})
+                          <b>Geburtsdatum:</b>{" "}
+                          {formatDateGerman(client.birthday)} (
+                          {userAge(client.birthday)} Jahre)
                         </p>
                         <p>
                           <b>Adresse:</b> {client.address}
