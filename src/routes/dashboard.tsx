@@ -120,11 +120,11 @@ export default function Dashboard() {
   const [protocols, setProtocols] = useState<Protocol[]>([]);
 
   //Price formation for frontend
-  const packageNames = {
+  // Preisschema mit explizitem Typ definieren
+  const packageNames: Record<string, string> = {
     gutBetreut: "Gut betreut",
     sicherheit: "Sicherheit",
     rundumSorglos: "Rundum sorglos",
-    // hier weitere Varianten ergänzen
   };
 
   //=====================
@@ -601,6 +601,7 @@ export default function Dashboard() {
                       /////////////////////////////////////////////////////////////////
                       CONTACT AREA
                       ////////////////////////////////////////////////////////////////*/}
+
                     <div className="contact-area">
                       <div className="contact-heading">
                         <h3>
@@ -611,7 +612,8 @@ export default function Dashboard() {
                         </h3>
                       </div>
                       <div className="contact-list">
-                        {contacts
+                        {/* ABSICHERUNG: (contacts || []) nutzen */}
+                        {(contacts || [])
                           .filter((contact) => contact.client_id === client.id)
                           .map((contact) => (
                             <div key={contact.id} className="contact-card">
@@ -652,8 +654,10 @@ export default function Dashboard() {
                             </div>
                           ))}
 
-                        {contacts.filter((c) => c.client_id === client.id)
-                          .length === 0 && (
+                        {/* ABSICHERUNG: (contacts || []) nutzen */}
+                        {(contacts || []).filter(
+                          (c) => c.client_id === client.id,
+                        ).length === 0 && (
                           <p>Keine Notfallkontakte hinterlegt.</p>
                         )}
                       </div>
@@ -665,7 +669,8 @@ export default function Dashboard() {
                     <div className="protocol-area">
                       <h3>Anruf-Protokoll</h3>
                       <div className="protocol-list">
-                        {protocols
+                        {/* ABSICHERUNG: (protocols || []) nutzen */}
+                        {(protocols || [])
                           .filter(
                             (protocol) => protocol.client_id === client.id,
                           )
@@ -684,7 +689,8 @@ export default function Dashboard() {
                             </div>
                           ))}
 
-                        {protocols.filter(
+                        {/* ABSICHERUNG: (protocols || []) nutzen */}
+                        {(protocols || []).filter(
                           (protocol) => protocol.client_id === client.id,
                         ).length === 0 && (
                           <p>Keine Protokolleinträge vorhanden.</p>
@@ -838,7 +844,11 @@ export default function Dashboard() {
                 <br />
                 <p className="currentPrice">
                   Aktuelles Paket:{" "}
-                  <b>{packageNames[user?.price] || user?.price}</b>
+                  <b>
+                    {user?.price && packageNames[user.price]
+                      ? packageNames[user.price]
+                      : user?.price || "Kein Paket gewählt"}
+                  </b>
                 </p>
 
                 {/* ================= ANRUF 1 (Für alle Tarife sichtbar) ================= */}
