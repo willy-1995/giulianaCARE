@@ -13,7 +13,7 @@ try {
     // 1. Suche nach fälligen Retrys
     // Wir holen alle Einträge, die auf 'retry_scheduled' stehen UND deren Zeit erreicht/überschritten ist
     $stmt = $db->prepare("
-        SELECT client_id, attempt_cycle, last_tel_used 
+       SELECT client_id, attempt_cycle, last_tel_used, call_type 
         FROM call_status 
         WHERE status = 'retry_scheduled' 
           AND scheduled_time <= NOW()
@@ -35,6 +35,7 @@ try {
         $clientId = $retry['client_id'];
         $cycle = (int)$retry['attempt_cycle'];
         $lastTel = $retry['last_tel_used'];
+        $callType = $retry['call_type'] ?? 'call_1';
 
         // Status in der DB wieder auf 'calling' setzen, da der Versuch jetzt startet
         $updateStmt = $db->prepare("
@@ -45,8 +46,8 @@ try {
         $updateStmt->execute([$clientId]);
 
         // Den Anruf erneut triggern. 
-        // Wir übergeben die clientId, die aktuelle Telefonart (tel1) und das erhöhte Cycle (2)
-        executeCall($db, $clientId, $lastTel, $cycle);
+        // Wir übergeben die clientId, die aktuelle Telefonart (tel1), calltype und das erhöhte Cycle (2)
+        executeCall($db, $clientId, $lastTel, $cycle, $callType);
 
         $triggeredClients[] = $clientId;
     }

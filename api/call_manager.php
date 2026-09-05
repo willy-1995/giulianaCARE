@@ -32,7 +32,7 @@ $db = $dbInstance->getConnection();
 switch ($action) {
     case 'start':
         if ($clientId) {
-            initializeCallStatus($db, $clientId);
+            initializeCallStatus($db, $clientId, $callType);
             // Übergabe von $callType (default: 'call_1')
             executeCall($db, $clientId, 'tel1', 1, $callType);
             echo json_encode(["success" => true, "message" => "Anruf ($callType) für Client $clientId gestartet."]);
@@ -318,17 +318,21 @@ function handleVapiWebhook($db, $data)
 
 function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 {
-    $stmt = $db->prepare("SELECT name, tel1, tel2 FROM clients WHERE id = ?");
+    $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Versuche Erstnummer -> Zweitnummer (falls vorhanden)
     if ($telType === 'tel1' && !empty($client['tel2'])) {
+        // Zweitnummer versuchen, im selben Cycle
         executeCall($db, $clientId, 'tel2', $cycle, $callType);
     } elseif ($cycle === 1) {
-        $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ? AND status = 'calling'");
+        // Entferne 'AND status = 'calling'' damit das Update IMMER greift!
+        $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ?");
         $stmt->execute([$clientId]);
+        error_log("RETRY SCHEDULED: Klient ID $clientId für Retry in 15 Min vorgemerkt.");
     } else {
-        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht.');
+        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen.');
         notifyEmergencyContacts($db, $clientId, "Klient war nach mehreren Versuchen telefonisch nicht erreichbar.");
     }
 }
@@ -413,12 +417,12 @@ function sendSmsNotification(string $phoneNumber, string $message): void
 
 // --- HILFSFUNKTIONEN FÜR DB ---
 
-function initializeCallStatus($db, $clientId)
+function initializeCallStatus($db, $clientId, $callType = 'call_1')
 {
-    $stmt = $db->prepare("INSERT INTO call_status (client_id, attempt_cycle, last_tel_used, status, scheduled_time) 
-                          VALUES (?, 1, 'tel1', 'calling', NOW()) 
-                          ON DUPLICATE KEY UPDATE status = 'calling', attempt_cycle = 1, last_tel_used = 'tel1', scheduled_time = NOW()");
-    $stmt->execute([$clientId]);
+    $stmt = $db->prepare("INSERT INTO call_status (client_id, attempt_cycle, last_tel_used, call_type, status, scheduled_time) 
+                          VALUES (?, 1, 'tel1', ?, 'calling', NOW()) 
+                          ON DUPLICATE KEY UPDATE status = 'calling', attempt_cycle = 1, last_tel_used = 'tel1', call_type = ?, scheduled_time = NOW()");
+    $stmt->execute([$clientId, $callType, $callType]);
 }
 
 function updateCallStatus($db, $clientId, $status, $summary)
