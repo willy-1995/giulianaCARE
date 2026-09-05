@@ -12,7 +12,7 @@ require_once "rate_limiter.php";
 // 1. INPUT ERFASSEN
 $action = $_POST['action'] ?? null;
 $clientId = $_POST['client_id'] ?? null;
-$callType = $_POST['call_type'] ?? 'call_1'; // Neu: z.B. 'call_1', 'call_2', 'call_3'
+$callType = $_POST['call_type'] ?? 'call_1';
 $directPhoneNumber = $_POST['phone_number'] ?? null;
 
 // Falls der Aufruf von Vapi (Webhook) kommt, ist es ein JSON-Body:
@@ -33,7 +33,6 @@ switch ($action) {
     case 'start':
         if ($clientId) {
             initializeCallStatus($db, $clientId, $callType);
-            // Übergabe von $callType (default: 'call_1')
             executeCall($db, $clientId, 'tel1', 1, $callType);
             echo json_encode(["success" => true, "message" => "Anruf ($callType) für Client $clientId gestartet."]);
             exit;
@@ -55,13 +54,10 @@ switch ($action) {
         }
         break;
 
-    // Vapi ruft Custom Tools auf (z.B. triggerEmergencyCall)
     case 'tool-calls':
         handleVapiToolCall($db, $input);
         exit;
 
-
-        // Vapi berichtet das Ende des Anrufs
     case 'end-of-call-report':
         handleVapiWebhook($db, $input);
         echo json_encode(["success" => true]);
@@ -76,20 +72,22 @@ switch ($action) {
 
 function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
 {
-    // 1. Klientendaten inkl. Anrufzeiten und Medikamenten laden
-    $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2, call_1, call_2, call_3, medication_1, medication_2, medication_3 FROM clients WHERE id = ? AND status =  'active'"); //proof if call should be triggered
+    // Konsolen-/Server-Log für den Start des Anrufs (Versuch 1 oder 2)
+    error_log("CALL START [Versuch $cycle]: Client ID $clientId | Typ: $callType | Nummerntyp: $telType");
+
+    $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2, call_1, call_2, call_3, medication_1, medication_2, medication_3 FROM clients WHERE id = ? AND status = 'active'");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$client) {
-        error_log("VAPI ERROR: Client ID $clientId nicht in Datenbank gefunden.");
+        error_log("VAPI ERROR: Client ID $clientId nicht in Datenbank gefunden oder inaktiv.");
         return;
     }
 
     $phone = ($telType === 'tel1') ? ($client['tel1'] ?? '') : ($client['tel2'] ?? '');
 
     if (empty($phone)) {
-        error_log("VAPI ERROR: Keine Telefonnummer für Client ID $clientId vorhanden.");
+        error_log("VAPI ERROR: Keine Telefonnummer ($telType) für Client ID $clientId vorhanden.");
         return;
     }
 
@@ -102,7 +100,7 @@ function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
     $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
     $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
 
-    // --- MEDIKATION BASIEREND AUF $callType BESTIMMEN ---
+    // Medikation bestimmen
     $currentMedication = '';
     $callTimeText = '';
 
@@ -122,14 +120,12 @@ function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
             break;
     }
 
-    // Medikamenten-Promptbaustein dynamisch erstellen
     if (!empty($currentMedication)) {
         $medicationPromptSection = "MEDIKATION HINWEIS:\nDer Klient muss zu dieser Zeit folgende Medikamente einnehmen: \"$currentMedication\". Erkundige dich höflich, ob die Einnahme geklappt hat bzw. erinnere freundlich daran.";
     } else {
         $medicationPromptSection = "MEDIKATION HINWEIS:\nFür diesen Anruf ist keine spezifische Medikamenteneinnahme hinterlegt.";
     }
 
-    // --- STRUKTURIERTER PROMPT FÜR DIE KI ---
     $systemPrompt = <<<PROMPT
 Du bist ein empathischer, aufmerksamer Telefon-Assistent für die Seniorenbetreuung von Dschuliana Kär.
 
@@ -144,18 +140,16 @@ VERHALTENSREGELN UND REAKTION AUF UNWOHLSEIN:
 3. Wenn der Klient sagt, dass alles gut ist und die Medikamente (falls vorhanden) eingenommen wurden:
    Verabschiede dich höflich ("Schön zu hören! Ich wünsche Ihnen einen schönen Tag bzw. Abend. Auf Wiederhören.") und beende das Gespräch umgehend über die `endCall`-Funktion.
 4. Wenn der Klient äußert, dass es ihm SCHLECHT geht oder er Hilfe braucht:
-   a) Reagiere mit großem Mitgefühl und frage kurz nach den konkreten Beschwerden/Gründen (z. B.: "Das tut mir leid zu hören. Was genau fehlt Ihnen denn oder was ist passiert?").
+   a) Reagiere mit großem Mitgefühl und frage kurz nach den konkreten Beschwerden/Gründen.
    b) Informiere den Klienten ausdrücklich: "Soll ich Ihre Notfallkontakte darüber informieren, damit jemand nach Ihnen sieht?"
-   c) Wenn der Klient JA sagt (oder eindeutig Hilfe wünscht):
-      - Rufe SOFORT die Funktion `triggerEmergencyCall` auf und übergib die vom Klienten genannten Beschwerden/Gründe im Parameter `reason`.
+   c) Wenn der Klient JA sagt:
+      - Rufe SOFORT die Funktion `triggerEmergencyCall` auf.
       - Sage dem Klienten kurz: "Ich habe Ihre Notfallkontakte sofort benachrichtigt. Es kümmert sich jemand um Sie. Gute Besserung!"
       - Beende danach das Gespräch höflich über `endCall`.
-   d) Wenn der Klient NEIN sagt (keine Benachrichtigung wünscht):
-      - Wünsche ihm gute Besserung, schärfe ihm ein, sich im Zweifel an einen Arzt zu wenden, und beende den Anruf höflich.
+   d) Wenn der Klient NEIN sagt:
+      - Wünsche ihm gute Besserung und beende den Anruf höflich.
 PROMPT;
 
-    // 2. Vapi Payload inkl. Notfall-Tool & erweiterter Metadaten
-    // 2. Vapi Payload (An Vapi API v1 angepasst)
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
@@ -170,11 +164,8 @@ PROMPT;
                         'content' => $systemPrompt
                     ]
                 ],
-                // HIER: tools gehört ins model-Objekt
                 'tools' => [
-                    [
-                        'type' => 'endCall'
-                    ],
+                    ['type' => 'endCall'],
                     [
                         'type' => 'function',
                         'function' => [
@@ -185,7 +176,7 @@ PROMPT;
                                 'properties' => [
                                     'reason' => [
                                         'type' => 'string',
-                                        'description' => 'Die konkreten Beschwerden oder Gründe, die der Klient genannt hat (z. B. Sturz, Schwindel, Schmerzen).'
+                                        'description' => 'Die konkreten Beschwerden oder Gründe.'
                                     ]
                                 ],
                                 'required' => ['reason']
@@ -204,9 +195,7 @@ PROMPT;
         ],
         'customer' => [
             'number' => $phone
-            // HIER: 'extension' wurde entfernt
         ],
-        // HIER: Eigene Metadaten gehören auf oberster Ebene in 'metadata'
         'metadata' => [
             'clientId' => (string)$clientId,
             'cycle'    => (string)$cycle,
@@ -215,7 +204,6 @@ PROMPT;
         ]
     ];
 
-    // 3. cURL Aufruf
     $ch = curl_init('https://api.vapi.ai/call/phone');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -230,41 +218,34 @@ PROMPT;
     $curlError = curl_error($ch);
     curl_close($ch);
 
+    // DB-Status aktualisieren, welches Telefon genutzt wurde
+    $updateStmt = $db->prepare("UPDATE call_status SET last_tel_used = ?, attempt_cycle = ? WHERE client_id = ?");
+    $updateStmt->execute([$telType, $cycle, $clientId]);
+
     if ($httpCode !== 201) {
         $maskedPhone = substr($phone, 0, 5) . '******' . substr($phone, -2);
         error_log("VAPI ERROR [Client ID: $clientId | Tel: $maskedPhone]: HTTP $httpCode | cURL Err: $curlError | Response: $response");
     }
 }
 
-/**
- * Handhabt direkte Funktionsaufrufe (Tools) von Vapi während des Anrufs.
- */
 function handleVapiToolCall($db, $data)
 {
     $toolCalls = $data['message']['toolCalls'] ?? [];
 
     foreach ($toolCalls as $toolCall) {
         if (($toolCall['function']['name'] ?? '') === 'triggerEmergencyCall') {
-            // Parameter aus der KI auslesen
             $args = json_decode($toolCall['function']['arguments'] ?? '{}', true);
             $reason = $args['reason'] ?? 'Unwohlsein (keine näheren Angaben)';
 
-            // Client ID aus den Metadaten beziehen
-            $metadata = $data['message']['call']['metadata'] ?? $data['message']['customer']['extension'] ?? [];
+            $metadata = $data['message']['call']['metadata'] ?? [];
             $clientId = $metadata['clientId'] ?? null;
 
             if ($clientId) {
-                // 1. Vorfall in die DB eintragen (inkl. Timestamp created_at)
                 logClientIncident($db, (int)$clientId, $reason);
-
-                // 2. Status auf "incident" setzen
                 updateCallStatus($db, (int)$clientId, 'incident_reported', "Klient meldet Unwohlsein: " . $reason);
-
-                // 3. Notfallkontakte alarmieren
                 notifyEmergencyContacts($db, (int)$clientId, $reason);
             }
 
-            // Rückmeldung an Vapi, damit die KI weiß, dass das Tool erfolgreich ausgeführt wurde
             echo json_encode([
                 'results' => [
                     [
@@ -274,14 +255,10 @@ function handleVapiToolCall($db, $data)
                 ]
             ]);
             exit;
-            return;
         }
     }
 }
 
-/**
- * Trägt Vorfälle in die DB-Tabelle `client_incidents` ein.
- */
 function logClientIncident(PDO $db, int $clientId, string $reason): void
 {
     $stmt = $db->prepare("INSERT INTO client_incidents (client_id, reason, created_at) VALUES (?, ?, NOW())");
@@ -291,10 +268,10 @@ function logClientIncident(PDO $db, int $clientId, string $reason): void
 function handleVapiWebhook($db, $data)
 {
     $endedReason = $data['message']['endedReason'] ?? '';
-    $metadata = $data['message']['call']['metadata'] ?? $data['message']['customer']['extension'] ?? [];
+    $metadata = $data['message']['call']['metadata'] ?? [];
 
     $clientId = $metadata['clientId'] ?? null;
-    $cycle    = $metadata['cycle'] ?? 1;
+    $cycle    = (int)($metadata['cycle'] ?? 1);
     $telType  = $metadata['telType'] ?? 'tel1';
     $callType = $metadata['callType'] ?? 'call_1';
 
@@ -303,7 +280,6 @@ function handleVapiWebhook($db, $data)
     if ($endedReason === 'customer-ended-call' || $endedReason === 'assistant-ended-call') {
         $summary = $data['message']['analysis']['summary'] ?? '';
 
-        // Prüfen, ob der Status bereits durch ein Tool (z.B. Incident) geändert wurde
         $stmt = $db->prepare("SELECT status FROM call_status WHERE client_id = ?");
         $stmt->execute([$clientId]);
         $currentStatus = $stmt->fetchColumn();
@@ -312,6 +288,8 @@ function handleVapiWebhook($db, $data)
             updateCallStatus($db, $clientId, 'completed', $summary);
         }
     } else {
+        // Klient hat nicht abgehoben -> Eskalation auslösen
+        error_log("VAPI INFO: Anruf nicht erfolgreich (Reason: $endedReason). Starte Eskalation/Retry...");
         escalateCall($db, $clientId, $cycle, $telType, $callType);
     }
 }
@@ -322,22 +300,22 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Versuche Erstnummer -> Zweitnummer (falls vorhanden)
+    // Versuche Erstnummer -> Zweitnummer (falls vorhanden im selben Zyklus)
     if ($telType === 'tel1' && !empty($client['tel2'])) {
-        // Zweitnummer versuchen, im selben Cycle
+        error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
         executeCall($db, $clientId, 'tel2', $cycle, $callType);
     } elseif ($cycle === 1) {
-        // Entferne 'AND status = 'calling'' damit das Update IMMER greift!
+        // Nach Versuch 1 (egal ob tel1 oder tel2): Planen für Zyklus 2 in 15 Minuten
         $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ?");
         $stmt->execute([$clientId]);
-        error_log("RETRY SCHEDULED: Klient ID $clientId für Retry in 15 Min vorgemerkt.");
+        error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2) in 15 Min vorgemerkt.");
     } else {
+        // Versuch 2 ebenfalls fehlgeschlagen
         updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen.');
         notifyEmergencyContacts($db, $clientId, "Klient war nach mehreren Versuchen telefonisch nicht erreichbar.");
+        error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen nicht erreicht. Notfallkontakte benachrichtigt.");
     }
 }
-
-// --- BENACHRICHTIGUNGSFUNKTIONEN ---
 
 function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = null): void
 {
@@ -365,7 +343,6 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = 
     }
 
     foreach ($contacts as $contact) {
-        // A) E-Mail versenden
         if (!empty($contact['email'])) {
             $headers = [
                 'From' => 'no-reply@giulianacare.de',
@@ -373,12 +350,10 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = 
                 'Content-Type' => 'text/plain; charset=UTF-8',
                 'X-Mailer' => 'PHP/' . phpversion()
             ];
-
             mail($contact['email'], $subject, $messageText, $headers);
         }
 
-        // B) SMS versenden
-        $phoneToSms = $contact['phone'] ?? $contact['tel1'] ?? null;
+        $phoneToSms = $contact['phone'] ?? null;
         if ($smsEnabled && !empty($phoneToSms)) {
             sendSmsNotification($phoneToSms, $messageText);
         }
@@ -415,8 +390,6 @@ function sendSmsNotification(string $phoneNumber, string $message): void
     }
 }
 
-// --- HILFSFUNKTIONEN FÜR DB ---
-
 function initializeCallStatus($db, $clientId, $callType = 'call_1')
 {
     $stmt = $db->prepare("INSERT INTO call_status (client_id, attempt_cycle, last_tel_used, call_type, status, scheduled_time) 
@@ -437,14 +410,14 @@ function executeDirectTestCall($phone)
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
-            'firstMessage' => "Guten Tag! Schön, dass Sie die Telefon Assistenz von dschuljiana Kaer ausprobieren. Dies ist ein automatisierter Testanruf, um Ihnen zu zeigen, wie klar und verständlich unsere KI spricht. Können Sie mich gut hören?",
+            'firstMessage' => "Guten Tag! Schön, dass Sie die Telefon Assistenz von dschuljiana Kaer ausprobieren. Dies ist ein automatisierter Testanruf.",
             'model' => [
                 'provider' => 'azure-openai',
-                'model'    => 'gpt-5.4-mini',
+                'model'    => 'gpt-4o-mini',
                 'messages' => [
                     [
                         'role'    => 'system',
-                        'content' => 'Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär. Halte dich kurz und antworte in max. 1-2 Sätzen.'
+                        'content' => 'Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär. Halte dich kurz.'
                     ]
                 ]
             ],

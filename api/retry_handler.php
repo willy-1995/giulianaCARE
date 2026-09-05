@@ -2,7 +2,6 @@
 require_once "cors.php";
 require_once "envloader.php";
 require_once "database.php";
-// WICHTIG: Wir laden die call_manager.php, um Zugriff auf executeCall() zu haben
 require_once "call_manager.php";
 
 // DB Verbindung herstellen
@@ -11,9 +10,8 @@ $db = $dbInstance->getConnection();
 
 try {
     // 1. Suche nach fälligen Retrys
-    // Wir holen alle Einträge, die auf 'retry_scheduled' stehen UND deren Zeit erreicht/überschritten ist
     $stmt = $db->prepare("
-       SELECT client_id, attempt_cycle, last_tel_used, call_type 
+        SELECT client_id, attempt_cycle, last_tel_used, call_type 
         FROM call_status 
         WHERE status = 'retry_scheduled' 
           AND scheduled_time <= NOW()
@@ -22,22 +20,24 @@ try {
     $dueRetries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($dueRetries)) {
-        // Nichts zu tun – wir antworten friedlich
         echo json_encode(["success" => true, "message" => "Keine fälligen Wiederholungsanrufe gefunden."]);
         exit;
     }
 
-    // Speicher für das Protokoll im Response
     $triggeredClients = [];
 
     // 2. Schleife durch alle fälligen Klienten
     foreach ($dueRetries as $retry) {
         $clientId = $retry['client_id'];
-        $cycle = (int)$retry['attempt_cycle'];
-        $lastTel = $retry['last_tel_used'];
+        $cycle    = (int)$retry['attempt_cycle'];
+        $lastTel  = !empty($retry['last_tel_used']) ? $retry['last_tel_used'] : 'tel1';
         $callType = $retry['call_type'] ?? 'call_1';
 
-        // Status in der DB wieder auf 'calling' setzen, da der Versuch jetzt startet
+        // Log für Konsole / Server-Log
+        $logMessage = "CRONJOB: Starte WIEDERHOLUNGSANRUF (Versuch $cycle) für Client ID $clientId ($callType) auf Nummerntyp '$lastTel'...";
+        error_log($logMessage);
+
+        // Status auf 'calling' setzen
         $updateStmt = $db->prepare("
             UPDATE call_status 
             SET status = 'calling', scheduled_time = NOW() 
@@ -45,22 +45,27 @@ try {
         ");
         $updateStmt->execute([$clientId]);
 
-        // Den Anruf erneut triggern. 
-        // Wir übergeben die clientId, die aktuelle Telefonart (tel1), calltype und das erhöhte Cycle (2)
+        // Den 2. Versuch ausführen
         executeCall($db, $clientId, $lastTel, $cycle, $callType);
 
-        $triggeredClients[] = $clientId;
+        $triggeredClients[] = [
+            'client_id' => $clientId,
+            'cycle' => $cycle,
+            'call_type' => $callType
+        ];
     }
 
     echo json_encode([
         "success" => true,
         "message" => count($triggeredClients) . " Wiederholungsanruf(e) gestartet.",
-        "client_ids" => $triggeredClients
-    ]);
+        "details" => $triggeredClients
+    ], JSON_PRETTY_PRINT);
 } catch (Exception $e) {
     http_response_code(500);
+    $errorMsg = "Fehler im Retry-Handler: " . $e->getMessage();
+    error_log($errorMsg);
     echo json_encode([
         "success" => false,
-        "message" => "Fehler im Retry-Handler: " . $e->getMessage()
+        "message" => $errorMsg
     ]);
 }
