@@ -160,7 +160,7 @@ PROMPT;
             'endCallFunctionEnabled' => false,
             'model' => [
                 'provider' => 'azure-openai',
-                'model'    => 'gpt-4o-mini',
+                'model'    => 'gpt-5.4-mini',
                 'messages' => [
                     [
                         'role'    => 'system',
@@ -406,22 +406,39 @@ function updateCallStatus($db, $clientId, $status, $summary)
 
 function executeDirectTestCall($phone)
 {
+    $systemPrompt = <<<PROMPT
+Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär.
+Dies ist ein Testanruf.
+
+REGELN:
+1. Antworte extrem kurz (1-2 Sätze).
+2. Sobald der Anrufer geantwortet hat oder bestätigt, dass alles klappt, verabschiede dich höflich mit den Worten:
+   "Vielen Dank für den Test! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!"
+3. Sprich nach der Verabschiedung nichts mehr.
+PROMPT;
+
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
-            'firstMessage' => "Guten Tag! Schön, dass Sie die Telefon Assistenz von dschuljiana Kaer ausprobieren. Dies ist ein automatisierter Testanruf.",
+            'firstMessage' => "Guten Tag! Schön, dass Sie die Telefon-Assistenz von Dschuliana Kär ausprobieren. Dies ist ein automatisierter Testanruf. Hören Sie mich gut?",
+            'endCallPhrases' => [
+                "Auf Wiederhören!",
+                "Einen schönen Tag.",
+                "Vielen Dank für den Test!"
+            ],
+            // WICHTIG: Muss auf false stehen, damit Vapi die Verabschiedung aussprechen lässt:
+            'endCallFunctionEnabled' => false,
             'model' => [
                 'provider' => 'azure-openai',
-                'model'    => 'gpt-4o-mini',
+                'model'    => 'gpt-5.4-mini',
                 'messages' => [
                     [
                         'role'    => 'system',
-                        'content' => 'Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär. Halte dich kurz.'
+                        'content' => $systemPrompt
                     ]
                 ]
-            ],
-            'endCallFunctionEnabled' => true
+            ]
         ],
         'customer' => [
             'number' => $phone
