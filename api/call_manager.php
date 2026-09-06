@@ -7,36 +7,51 @@ ob_start();
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/my_php_errors.log');
 
+// --- 1. WEBHOOK-JSON SOFORT AUSLESEN ---
+$rawInput = file_get_contents('php://input');
+$input = json_decode($rawInput, true) ?? [];
+
+// --- 2. VAPI WEBHOOKS DIREKT ABFANGEN (Bevor POST-Variablen geprüft werden) ---
+$messageType = $input['message']['type'] ?? '';
+
+if ($messageType === 'tool-calls' || isset($input['message']['toolCalls']) || isset($input['toolCalls'])) {
+    require_once "config.php";
+    require_once "database.php";
+
+    $dbInstance = new Database();
+    $db = $dbInstance->getConnection();
+
+    handleVapiToolCall($db, $input);
+    exit;
+}
+
+if ($messageType === 'end-of-call-report') {
+    require_once "config.php";
+    require_once "database.php";
+
+    $dbInstance = new Database();
+    $db = $dbInstance->getConnection();
+
+    handleVapiWebhook($db, $input);
+    echo json_encode(["success" => true]);
+    exit;
+}
+
+// --- 3. STANDARD FORMULAR- & API-ANFRAGEN BEARBEITEN ---
 require_once "cors.php";
 require_once "config.php";
 require_once "envloader.php";
 require_once "database.php";
 require_once "rate_limiter.php";
 
-// Input erfassen
 $action = $_POST['action'] ?? null;
-$clientId = $_POST['client_id'] ?? null;
+$clientId = $_POST['clientId'] ?? $_POST['client_id'] ?? null;
 $callType = $_POST['call_type'] ?? 'call_1';
 $directPhoneNumber = $_POST['phone_number'] ?? null;
-
-// JSON-Input von Webhooks lesen
-$rawInput = file_get_contents('php://input');
-$input = json_decode($rawInput, true) ?? [];
-
-// Robuste Aktions-Erkennung für Vapi
-if (!$action) {
-    if (isset($input['message']['type'])) {
-        $action = $input['message']['type'];
-    } elseif (isset($input['message']['toolCalls']) || isset($input['toolCalls'])) {
-        $action = 'tool-calls';
-    }
-}
 
 // DB-Verbindung herstellen
 $dbInstance = new Database();
 $db = $dbInstance->getConnection();
-
-// --- LOGIK-WEICHE ---
 
 switch ($action) {
     case 'start':
@@ -63,15 +78,6 @@ switch ($action) {
         }
         break;
 
-    case 'tool-calls':
-        handleVapiToolCall($db, $input);
-        exit;
-
-    case 'end-of-call-report':
-        handleVapiWebhook($db, $input);
-        echo json_encode(["success" => true]);
-        exit;
-
     default:
         echo json_encode(["success" => false, "message" => "Aktion nicht erkannt."]);
         exit;
@@ -81,63 +87,37 @@ switch ($action) {
 
 function handleVapiToolCall($db, $data)
 {
-    // Alle bisherigen Puffer-Ausgaben verwerfen
     while (ob_get_level()) {
         ob_end_clean();
     }
 
-    // Header für JSON setzen
-    header('Content-Type: application/json; charset=utf-8');
+    $toolCalls = $data['message']['toolCalls'] ?? $data['message']['toolCallList'] ?? [];
+    $metadata = $data['message']['call']['metadata'] ?? $data['message']['metadata'] ?? [];
 
-    // Tool-Calls aus verschiedenen möglichen Vapi-Payload-Strukturen auslesen
-    $toolCalls = $data['message']['toolCalls']
-        ?? $data['message']['toolCallList']
-        ?? $data['toolCalls']
-        ?? [];
-
-    // Client-ID flexibel extrahieren
-    $metadata = $data['message']['call']['metadata']
-        ?? $data['message']['artifact']['metadata']
-        ?? $data['message']['metadata']
-        ?? $data['call']['metadata']
-        ?? [];
-
-    $rawClientId = $metadata['clientId'] ?? null;
-    $clientId = $rawClientId !== null ? (int)$rawClientId : null;
-
+    $clientId = isset($metadata['clientId']) ? (int)$metadata['clientId'] : null;
     $results = [];
+    $reason = 'Unwohlsein / Notfall geäußert';
 
     foreach ($toolCalls as $toolCall) {
         $toolCallId = $toolCall['id'] ?? null;
-
-        $functionName = $toolCall['function']['name']
-            ?? $toolCall['name']
-            ?? '';
+        $functionName = $toolCall['function']['name'] ?? $toolCall['name'] ?? '';
 
         if ($functionName === 'triggerEmergencyCall') {
             $rawArgs = $toolCall['function']['arguments'] ?? $toolCall['arguments'] ?? '{}';
             $args = is_array($rawArgs) ? $rawArgs : json_decode($rawArgs, true);
-            $reason = $args['reason'] ?? 'Unwohlsein / Notfall geäußert';
+            $reason = $args['reason'] ?? $reason;
 
-            error_log("TOOL-CALL DETECTED: triggerEmergencyCall für Client-ID: " . var_export($clientId, true) . " | Grund: $reason");
-
+            // 1. Schnelle Datenbank-Einträge erledigen
             if ($clientId && $clientId > 0) {
                 try {
                     logClientIncident($db, $clientId, $reason);
                     updateCallStatus($db, $clientId, 'incident_reported', "Klient meldet Unwohlsein: " . $reason);
-
-                    // ACHTUNG: Falls SMS/E-Mail lange dauern, am besten abfangen
-                    notifyEmergencyContacts($db, $clientId, $reason);
-
-                    error_log("SUCCESS: Incident geloggt für Client ID $clientId");
-                } catch (Throwable $e) {
-                    error_log("ERROR in triggerEmergencyCall Execution: " . $e->getMessage());
+                } catch (Exception $e) {
+                    error_log("DB ERROR: " . $e->getMessage());
                 }
-            } else {
-                error_log("VAPI ERROR: triggerEmergencyCall aufgerufen, aber clientId fehlt in Metadata!");
             }
 
-            // Rückgabe für Vapi formulieren
+            // 2. Antwort-Payload für Vapi vorbereiten
             $results[] = [
                 'toolCallId' => $toolCallId,
                 'result'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.'
@@ -145,20 +125,32 @@ function handleVapiToolCall($db, $data)
         }
     }
 
-    // Falls aus irgendeinem Grund kein Ergebnis erzeugt wurde, Fallback-Response senden
-    if (empty($results) && !empty($toolCalls)) {
-        foreach ($toolCalls as $toolCall) {
-            $results[] = [
-                'toolCallId' => $toolCall['id'] ?? '',
-                'result'     => 'Funktion ausgeführt.'
-            ];
+    // 3. SOFORT Antwort an Vapi senden
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+    $jsonResponse = json_encode(['results' => $results]);
+
+    if (function_exists('fastcgi_finish_request')) {
+        echo $jsonResponse;
+        session_write_close();
+        fastcgi_finish_request(); // Vapi erhält sofort sein Ergebnis
+    } else {
+        header("Content-Length: " . strlen($jsonResponse));
+        header("Connection: close");
+        echo $jsonResponse;
+        flush();
+    }
+
+    // 4. NACHDEM Vapi bedient wurde: E-Mail & SMS im Hintergrund versenden
+    if ($clientId && $clientId > 0) {
+        try {
+            notifyEmergencyContacts($db, $clientId, $reason);
+            error_log("SUCCESS: Emergency contacts notified in background for client $clientId");
+        } catch (Exception $e) {
+            error_log("NOTIFICATION ERROR: " . $e->getMessage());
         }
     }
 
-    http_response_code(200);
-    echo json_encode([
-        'results' => $results
-    ]);
     exit;
 }
 
@@ -242,6 +234,8 @@ PROMPT;
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
+            // ERGÄNZT: Zwingend erforderlich für Tool-Calls!
+            'serverUrl' => 'https://giuliana-care.de/api/call_manager.php',
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
             'endCallPhrases' => [
                 "Auf Wiederhören!",
