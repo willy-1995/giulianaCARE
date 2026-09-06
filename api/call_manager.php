@@ -232,20 +232,38 @@ function handleVapiToolCall($db, $data)
 {
     $toolCalls = $data['message']['toolCalls'] ?? [];
 
+    // Vapi sendet Metadata an unterschiedlichen Stellen im JSON-Payload, je nach Vapi-Version.
+    // Wir prüfen alle gängigen Pfade ab:
+    $metadata = $data['message']['call']['metadata']
+        ?? $data['message']['artifact']['metadata']
+        ?? $data['message']['metadata']
+        ?? [];
+
+    $rawClientId = $metadata['clientId'] ?? null;
+    $clientId = $rawClientId !== null ? (int)$rawClientId : null;
+
     foreach ($toolCalls as $toolCall) {
         if (($toolCall['function']['name'] ?? '') === 'triggerEmergencyCall') {
             $args = json_decode($toolCall['function']['arguments'] ?? '{}', true);
-            $reason = $args['reason'] ?? 'Unwohlsein (keine näheren Angaben)';
+            $reason = $args['reason'] ?? 'Unwohlsein / Kopfschmerzen (keine näheren Angaben)';
 
-            $metadata = $data['message']['call']['metadata'] ?? [];
-            $clientId = $metadata['clientId'] ?? null;
+            error_log("TOOL-CALL DETECTED: triggerEmergencyCall für Client-ID: " . var_export($clientId, true) . " mit Grund: $reason");
 
-            if ($clientId) {
-                logClientIncident($db, (int)$clientId, $reason);
-                updateCallStatus($db, (int)$clientId, 'incident_reported', "Klient meldet Unwohlsein: " . $reason);
-                notifyEmergencyContacts($db, (int)$clientId, $reason);
+            if ($clientId && $clientId > 0) {
+                try {
+                    logClientIncident($db, $clientId, $reason);
+                    updateCallStatus($db, $clientId, 'incident_reported', "Klient meldet Unwohlsein: " . $reason);
+                    notifyEmergencyContacts($db, $clientId, $reason);
+                    error_log("SUCCESS: Incident geloggt & Notfallkontakte benachrichtigt für Client ID $clientId");
+                } catch (Exception $e) {
+                    error_log("ERROR in triggerEmergencyCall Execution: " . $e->getMessage());
+                }
+            } else {
+                error_log("VAPI ERROR: triggerEmergencyCall aufgerufen, aber clientId fehlt in Metadata! Data: " . json_encode($data));
             }
 
+            // Strikte Vapi-Formatierung für Tool-Responses (Rückgabe an die KI)
+            header('Content-Type: application/json');
             echo json_encode([
                 'results' => [
                     [
@@ -319,11 +337,19 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 
 function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = null): void
 {
+    if ($clientId <= 0) {
+        error_log("notifyEmergencyContacts abgebrochen: Ungültige Client ID ($clientId)");
+        return;
+    }
+
     $stmt = $db->prepare("SELECT lastname, firstname, title, sms_status FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$client) return;
+    if (!$client) {
+        error_log("notifyEmergencyContacts: Client ID $clientId nicht in Datenbank gefunden.");
+        return;
+    }
 
     $clientName = trim(($client['title'] ?? '') . ' ' . $client['firstname'] . " " . $client['lastname']);
     $smsEnabled = !empty($client['sms_status']);
