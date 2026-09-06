@@ -1,29 +1,33 @@
 <?php
 
-// Aktiviert das Schreiben von Fehlern in eine benutzerdefinierte Datei
+// 1. Output-Buffering aktivieren (schützt vor kaputten JSON-Responses durch Whitespaces/PHP-Warnings)
+ob_start();
+
+// Fehler-Logging konfigurieren
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/my_php_errors.log');
+
 require_once "cors.php";
 require_once "config.php";
 require_once "envloader.php";
 require_once "database.php";
 require_once "rate_limiter.php";
 
-// 1. INPUT ERFASSEN
+// Input erfassen
 $action = $_POST['action'] ?? null;
 $clientId = $_POST['client_id'] ?? null;
 $callType = $_POST['call_type'] ?? 'call_1';
 $directPhoneNumber = $_POST['phone_number'] ?? null;
 
-// Falls der Aufruf von Vapi (Webhook) kommt, ist es ein JSON-Body:
+// JSON-Input von Webhooks lesen
 $rawInput = file_get_contents('php://input');
-$input = json_decode($rawInput, true);
+$input = json_decode($rawInput, true) ?? [];
 
 if (!$action && isset($input['message']['type'])) {
     $action = $input['message']['type'];
 }
 
-// DB Verbindung herstellen
+// DB-Verbindung herstellen
 $dbInstance = new Database();
 $db = $dbInstance->getConnection();
 
@@ -69,6 +73,75 @@ switch ($action) {
 }
 
 // --- FUNKTIONEN ---
+
+function handleVapiToolCall($db, $data)
+{
+    // Alle bisherigen Puffer-Ausgaben verwerfen
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    $toolCalls = $data['message']['toolCalls']
+        ?? $data['message']['toolCallList']
+        ?? [];
+
+    // Erhöhte Flexibilität beim Auffinden der ClientId in Vapis Webhook-Payload
+    $metadata = $data['message']['call']['metadata']
+        ?? $data['message']['artifact']['metadata']
+        ?? $data['message']['metadata']
+        ?? $data['call']['metadata']
+        ?? [];
+
+    $rawClientId = $metadata['clientId'] ?? null;
+    $clientId = $rawClientId !== null ? (int)$rawClientId : null;
+
+    $results = [];
+
+    foreach ($toolCalls as $toolCall) {
+        $toolCallId = $toolCall['id'] ?? null;
+
+        // Vapi kapselt Funktionsnamen manchmal leicht unterschiedlich
+        $functionName = $toolCall['function']['name']
+            ?? $toolCall['name']
+            ?? '';
+
+        if ($functionName === 'triggerEmergencyCall') {
+            $rawArgs = $toolCall['function']['arguments'] ?? $toolCall['arguments'] ?? '{}';
+            $args = is_array($rawArgs) ? $rawArgs : json_decode($rawArgs, true);
+            $reason = $args['reason'] ?? 'Unwohlsein / Notfall geäußert';
+
+            error_log("TOOL-CALL DETECTED: triggerEmergencyCall für Client-ID: " . var_export($clientId, true) . " | Grund: $reason");
+
+            if ($clientId && $clientId > 0) {
+                try {
+                    logClientIncident($db, $clientId, $reason);
+                    updateCallStatus($db, $clientId, 'incident_reported', "Klient meldet Unwohlsein: " . $reason);
+                    notifyEmergencyContacts($db, $clientId, $reason);
+                    error_log("SUCCESS: Incident geloggt & Notfallkontakte benachrichtigt für Client ID $clientId");
+                } catch (Exception $e) {
+                    error_log("ERROR in triggerEmergencyCall Execution: " . $e->getMessage());
+                }
+            } else {
+                error_log("VAPI ERROR: triggerEmergencyCall aufgerufen, aber clientId fehlt in Metadata!");
+            }
+
+            // VAPIS EXAKTES RESPONSE SCHEMA (Verwendet 'result' / 'output' kombiniert)
+            $results[] = [
+                'toolCallId' => $toolCallId,
+                'result'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.',
+                'output'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.'
+            ];
+        }
+    }
+
+    // Saubere Server-Antwort an Vapi
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'results' => $results
+    ]);
+    exit;
+}
 
 function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
 {
@@ -156,7 +229,6 @@ PROMPT;
                 "Einen schönen Tag.",
                 "Einen schönen Abend."
             ],
-            // WICHTIG: Muss auf false stehen, damit Vapi nicht vor dem Sprechsatz abbricht:
             'endCallFunctionEnabled' => false,
             'model' => [
                 'provider' => 'azure-openai',
@@ -184,11 +256,9 @@ PROMPT;
                                 'required' => ['reason']
                             ]
                         ],
-                        'async' => false // Stellt sicher, dass Vapi auf die Bestätigung deines Servers wartet
+                        'async' => false
                     ]
                 ]
-
-
             ],
             'variableValues' => [
                 'clientId' => (string)$clientId,
@@ -231,67 +301,6 @@ PROMPT;
     }
 }
 
-function handleVapiToolCall($db, $data)
-{
-    // 1. Eventuell vorhandene Buffer-Ausgaben löschen (verhindert JSON-Parse-Fehler bei Vapi)
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-
-    $toolCalls = $data['message']['toolCalls'] ?? [];
-
-    // Vapi sendet Metadata an unterschiedlichen Stellen im JSON-Payload
-    $metadata = $data['message']['call']['metadata']
-        ?? $data['message']['artifact']['metadata']
-        ?? $data['message']['metadata']
-        ?? [];
-
-    $rawClientId = $metadata['clientId'] ?? null;
-    $clientId = $rawClientId !== null ? (int)$rawClientId : null;
-
-    $results = [];
-
-    // 2. Alle übergebenen Tool-Calls durchgehen
-    foreach ($toolCalls as $toolCall) {
-        $toolCallId = $toolCall['id'] ?? null;
-        $functionName = $toolCall['function']['name'] ?? '';
-
-        if ($functionName === 'triggerEmergencyCall') {
-            $args = json_decode($toolCall['function']['arguments'] ?? '{}', true);
-            $reason = $args['reason'] ?? 'Unwohlsein / Notfall geäußert';
-
-            error_log("TOOL-CALL DETECTED: triggerEmergencyCall für Client-ID: " . var_export($clientId, true) . " mit Grund: $reason");
-
-            if ($clientId && $clientId > 0) {
-                try {
-                    logClientIncident($db, $clientId, $reason);
-                    updateCallStatus($db, $clientId, 'incident_reported', "Klient meldet Unwohlsein: " . $reason);
-                    notifyEmergencyContacts($db, $clientId, $reason);
-                    error_log("SUCCESS: Incident geloggt & Notfallkontakte benachrichtigt für Client ID $clientId");
-                } catch (Exception $e) {
-                    error_log("ERROR in triggerEmergencyCall Execution: " . $e->getMessage());
-                }
-            } else {
-                error_log("VAPI ERROR: triggerEmergencyCall aufgerufen, aber clientId fehlt in Metadata!");
-            }
-
-            // 3. Ergebnis im exakten Vapi-Schema sammeln
-            $results[] = [
-                'toolCallId' => $toolCallId,
-                'result'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.'
-            ];
-        }
-    }
-
-    // 4. Sauberen HTTP 200 Header und JSON-Response an Vapi senden
-    http_response_code(200);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'results' => $results
-    ]);
-    exit;
-}
-
 function logClientIncident(PDO $db, int $clientId, string $reason): void
 {
     $stmt = $db->prepare("INSERT INTO client_incidents (client_id, reason, created_at) VALUES (?, ?, NOW())");
@@ -301,7 +310,7 @@ function logClientIncident(PDO $db, int $clientId, string $reason): void
 function handleVapiWebhook($db, $data)
 {
     $endedReason = $data['message']['endedReason'] ?? '';
-    $metadata = $data['message']['call']['metadata'] ?? [];
+    $metadata = $data['message']['call']['metadata'] ?? $data['message']['metadata'] ?? [];
 
     $clientId = $metadata['clientId'] ?? null;
     $cycle    = (int)($metadata['cycle'] ?? 1);
@@ -321,7 +330,6 @@ function handleVapiWebhook($db, $data)
             updateCallStatus($db, $clientId, 'completed', $summary);
         }
     } else {
-        // Klient hat nicht abgehoben -> Eskalation auslösen
         error_log("VAPI INFO: Anruf nicht erfolgreich (Reason: $endedReason). Starte Eskalation/Retry...");
         escalateCall($db, $clientId, $cycle, $telType, $callType);
     }
@@ -333,17 +341,14 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Versuche Erstnummer -> Zweitnummer (falls vorhanden im selben Zyklus)
     if ($telType === 'tel1' && !empty($client['tel2'])) {
         error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
         executeCall($db, $clientId, 'tel2', $cycle, $callType);
     } elseif ($cycle === 1) {
-        // Nach Versuch 1 (egal ob tel1 oder tel2): Planen für Zyklus 2 in 15 Minuten
         $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 2 MINUTE) WHERE client_id = ?");
         $stmt->execute([$clientId]);
-        error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2) in 15 Min vorgemerkt.");
+        error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2) vorgemerkt.");
     } else {
-        // Versuch 2 ebenfalls fehlgeschlagen
         updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen.');
         notifyEmergencyContacts($db, $clientId, "Klient war nach mehreren Versuchen telefonisch nicht erreichbar.");
         error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen nicht erreicht. Notfallkontakte benachrichtigt.");
@@ -468,7 +473,6 @@ PROMPT;
                 "Einen schönen Tag.",
                 "Vielen Dank für den Test!"
             ],
-            // WICHTIG: Muss auf false stehen, damit Vapi die Verabschiedung aussprechen lässt:
             'endCallFunctionEnabled' => false,
             'model' => [
                 'provider' => 'azure-openai',
