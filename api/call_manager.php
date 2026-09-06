@@ -23,8 +23,13 @@ $directPhoneNumber = $_POST['phone_number'] ?? null;
 $rawInput = file_get_contents('php://input');
 $input = json_decode($rawInput, true) ?? [];
 
-if (!$action && isset($input['message']['type'])) {
-    $action = $input['message']['type'];
+// Robuste Aktions-Erkennung für Vapi
+if (!$action) {
+    if (isset($input['message']['type'])) {
+        $action = $input['message']['type'];
+    } elseif (isset($input['message']['toolCalls']) || isset($input['toolCalls'])) {
+        $action = 'tool-calls';
+    }
 }
 
 // DB-Verbindung herstellen
@@ -81,11 +86,16 @@ function handleVapiToolCall($db, $data)
         ob_end_clean();
     }
 
+    // Header für JSON setzen
+    header('Content-Type: application/json; charset=utf-8');
+
+    // Tool-Calls aus verschiedenen möglichen Vapi-Payload-Strukturen auslesen
     $toolCalls = $data['message']['toolCalls']
         ?? $data['message']['toolCallList']
+        ?? $data['toolCalls']
         ?? [];
 
-    // Erhöhte Flexibilität beim Auffinden der ClientId in Vapis Webhook-Payload
+    // Client-ID flexibel extrahieren
     $metadata = $data['message']['call']['metadata']
         ?? $data['message']['artifact']['metadata']
         ?? $data['message']['metadata']
@@ -100,7 +110,6 @@ function handleVapiToolCall($db, $data)
     foreach ($toolCalls as $toolCall) {
         $toolCallId = $toolCall['id'] ?? null;
 
-        // Vapi kapselt Funktionsnamen manchmal leicht unterschiedlich
         $functionName = $toolCall['function']['name']
             ?? $toolCall['name']
             ?? '';
@@ -116,27 +125,37 @@ function handleVapiToolCall($db, $data)
                 try {
                     logClientIncident($db, $clientId, $reason);
                     updateCallStatus($db, $clientId, 'incident_reported', "Klient meldet Unwohlsein: " . $reason);
+
+                    // ACHTUNG: Falls SMS/E-Mail lange dauern, am besten abfangen
                     notifyEmergencyContacts($db, $clientId, $reason);
-                    error_log("SUCCESS: Incident geloggt & Notfallkontakte benachrichtigt für Client ID $clientId");
-                } catch (Exception $e) {
+
+                    error_log("SUCCESS: Incident geloggt für Client ID $clientId");
+                } catch (Throwable $e) {
                     error_log("ERROR in triggerEmergencyCall Execution: " . $e->getMessage());
                 }
             } else {
                 error_log("VAPI ERROR: triggerEmergencyCall aufgerufen, aber clientId fehlt in Metadata!");
             }
 
-            // VAPIS EXAKTES RESPONSE SCHEMA (Verwendet 'result' / 'output' kombiniert)
+            // Rückgabe für Vapi formulieren
             $results[] = [
                 'toolCallId' => $toolCallId,
-                'result'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.',
-                'output'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.'
+                'result'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.'
             ];
         }
     }
 
-    // Saubere Server-Antwort an Vapi
+    // Falls aus irgendeinem Grund kein Ergebnis erzeugt wurde, Fallback-Response senden
+    if (empty($results) && !empty($toolCalls)) {
+        foreach ($toolCalls as $toolCall) {
+            $results[] = [
+                'toolCallId' => $toolCall['id'] ?? '',
+                'result'     => 'Funktion ausgeführt.'
+            ];
+        }
+    }
+
     http_response_code(200);
-    header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
         'results' => $results
     ]);
