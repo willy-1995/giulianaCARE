@@ -72,7 +72,6 @@ switch ($action) {
 
 function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
 {
-    // Konsolen-/Server-Log für den Start des Anrufs (Versuch 1 oder 2)
     error_log("CALL START [Versuch $cycle]: Client ID $clientId | Typ: $callType | Nummerntyp: $telType");
 
     $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2, call_1, call_2, call_3, medication_1, medication_2, medication_3 FROM clients WHERE id = ? AND status = 'active'");
@@ -91,7 +90,6 @@ function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
         return;
     }
 
-    // Telefonnummer formatieren (E.164 Pflicht für Vapi)
     $phone = preg_replace('/[^0-9+]/', '', $phone);
     if (strpos($phone, '0') === 0) {
         $phone = '+49' . substr($phone, 1);
@@ -100,7 +98,6 @@ function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
     $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
     $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
 
-    // Medikation bestimmen
     $currentMedication = '';
     $callTimeText = '';
 
@@ -138,16 +135,15 @@ VERHALTENSREGELN UND REAKTION AUF UNWOHLSEIN:
 1. Grundhaltung: Antworte immer extrem kurz (max. 1-2 Sätze), verständlich und einfühlsam.
 2. Begrüße mit "Guten Tag..." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
 3. Wenn der Klient sagt, dass alles gut ist und an die Medikamente (falls vorhanden) erinnert wurde:
-   Verabschiede dich höflich ("Schön zu hören! Ich wünsche Ihnen einen schönen Tag bzw. Abend. Auf Wiederhören.") und sprich danach nicht weiter!
+   Verabschiede dich höflich mit den Worten: "Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!" und sprich danach absolut nichts mehr.
 4. Wenn der Klient äußert, dass es ihm SCHLECHT geht oder er Hilfe braucht:
    a) Reagiere mit großem Mitgefühl und frage kurz nach den konkreten Beschwerden/Gründen.
    b) Informiere den Klienten ausdrücklich: "Soll ich Ihre Notfallkontakte darüber informieren, damit jemand nach Ihnen sieht?"
    c) Wenn der Klient JA sagt:
       - Rufe SOFORT die Funktion `triggerEmergencyCall` auf.
-      - Sage dem Klienten kurz: "Ich habe Ihre Notfallkontakte sofort benachrichtigt. Es kümmert sich jemand um Sie. Gute Besserung!"
-      - Beende danach das Gespräch höflich über `endCall`.
+      - Sage dem Klienten kurz: "Ich habe Ihre Notfallkontakte sofort benachrichtigt. Es kümmert sich jemand um Sie. Gute Besserung und Auf Wiederhören!"
    d) Wenn der Klient NEIN sagt:
-      - Wünsche ihm gute Besserung und beende den Anruf höflich.
+      - Wünsche ihm gute Besserung und verabschiede dich mit "Auf Wiederhören!".
 PROMPT;
 
     $payload = [
@@ -155,12 +151,13 @@ PROMPT;
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
-            'endCallPhrases' => [ //added for end greeting
+            'endCallPhrases' => [
                 "Auf Wiederhören!",
                 "Einen schönen Tag.",
                 "Einen schönen Abend."
             ],
-            'endCallFunctionEnabled' => false, // Auf false setzen, damit Vapi erst nach dem gesprochenen Satz auflegt
+            // WICHTIG: Muss auf false stehen, damit Vapi nicht vor dem Sprechsatz abbricht:
+            'endCallFunctionEnabled' => false,
             'model' => [
                 'provider' => 'azure-openai',
                 'model'    => 'gpt-4o-mini',
@@ -171,7 +168,6 @@ PROMPT;
                     ]
                 ],
                 'tools' => [
-                    //['type' => 'endCall'], excluded for ending call with greeting
                     [
                         'type' => 'function',
                         'function' => [
@@ -191,7 +187,6 @@ PROMPT;
                     ]
                 ]
             ],
-            'endCallFunctionEnabled' => true,
             'variableValues' => [
                 'clientId' => (string)$clientId,
                 'cycle'    => (string)$cycle,
@@ -224,7 +219,6 @@ PROMPT;
     $curlError = curl_error($ch);
     curl_close($ch);
 
-    // DB-Status aktualisieren, welches Telefon genutzt wurde
     $updateStmt = $db->prepare("UPDATE call_status SET last_tel_used = ?, attempt_cycle = ? WHERE client_id = ?");
     $updateStmt->execute([$telType, $cycle, $clientId]);
 
