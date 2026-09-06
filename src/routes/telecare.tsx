@@ -46,7 +46,7 @@ function TeleCare() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prevSlide) => (prevSlide + 1) % slidesData.length);
-    }, 6000);
+    }, 10000);
 
     return () => clearInterval(timer);
   }, [slidesData.length]);

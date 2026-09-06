@@ -183,9 +183,12 @@ PROMPT;
                                 ],
                                 'required' => ['reason']
                             ]
-                        ]
+                        ],
+                        'async' => false // Stellt sicher, dass Vapi auf die Bestätigung deines Servers wartet
                     ]
                 ]
+
+
             ],
             'variableValues' => [
                 'clientId' => (string)$clientId,
@@ -230,10 +233,14 @@ PROMPT;
 
 function handleVapiToolCall($db, $data)
 {
+    // 1. Eventuell vorhandene Buffer-Ausgaben löschen (verhindert JSON-Parse-Fehler bei Vapi)
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
     $toolCalls = $data['message']['toolCalls'] ?? [];
 
-    // Vapi sendet Metadata an unterschiedlichen Stellen im JSON-Payload, je nach Vapi-Version.
-    // Wir prüfen alle gängigen Pfade ab:
+    // Vapi sendet Metadata an unterschiedlichen Stellen im JSON-Payload
     $metadata = $data['message']['call']['metadata']
         ?? $data['message']['artifact']['metadata']
         ?? $data['message']['metadata']
@@ -242,10 +249,16 @@ function handleVapiToolCall($db, $data)
     $rawClientId = $metadata['clientId'] ?? null;
     $clientId = $rawClientId !== null ? (int)$rawClientId : null;
 
+    $results = [];
+
+    // 2. Alle übergebenen Tool-Calls durchgehen
     foreach ($toolCalls as $toolCall) {
-        if (($toolCall['function']['name'] ?? '') === 'triggerEmergencyCall') {
+        $toolCallId = $toolCall['id'] ?? null;
+        $functionName = $toolCall['function']['name'] ?? '';
+
+        if ($functionName === 'triggerEmergencyCall') {
             $args = json_decode($toolCall['function']['arguments'] ?? '{}', true);
-            $reason = $args['reason'] ?? 'Unwohlsein / Kopfschmerzen (keine näheren Angaben)';
+            $reason = $args['reason'] ?? 'Unwohlsein / Notfall geäußert';
 
             error_log("TOOL-CALL DETECTED: triggerEmergencyCall für Client-ID: " . var_export($clientId, true) . " mit Grund: $reason");
 
@@ -259,22 +272,24 @@ function handleVapiToolCall($db, $data)
                     error_log("ERROR in triggerEmergencyCall Execution: " . $e->getMessage());
                 }
             } else {
-                error_log("VAPI ERROR: triggerEmergencyCall aufgerufen, aber clientId fehlt in Metadata! Data: " . json_encode($data));
+                error_log("VAPI ERROR: triggerEmergencyCall aufgerufen, aber clientId fehlt in Metadata!");
             }
 
-            // Strikte Vapi-Formatierung für Tool-Responses (Rückgabe an die KI)
-            header('Content-Type: application/json');
-            echo json_encode([
-                'results' => [
-                    [
-                        'toolCallId' => $toolCall['id'],
-                        'result' => 'Notfallkontakte wurden erfolgreich informiert.'
-                    ]
-                ]
-            ]);
-            exit;
+            // 3. Ergebnis im exakten Vapi-Schema sammeln
+            $results[] = [
+                'toolCallId' => $toolCallId,
+                'result'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.'
+            ];
         }
     }
+
+    // 4. Sauberen HTTP 200 Header und JSON-Response an Vapi senden
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'results' => $results
+    ]);
+    exit;
 }
 
 function logClientIncident(PDO $db, int $clientId, string $reason): void
