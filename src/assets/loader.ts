@@ -104,6 +104,7 @@ export const loadProtocol = async (setLoading: (loading: boolean) => void) => {
     const rawdata = await response.text();
     console.log("Protokoll Antwort: ", rawdata);
     const data = JSON.parse(rawdata);
+    console.log("Protokoll geladen");
 
     return data;
   } catch (error) {
