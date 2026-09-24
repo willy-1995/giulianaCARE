@@ -387,7 +387,7 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = 
     $clientName = trim(($client['title'] ?? '') . ' ' . $client['firstname'] . " " . $client['lastname']);
     $smsEnabled = !empty($client['sms_status']);
 
-    $stmtContacts = $db->prepare("SELECT lastname, firstname, email, phone FROM contacts WHERE client_id = ?");
+    $stmtContacts = $db->prepare("SELECT lastname, firstname, email, tel1 FROM contacts WHERE client_id = ?");
     $stmtContacts->execute([$clientId]);
     $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
 
