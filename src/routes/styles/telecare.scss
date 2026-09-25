@@ -51,12 +51,14 @@
     display: flex;
     width: 100%;
     margin: 0 auto;
-    background: linear-gradient(
-      to right,
-      var(--accent-color) 0%,
-      var(--accent-color) 50%,
-      white 80%
-    );
+    background:
+      linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, white 90%),
+      linear-gradient(
+        to right,
+        var(--accent-color) 0%,
+        var(--accent-color) 60%,
+        white 90%
+      );
     padding: 10px;
 
     // Angepasst: greift jetzt von 0px bis 1200px für das Spalten-Layout
@@ -286,6 +288,48 @@
   }
 }
 
+/*==================================================================
+Quick Stats Div
+====================================================================*/
+.quick_statistic_div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto;
+  padding: 10px;
+  padding-bottom: 0;
+  border-radius: 15px;
+  box-shadow: 0 0 10px var(--accent-color);
+  width: 90%;
+  margin: 0 auto;
+
+  @media (min-width: 1200px) {
+    margin-top: 50px;
+  }
+
+  @media (max-width: 750px) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media (max-width: 700px) {
+    margin-bottom: 40px;
+  }
+
+  h2 {
+    text-align: center;
+    margin-bottom: 20px;
+
+    .stat-number {
+      color: var(--accent-color);
+      text-shadow: 0 0 5px var(--accent-color);
+    }
+
+    .stat-icon {
+      margin-left: 5px;
+    }
+  }
+}
+
 /* ========================================================================== 
    2. HOW IT WORKS SECTION (#working) 
    ========================================================================== */
@@ -308,6 +352,7 @@
     flex-direction: row;
     justify-content: space-evenly;
     margin: 0 auto;
+    margin-bottom: 40px;
 
     @media (max-width: 700px) {
       flex-direction: column;
@@ -352,6 +397,7 @@
     width: 100%;
     background-color: var(--accent-color);
     padding: 20px 0;
+    box-shadow: 0 0 10px var(--accent-color);
 
     h2 {
       margin: 0 auto 40px auto;
@@ -363,6 +409,7 @@
       justify-content: space-evenly;
       width: 60%;
       margin: 0 auto;
+      margin-bottom: 40px;
 
       @media (max-width: 800px) {
         flex-direction: column;
@@ -429,6 +476,32 @@
         padding: 10px;
         color: white;
       }
+    }
+
+    /*Working Texts*/
+    h3 {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      color: white;
+
+      @media (max-width: 610px) {
+        width: 90%;
+        background-color: aqua;
+        margin: 0 auto;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+    }
+
+    p {
+      width: 90%;
+      margin: 0 auto;
+      margin-bottom: 40px;
+      text-align: center;
+      color: white;
     }
   }
 
@@ -508,29 +581,6 @@
 }
 
 /* ========================================================================== 
-   3. MEDIA ELEMENTS (VIDEO) 
-   ========================================================================== */
-
-.video-div {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  padding: 50px 0;
-
-  .telecare-video {
-    width: 50%;
-    border-radius: 5px;
-    box-shadow: 0 0 10px var(--shadow-color);
-
-    @media (max-width: 700px) {
-      width: 80%;
-    }
-  }
-}
-
-/* ========================================================================== 
    4. MODALS & OVERLAYS 
    ========================================================================== */
 
@@ -557,5 +607,42 @@
     width: 90%;
     position: relative;
     z-index: 1000;
+  }
+}
+
+/*=================================================
+Q&A SECTION
+===================================================*/
+#QAndA {
+  width: 90%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 50px;
+
+  details {
+    border-radius: 15px;
+    box-shadow: 0 0 10px var(--accent-color);
+    display: flex;
+    flex-direction: column;
+
+    @media (max-width: 700px) {
+      min-height: 50px;
+    }
+
+    summary {
+      font-weight: 600;
+      display: flex;
+      gap: 5px;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    p {
+      text-align: left;
+      padding: 10px;
+      padding-left: 20px;
+    }
   }
 }

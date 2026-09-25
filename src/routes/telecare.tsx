@@ -11,6 +11,12 @@ import {
   faThumbsUp,
   faUsers,
   faPhoneVolume,
+  faTriangleExclamation,
+  faHandHoldingHeart,
+  faShieldHalved,
+  faRobot,
+  faCircleQuestion,
+  faHandshakeAngle,
 } from "@fortawesome/free-solid-svg-icons";
 import Navbar from "./components/navbar";
 import Footer from "./components/footer";
@@ -264,14 +270,18 @@ function TeleCare() {
       {/** STATISTICS DIV */}
       <div className="quick_statistic_div" ref={statsRef}>
         <h2>
-          <FontAwesomeIcon icon={faUsers} />
           <span className="stat-number">{displayCount}</span> betreute
           Seniorinnen und Senioren
+          <FontAwesomeIcon icon={faUsers} className="stat-icon" />
         </h2>
         <h2>
-          <FontAwesomeIcon icon={faPhoneVolume} />
           <span className="stat-number">{displayMinutes}</span> Minuten
           Betreuungsanrufe
+          <FontAwesomeIcon icon={faPhoneVolume} className="stat-icon" />
+        </h2>
+        <h2>
+          <span className="stat-number">{}</span> Vorfälle erkannt
+          <FontAwesomeIcon icon={faTriangleExclamation} className="stat-icon" />
         </h2>
       </div>
       {/*____________________________ */}
@@ -302,13 +312,6 @@ function TeleCare() {
               E-Mail.
             </p>
           </div>
-        </div>
-        <div className="video-div">
-          <video
-            src="/media/placeholder_vid.mp4"
-            className="telecare-video"
-            controls
-          ></video>
         </div>
         <div className="service-info-div">
           <h2>
@@ -351,28 +354,40 @@ function TeleCare() {
           </div>
           <div className="explain-div">
             <h3>
-              Entlastung für dich, Selbstständigkeit für deinen Angehörigen
+              Selbstständigkeit für Angehörige
+              <FontAwesomeIcon icon={faHandHoldingHeart} />
             </h3>
             <p>
-              Mit der Telefonbetreuung von giulianaCARE unterstützt du deinen
-              betreuungsbedürftigen Angehörigen beim eigenständigen Leben
-              zuhause und wirst selbst in der Betreuung entlastet! In
-              natürlicher Sprache kann sich dein Angehöriger mit dem
-              Sprachassistent unterhalten. Dieser fragt nach dem Wohlbefinden
-              und erinnert an Medikamente, Flüssigkeitszufuhr und andere
-              wichtige Informationen, die du flexibel und einfach konfigurieren
-              kannst. Äußert dein Angehöriger Unwohlsein, fragt der
-              Sprachassistent gezielt nach, protokolliert die Symptome und
-              kontaktiert bis zu 3 Notfallkontakte per E-Mail und SMS.
+              Die Kriegs- und Nachkriegsgeneration legt besonders viel Wert auf
+              Eigenständigkeit und Unabhängigkeit. Hilfsmittel als Wearables
+              oder Zusatzhardware lehnt diese Generation oft ab oder hat
+              Schwierigkeiten im Umgang. Die Telefonassistenz von giulianaCARE
+              unterstützt ein selbstständiges Leben dort, wo es am schönsten
+              ist: <b>Zuhause</b>!
             </p>
-            <h3>Wir schützen deine Daten</h3>
+            <h3>
+              Entlastung für dich <FontAwesomeIcon icon={faHandshakeAngle} />
+            </h3>
+            <p>
+              "Oh nein, ich wollte doch noch nach Oma hören!". "Hat Opa heute
+              seine Medikamente genommen?". Diese Fragen gehen im Alltag neben
+              Arbeit, Haushalt und Terminen schnell unter. Die Telefonassistenz
+              von giulianaCARE unterstützt dich bei der Betreuung von
+              Angehörigen und hält dir den Rücken frei.
+            </p>
+            <h3>
+              Wir schützen deine Daten <FontAwesomeIcon icon={faShieldHalved} />
+            </h3>
             <p>
               Unsere Server befinden sich ausschließlich in Deutschland und
               unsere Plattform ist DSGVO-konform. Wir verzichten auf die
               Tracking, Cookies oder sonstige zwielichtige Weitergabe deiner
               Daten. Transparenz ist uns eine Herzensangelegenheit.
             </p>
-            <h3>Verantwortungsbewusster Einsatz von Künstlicher Intelligenz</h3>
+            <h3>
+              Verantwortungsbewusster Einsatz von KI
+              <FontAwesomeIcon icon={faRobot} />
+            </h3>
             <p>
               giulianaCARE setzt sich für den verantwortungsbewussten Einsatz
               von KI ein! Wir vertreten die Meinung, dass KI echte Chancen
@@ -424,25 +439,64 @@ function TeleCare() {
       <div className="telecare-section" id="QAndA">
         <details>
           <summary>
+            <FontAwesomeIcon icon={faCircleQuestion} />
             Brauche ich extra Hardware oder muss ich Software installieren?
           </summary>
-        </details>
-        <details>
-          <summary>Kann ich den Sprachassistenten auch pausieren?</summary>
-        </details>
-        <details>
-          <summary>Kann ich die Anrufzeiten flexibel ändern?</summary>
+          <p>
+            Nein, du brauchst keine extra Hardware und musst keine extra
+            Software installieren. Unser Sprachassistent ruft deinen Angehörigen
+            direkt auf dem Telefon oder Handy an.
+          </p>
         </details>
         <details>
           <summary>
+            <FontAwesomeIcon icon={faCircleQuestion} /> Kann ich den
+            Sprachassistenten auch pausieren?
+          </summary>
+          <p>
+            Ja, der Sprachassistent lässt sich jederzeit mit nur einem Klick
+            deaktivieren und reaktivieren.
+          </p>
+        </details>
+        <details>
+          <summary>
+            <FontAwesomeIcon icon={faCircleQuestion} />
+            Kann ich die Anrufzeiten flexibel ändern?
+          </summary>
+          <p>Ja, du kannst die Anrufzeiten flexibel anpassen. </p>
+        </details>
+        <details>
+          <summary>
+            <FontAwesomeIcon icon={faCircleQuestion} />
             Welche Medikamente und Informationen kann für die Anrufe angeben?
           </summary>
+          <p>
+            Du kannst jedes Medikament mit Menge oder Stückzahl angeben. Zudem
+            kannst du Zusatzinformationen, wie z.B. Erinnerung zur
+            Flüssigkeitszufuhr, Terminerinnerungen oder Gedächtnisabfragen
+            angeben.
+          </p>
         </details>
         <details>
-          <summary>Wie sind die Kündigungsfristen für mein Abo?</summary>
+          <summary>
+            <FontAwesomeIcon icon={faCircleQuestion} />
+            Wie sind die Kündigungsfristen für mein Abo?
+          </summary>
+          <p>
+            Der Vertrag wird auf unbestimmte Zeit geschlossen und kann jederzeit
+            mit einer Frist von 14 Tagen zum Monatsende gekündigt werden.
+          </p>
         </details>
         <details>
-          <summary>Was passiert mit meinen Daten?</summary>
+          <summary>
+            <FontAwesomeIcon icon={faCircleQuestion} />
+            Was passiert mit meinen Daten?
+          </summary>
+          <p>
+            Ihre Daten bleiben in Deutschland, dank inländischer
+            Server-Standorte. giulianaCARE verzichtet auf Tracking, Cookies und
+            die unerlaubte Weitergabe ihrer Daten an Dritte.
+          </p>
         </details>
       </div>
 
