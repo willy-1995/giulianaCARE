@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
@@ -15,6 +15,7 @@ import Footer from "./components/footer";
 import TestCallForm from "../assets/testCallForm";
 import "./styles/main.scss";
 import "./styles/telecare.scss";
+import { loadClients } from "../assets/loader";
 
 function TeleCare() {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,6 +33,18 @@ function TeleCare() {
     getAssetUrl("media/team.png"),
     getAssetUrl("media/woman.jpg"),
   ];
+
+  // 1. Zielwert aus der API (Standardmäßig mindestens 14)
+  const [targetCount, setTargetCount] = useState<number>(14);
+
+  // 2. Der animierte Wert, der auf dem Bildschirm zu sehen ist
+  const [displayCount, setDisplayCount] = useState<number>(0);
+
+  // Ref für das HTML-Element (zum Erkennen des Scrollens)
+  const statsRef = useRef<HTMLDivElement>(null);
+
+  // Ref um sicherzustellen, dass die Animation nur einmal abläuft
+  const hasAnimated = useRef<boolean>(false);
 
   // SLIDESHOW TEXT
   const slidesData = [
@@ -61,6 +74,54 @@ function TeleCare() {
 
     return () => clearInterval(imageTimer);
   }, [mobileImages.length]);
+
+  // A) Daten aus der API laden & Zielwert berechnen
+  useEffect(() => {
+    const fetchClientCount = async () => {
+      const result = await loadClients(() => {});
+      if (result && result.success && Array.isArray(result.data)) {
+        const realCount = result.data.length;
+        setTargetCount(realCount >= 15 ? realCount : 14);
+      }
+    };
+
+    fetchClientCount();
+  }, []);
+
+  // B) Scroll-Erkennung (Intersection Observer) & Hochzähl-Animation
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+
+        // Wenn das Element sichtbar wird und noch nicht animiert wurde:
+        if (entry.isIntersecting && !hasAnimated.current) {
+          hasAnimated.current = true; // Animation starten & Sperre setzen
+
+          let currentNumber = 0;
+          const duration = 1500; // Gesamtdauer der Animation in Millisekunden (1.5 Sekunden)
+          const steps = targetCount;
+          const stepTime = Math.max(Math.floor(duration / steps), 30); // Zeit pro Schritt
+
+          const timer = setInterval(() => {
+            currentNumber += 1;
+            setDisplayCount(currentNumber);
+
+            if (currentNumber >= targetCount) {
+              clearInterval(timer);
+            }
+          }, stepTime);
+        }
+      },
+      { threshold: 0.3 }, // Startet, wenn 30% des Elements im Bild zu sehen sind
+    );
+
+    if (statsRef.current) {
+      observer.observe(statsRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [targetCount]);
 
   // FUNCTIONS
   const openModal = () => {
@@ -178,9 +239,9 @@ function TeleCare() {
           </div>
         </div>
       </div>
-      {/**STATISTICS DIV */}
-      <div className="quick_statistic_div">
-        <h2>{} betreute Seniorinnen und Senioren</h2>
+      {/** STATISTICS DIV */}
+      <div className="quick_statistic_div" ref={statsRef}>
+        <h2>{displayCount} betreute Seniorinnen und Senioren</h2>
         <h2>{} Minuten Betreuungsanrufe</h2>
       </div>
       <div className="telecare-section section" id="working">
