@@ -368,6 +368,7 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
     }
 }
 
+/*
 function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = null): void
 {
     if ($clientId <= 0) {
@@ -418,6 +419,80 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = 
         }
     }
 }
+*/
+
+function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = null): void
+{
+    if ($clientId <= 0) {
+        error_log("NOTIFY DEBUG: Abgebrochen – Ungültige Client ID ($clientId)");
+        return;
+    }
+
+    $stmt = $db->prepare("SELECT lastname, firstname, title, sms_status FROM clients WHERE id = ?");
+    $stmt->execute([$clientId]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$client) {
+        error_log("NOTIFY DEBUG: Client ID $clientId nicht in Datenbank gefunden.");
+        return;
+    }
+
+    $clientName = trim(($client['title'] ?? '') . ' ' . $client['firstname'] . " " . $client['lastname']);
+    $smsEnabled = !empty($client['sms_status']);
+
+    error_log("NOTIFY DEBUG: Client ID $clientId geladen. Client Name: '$clientName' | SMS-Status: " . ($smsEnabled ? 'AKTIV' : 'INAKTIV'));
+
+    $stmtContacts = $db->prepare("SELECT lastname, firstname, email, tel1 FROM contacts WHERE client_id = ?");
+    $stmtContacts->execute([$clientId]);
+    $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($contacts)) {
+        error_log("NOTIFY DEBUG: Keinerlei Notfallkontakte in Tabelle 'contacts' für Client ID $clientId gefunden!");
+        return;
+    }
+
+    error_log("NOTIFY DEBUG: " . count($contacts) . " Notfallkontakt(e) gefunden.");
+
+    $subject = "NOTFALL-ALARM: $clientName benötigt Hilfe!";
+
+    if ($customReason) {
+        $messageText = "ACHTUNG: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $customReason\n\nBitte werden Sie umgehend aktiv!";
+    } else {
+        $messageText = "ACHTUNG: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
+    }
+
+    foreach ($contacts as $index => $contact) {
+        $cName = $contact['firstname'] . " " . $contact['lastname'];
+
+        // E-Mail Prüfen & Versenden
+        if (!empty($contact['email'])) {
+            $headers = [
+                'From' => 'no-reply@giuliana-care.de',
+                'Reply-To' => 'support@giuliana-care.de',
+                'Content-Type' => 'text/plain; charset=UTF-8',
+                'X-Mailer' => 'PHP/' . phpversion()
+            ];
+            $mailResult = mail($contact['email'], $subject, $messageText, $headers);
+            error_log("NOTIFY DEBUG: E-Mail an Kontakt '$cName' ({$contact['email']}) " . ($mailResult ? "über mail() ÜBERGEBEN" : "FEHLGESCHLAGEN"));
+        } else {
+            error_log("NOTIFY DEBUG: Keine E-Mail-Adresse für Kontakt '$cName' eingetragen.");
+        }
+
+        // SMS Prüfen & Versenden
+        $phoneToSms = $contact['tel1'] ?? null;
+        if ($smsEnabled) {
+            if (!empty($phoneToSms)) {
+                error_log("NOTIFY DEBUG: Starte SMS-Versand an Kontakt '$cName' ($phoneToSms)...");
+                sendSmsNotification($phoneToSms, $messageText);
+            } else {
+                error_log("NOTIFY DEBUG: SMS ist aktiv, aber Kontakt '$cName' hat keine Telefonnummer (tel1).");
+            }
+        } else {
+            error_log("NOTIFY DEBUG: SMS-Versand übersprungen, da sms_status für Client $clientId inaktiv/leer ist.");
+        }
+    }
+}
+
 
 function sendSmsNotification(string $phoneNumber, string $message): void
 {

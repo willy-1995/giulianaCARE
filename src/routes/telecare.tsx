@@ -178,7 +178,11 @@ function TeleCare() {
           </div>
         </div>
       </div>
-
+      {/**STATISTICS DIV */}
+      <div className="quick_statistic_div">
+        <h2>{} betreute Seniorinnen und Senioren</h2>
+        <h2>{} Minuten Betreuungsanrufe</h2>
+      </div>
       <div className="telecare-section section" id="working">
         <h2>
           So einfach ist der automatische Betreuungsservice von giulianaCare
@@ -253,6 +257,37 @@ function TeleCare() {
               </li>
             </ul>
           </div>
+          <div className="explain-div">
+            <h3>
+              Entlastung für dich, Selbstständigkeit für deinen Angehörigen
+            </h3>
+            <p>
+              Mit der Telefonbetreuung von giulianaCARE unterstützt du deinen
+              betreuungsbedürftigen Angehörigen beim eigenständigen Leben
+              zuhause und wirst selbst in der Betreuung entlastet! In
+              natürlicher Sprache kann sich dein Angehöriger mit dem
+              Sprachassistent unterhalten. Dieser fragt nach dem Wohlbefinden
+              und erinnert an Medikamente, Flüssigkeitszufuhr und andere
+              wichtige Informationen, die du flexibel und einfach konfigurieren
+              kannst. Äußert dein Angehöriger Unwohlsein, fragt der
+              Sprachassistent gezielt nach, protokolliert die Symptome und
+              kontaktiert bis zu 3 Notfallkontakte per E-Mail und SMS.
+            </p>
+            <h3>Wir schützen deine Daten</h3>
+            <p>
+              Unsere Server befinden sich ausschließlich in Deutschland und
+              unsere Plattform ist DSGVO-konform. Wir verzichten auf die
+              Tracking, Cookies oder sonstige zwielichtige Weitergabe deiner
+              Daten. Transparenz ist uns eine Herzensangelegenheit.
+            </p>
+            <h3>Verantwortungsbewusster Einsatz von Künstlicher Intelligenz</h3>
+            <p>
+              giulianaCARE setzt sich für den verantwortungsbewussten Einsatz
+              von KI ein! Wir vertreten die Meinung, dass KI echte Chancen
+              bietet, gewisse Lebensbereiche zu vereinfachen. Daran knüpfen wir
+              mit unserem Service an.
+            </p>
+          </div>
         </div>
         <h2 className="price-heading">Unsere Preise</h2>
         <div className="price-div">
@@ -294,6 +329,31 @@ function TeleCare() {
           *Preise gelten pro Monat, monatlich kündbar
         </p>
       </div>
+      <div className="telecare-section" id="QAndA">
+        <details>
+          <summary>
+            Brauche ich extra Hardware oder muss ich Software installieren?
+          </summary>
+        </details>
+        <details>
+          <summary>Kann ich den Sprachassistenten auch pausieren?</summary>
+        </details>
+        <details>
+          <summary>Kann ich die Anrufzeiten flexibel ändern?</summary>
+        </details>
+        <details>
+          <summary>
+            Welche Medikamente und Informationen kann für die Anrufe angeben?
+          </summary>
+        </details>
+        <details>
+          <summary>Wie sind die Kündigungsfristen für mein Abo?</summary>
+        </details>
+        <details>
+          <summary>Was passiert mit meinen Daten?</summary>
+        </details>
+      </div>
+
       <Footer />
 
       {modal && (
