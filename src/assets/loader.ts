@@ -113,3 +113,50 @@ export const loadProtocol = async (setLoading: (loading: boolean) => void) => {
     setLoading(false);
   }
 };
+
+//VAPI STATS
+
+export interface VapiCall {
+  id: string;
+  duration_seconds: number;
+  duration_minutes: number;
+  cost: number;
+  created_at: string;
+  status?: string;
+  ended_reason?: string;
+}
+
+export interface VapiAverage {
+  duration_seconds: number;
+  duration_minutes: number;
+  cost: number;
+}
+
+export interface VapiStatsResponse {
+  success: boolean;
+  totalMinutes: number;
+  totalSeconds: number;
+  totalCost: number;
+  totalCallsCount: number;
+  average: VapiAverage;
+  calls: VapiCall[];
+}
+
+export const loadVapiStats = async (): Promise<VapiStatsResponse> => {
+  try {
+    const response = await fetch(`${API_BASE}/api/get_vapi_stats.php`);
+    const data: VapiStatsResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Fehler beim Laden der Vapi Stats:", error);
+    return {
+      success: false,
+      totalMinutes: 0,
+      totalSeconds: 0,
+      totalCost: 0,
+      totalCallsCount: 0,
+      average: { duration_seconds: 0, duration_minutes: 0, cost: 0 },
+      calls: [],
+    };
+  }
+};

@@ -9,6 +9,8 @@ import {
   faEnvelope,
   faXmark,
   faThumbsUp,
+  faUsers,
+  faPhoneVolume,
 } from "@fortawesome/free-solid-svg-icons";
 import Navbar from "./components/navbar";
 import Footer from "./components/footer";
@@ -16,6 +18,7 @@ import TestCallForm from "../assets/testCallForm";
 import "./styles/main.scss";
 import "./styles/telecare.scss";
 import { loadClients } from "../assets/loader";
+import { loadVapiStats } from "../assets/loader";
 
 function TeleCare() {
   const [isOpen, setIsOpen] = useState(false);
@@ -34,11 +37,13 @@ function TeleCare() {
     getAssetUrl("media/woman.jpg"),
   ];
 
-  // 1. Zielwert aus der API (Standardmäßig mindestens 14)
+  // 1. Zielwerte aus der API
   const [targetCount, setTargetCount] = useState<number>(14);
+  const [targetMinutes, setTargetMinutes] = useState<number>(0);
 
-  // 2. Der animierte Wert, der auf dem Bildschirm zu sehen ist
+  // 2. Die animierten Werte für die Anzeige
   const [displayCount, setDisplayCount] = useState<number>(0);
+  const [displayMinutes, setDisplayMinutes] = useState<number>(0);
 
   // Ref für das HTML-Element (zum Erkennen des Scrollens)
   const statsRef = useRef<HTMLDivElement>(null);
@@ -75,45 +80,62 @@ function TeleCare() {
     return () => clearInterval(imageTimer);
   }, [mobileImages.length]);
 
-  // A) Daten aus der API laden & Zielwert berechnen
+  //LOAD STATS
+  // A) Daten aus der API laden (Klienten-Anzahl & Vapi-Minuten)
   useEffect(() => {
-    const fetchClientCount = async () => {
-      const result = await loadClients(() => {});
-      if (result && result.success && Array.isArray(result.data)) {
-        const realCount = result.data.length;
+    const fetchStatsData = async () => {
+      // 1. Klienten laden
+      const clientResult = await loadClients(() => {});
+      if (
+        clientResult &&
+        clientResult.success &&
+        Array.isArray(clientResult.data)
+      ) {
+        const realCount = clientResult.data.length;
         setTargetCount(realCount >= 15 ? realCount : 14);
+      }
+
+      // 2. Vapi-Minuten laden
+      const vapiResult = await loadVapiStats();
+      if (vapiResult && vapiResult.success) {
+        setTargetMinutes(vapiResult.totalMinutes || 0);
       }
     };
 
-    fetchClientCount();
+    fetchStatsData();
   }, []);
 
-  // B) Scroll-Erkennung (Intersection Observer) & Hochzähl-Animation
+  // B) Scroll-Erkennung & synchrone Hochzähl-Animation
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
 
-        // Wenn das Element sichtbar wird und noch nicht animiert wurde:
         if (entry.isIntersecting && !hasAnimated.current) {
-          hasAnimated.current = true; // Animation starten & Sperre setzen
+          hasAnimated.current = true;
 
-          let currentNumber = 0;
-          const duration = 1500; // Gesamtdauer der Animation in Millisekunden (1.5 Sekunden)
-          const steps = targetCount;
-          const stepTime = Math.max(Math.floor(duration / steps), 30); // Zeit pro Schritt
+          const duration = 1500; // Dauer der Animation in ms (1.5 Sekunden)
+          const steps = 50; // Anzahl der Zwischenschritte für flüssige Animation
+          const stepTime = duration / steps;
+          let currentStep = 0;
 
           const timer = setInterval(() => {
-            currentNumber += 1;
-            setDisplayCount(currentNumber);
+            currentStep++;
+            const progress = currentStep / steps;
 
-            if (currentNumber >= targetCount) {
+            // Werte schrittweise berechnen
+            setDisplayCount(Math.round(targetCount * progress));
+            setDisplayMinutes(Math.round(targetMinutes * progress));
+
+            if (currentStep >= steps) {
+              setDisplayCount(targetCount);
+              setDisplayMinutes(targetMinutes);
               clearInterval(timer);
             }
           }, stepTime);
         }
       },
-      { threshold: 0.3 }, // Startet, wenn 30% des Elements im Bild zu sehen sind
+      { threshold: 0.3 },
     );
 
     if (statsRef.current) {
@@ -121,7 +143,7 @@ function TeleCare() {
     }
 
     return () => observer.disconnect();
-  }, [targetCount]);
+  }, [targetCount, targetMinutes]);
 
   // FUNCTIONS
   const openModal = () => {
@@ -241,9 +263,18 @@ function TeleCare() {
       </div>
       {/** STATISTICS DIV */}
       <div className="quick_statistic_div" ref={statsRef}>
-        <h2>{displayCount} betreute Seniorinnen und Senioren</h2>
-        <h2>{} Minuten Betreuungsanrufe</h2>
+        <h2>
+          <FontAwesomeIcon icon={faUsers} />
+          <span className="stat-number">{displayCount}</span> betreute
+          Seniorinnen und Senioren
+        </h2>
+        <h2>
+          <FontAwesomeIcon icon={faPhoneVolume} />
+          <span className="stat-number">{displayMinutes}</span> Minuten
+          Betreuungsanrufe
+        </h2>
       </div>
+      {/*____________________________ */}
       <div className="telecare-section section" id="working">
         <h2>
           So einfach ist der automatische Betreuungsservice von giulianaCare
