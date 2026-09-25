@@ -63,7 +63,7 @@ function TeleCare() {
     "Keine Extra-Geräte. Keine Installation. Die betreute Person muss nur den Hörer abnehmen!",
     "Zuschuss von 27 Euro durch die Pflegekasse ab Pflegestufe 1",
     "Sorgen Sie präventiv für die Eigenständigkeit ihres Senioren",
-    "Die Daten sind sicher duch Hohe Datenschutzvorkehrungen und Serverstandort in Deutschland",
+    "Hoher Datenschutzvorkehrungen und Serverstandort in Deutschland",
   ];
 
   // TIMER SLIDESHOW PHRASES
@@ -506,7 +506,9 @@ function TeleCare() {
         <div className="modal-overlay">
           <div className="modal">
             <TestCallForm />
-            <button onClick={closeModal}>Abbrechen</button>
+            <button onClick={closeModal} className="modal-button">
+              Abbrechen
+            </button>
           </div>
         </div>
       )}

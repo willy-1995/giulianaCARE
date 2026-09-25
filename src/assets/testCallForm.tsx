@@ -2,7 +2,15 @@ import React, { useState, useEffect } from "react";
 //BASE URL
 import { API_BASE } from "../assets/base_url";
 
+//COUNTRY CODES
+const COUNTRY_CODES = [
+  { code: "+49", label: "🇩🇪 Deutschland (+49)" },
+  { code: "+43", label: "🇦🇹 Österreich (+43)" },
+  { code: "+41", label: "🇨🇭 Schweiz (+41)" },
+];
+
 const TestCallForm: React.FC = () => {
+  const [selectedCountry, setSelectedCountry] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -40,6 +48,19 @@ const TestCallForm: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  //==========================================
+  //COUNTRY SELECT HANDLER
+  const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCode = e.target.value;
+    setSelectedCountry(newCode);
+
+    // Ersetzt die alte Vorwahl am Anfang oder setzt die neue Vorwahl vor
+    const currentDigitsOnly = phoneNumber.replace(/^\+\d+\s*/, "");
+    setPhoneNumber(`${newCode} ${currentDigitsOnly}`);
+  };
+
+  //===========================================
+  //TEST CALL HANDLER
   const handleTestCall = async (e: React.FormEvent) => {
     console.log("Testanruf geklickt"); //////////
     e.preventDefault();
@@ -91,24 +112,43 @@ const TestCallForm: React.FC = () => {
       className="test-call-container"
       style={{ maxWidth: "400px", margin: "20px auto", textAlign: "center" }}
     >
-      <h3>Probiere unsere Telefon-KI aus</h3>
+      <h2>Probiere unsere Telefon-KI aus</h2>
       <p>Trage deine Nummer ein und lass dich sofort anrufen.</p>
 
       <form onSubmit={handleTestCall}>
+        <select
+          value={selectedCountry}
+          onChange={handleCountryChange}
+          disabled={isLocked || loading}
+          required
+        >
+          <option value="" disabled hidden>
+            Bitte Ländervorwahl wählen...
+          </option>
+          {COUNTRY_CODES.map((country) => (
+            <option key={country.code} value={country.code}>
+              {country.label}
+            </option>
+          ))}
+        </select>
+
         <input
           type="tel"
-          placeholder="+49 170 1234567"
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
-          disabled={isLocked || loading}
+          disabled={isLocked || loading || !selectedCountry}
           required
         />
 
         <button
           type="submit"
-          disabled={isLocked || loading || !phoneNumber}
+          className="modal-button"
+          disabled={isLocked || loading || !phoneNumber || !selectedCountry}
           style={{
-            cursor: isLocked || loading ? "not-allowed" : "pointer",
+            cursor:
+              isLocked || loading || !selectedCountry
+                ? "not-allowed"
+                : "pointer",
           }}
         >
           {loading && "Verbinde..."}

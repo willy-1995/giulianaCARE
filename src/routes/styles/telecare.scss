@@ -489,7 +489,6 @@ Quick Stats Div
 
       @media (max-width: 610px) {
         width: 90%;
-        background-color: aqua;
         margin: 0 auto;
         margin-bottom: 10px;
         text-align: center;
@@ -607,7 +606,32 @@ Quick Stats Div
     width: 90%;
     position: relative;
     z-index: 1000;
+
+    .test-call-container {
+      h2 {
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 20px;
+      }
+
+      form {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+
+        button {
+          margin-bottom: 0;
+        }
+      }
+    }
   }
+}
+
+.modal-button {
+  width: 300px;
 }
 
 /*=================================================
