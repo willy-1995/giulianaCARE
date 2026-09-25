@@ -456,9 +456,9 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = 
     $subject = "NOTFALL-ALARM: $clientName benötigt Hilfe!";
 
     if ($customReason) {
-        $messageText = "ACHTUNG: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $customReason\n\nBitte werden Sie umgehend aktiv!";
+        $messageText = "giulianaCARE Warnung: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $customReason\n\nBitte werden Sie umgehend aktiv!";
     } else {
-        $messageText = "ACHTUNG: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
+        $messageText = "giulianaCARE Warnung: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
     }
 
     foreach ($contacts as $index => $contact) {
