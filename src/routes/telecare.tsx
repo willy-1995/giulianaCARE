@@ -437,6 +437,7 @@ function TeleCare() {
         </p>
       </div>
       <div className="telecare-section" id="QAndA">
+        <h2>Häufig gestellte Fragen</h2>
         <details>
           <summary>
             <FontAwesomeIcon icon={faCircleQuestion} />

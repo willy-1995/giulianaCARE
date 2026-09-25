@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Footer from "./components/footer";
 import Navbar from "./components/navbar";
+import { tel, email, adress, name, corpName } from "../assets/constants";
 import "./styles/request.scss";
 import "./styles/main.scss";
+import "./styles/legals.scss";
 
 const MAX_LENGTH = 500;
 
@@ -26,356 +28,579 @@ export default function Legal() {
       <Navbar />
       <div className="legal-div">
         <h2 id="imprint">Impressum</h2>
-        <p>
-          Lorem ipsum dolor sit amet consectetur adipisicing elit. Totam
-          inventore cumque aspernatur quibusdam autem error tempora explicabo
-          dicta? Veritatis magnam libero exercitationem voluptatem quibusdam
-          facilis incidunt nihil vero, reprehenderit itaque debitis eligendi
-          cumque! Doloremque aliquam nulla qui, odit, itaque expedita ab
-          blanditiis quia ullam, totam deleniti illo repudiandae! Minus suscipit
-          fugiat, dolorum, nisi officiis nesciunt enim obcaecati hic sit
-          voluptatem et. Molestiae voluptatem, esse quidem, itaque expedita
-          dolorem libero minima eos hic quasi at illo iusto tempore blanditiis
-          porro voluptate nihil. Velit tenetur quasi et, dolores fuga incidunt
-          modi tempora eum tempore rem at, ut nemo cupiditate consequatur
-          nostrum illum consectetur commodi ad recusandae. Vitae rem sint, quia
-          exercitationem suscipit maxime. Consectetur natus minima at, iure
-          ratione exercitationem provident excepturi repudiandae animi similique
-          omnis temporibus nemo quidem tenetur veniam nulla adipisci, cum unde
-          rerum dolore eius accusantium amet error officiis. Ipsum minus id
-          nisi, iure harum quisquam in quas! Odio minus ad perspiciatis
-          assumenda dolores modi, alias soluta quo! Saepe quasi eum in,
-          provident hic aut ea magnam corrupti, ex quis voluptas esse sint
-          obcaecati voluptatum laudantium, ipsum odio voluptatem itaque est!
-          Exercitationem earum quas id fuga a quis ratione laboriosam quaerat at
-          cumque quam, qui, placeat enim libero expedita est neque deserunt
-          temporibus voluptatem cupiditate non excepturi. Fuga aspernatur dolore
-          recusandae. Explicabo ipsam placeat rerum, neque eligendi distinctio
-          iste mollitia blanditiis, aliquid sint voluptatem, earum minus aperiam
-          labore veniam sunt dolores in quae dolor? Obcaecati, nostrum vero quas
-          asperiores quam iusto consequatur ullam iste eos quia placeat sit
-          officiis ipsum accusamus nemo quaerat iure odio magnam? Pariatur earum
-          distinctio voluptas aliquam molestiae doloremque corrupti. Cum quae
-          praesentium soluta! Reiciendis totam animi delectus quam nihil
-          deleniti enim repudiandae et cumque obcaecati illum, labore tempora,
-          voluptatem reprehenderit! Sint, iste? Quisquam nostrum temporibus quam
-          quas quidem dolorem recusandae odio cum ipsam mollitia, doloremque
-          excepturi blanditiis voluptates pariatur? Veritatis deserunt ducimus
-          dolores voluptas pariatur suscipit eius voluptatum. Atque dignissimos
-          distinctio et dolor rem at aspernatur, praesentium natus sit commodi
-          delectus, aperiam, esse ab inventore quisquam eveniet molestias.
-          Doloremque quidem modi nostrum facere vero laborum cum quisquam et
-          iusto, molestiae quae veniam enim pariatur eius ad, dolore nulla
-          expedita. Praesentium eos minus exercitationem autem totam architecto,
-          blanditiis, atque, quod sapiente sint dolor voluptatem officia vel
-          pariatur eveniet iste excepturi earum commodi voluptas unde amet
-          adipisci! Nostrum rem illum dolor! Iure natus deleniti error omnis
-          dignissimos magni inventore tempora quis reiciendis totam consequatur
-          tenetur iusto placeat, dolorem repellat praesentium eveniet modi
-          perferendis neque nisi aut nobis atque soluta fugit? Accusantium,
-          distinctio quam dolorum tenetur voluptate rerum modi rem provident
-          recusandae! Fugiat mollitia asperiores modi voluptatum. Est sequi
-          alias dolore eligendi eum animi voluptatem quo quia molestiae corrupti
-          culpa provident fuga, esse hic quaerat quis et excepturi temporibus
-          ad? Omnis fugiat delectus ut. Quibusdam provident unde, expedita iure
-          inventore dolorum reiciendis impedit aliquam hic vel est, repudiandae,
-          obcaecati quam? Voluptatem, totam sequi nam aperiam quod odit, dolores
-          labore iste fuga quibusdam iusto atque repellendus nemo cum dicta
-          ducimus placeat ea suscipit dolorum ab praesentium minus! Aut incidunt
-          deserunt quod tenetur dolorum minima a quaerat saepe cum quam nostrum,
-          ipsam consequatur nisi voluptatum eligendi impedit delectus deleniti.
-          Explicabo quibusdam autem, possimus qui doloremque nisi neque
-          voluptatibus molestias est cum et culpa, similique esse officiis?
-          Exercitationem suscipit soluta molestias similique impedit dicta minus
-          voluptatum ad sequi blanditiis! Quo, aperiam excepturi. Porro rerum
-          nesciunt repellat error voluptatibus blanditiis quidem deleniti
-          accusantium nobis quos, nisi incidunt harum magnam, totam atque earum
-          consequatur quod eaque fugit animi praesentium recusandae voluptates
-          illo! Inventore nulla blanditiis sit magni explicabo, sed numquam
-          doloribus, ab officia nam pariatur quasi! Animi repudiandae error
-          praesentium vero cupiditate quasi temporibus expedita ab omnis
-          assumenda. Quae quasi vero debitis animi culpa exercitationem
-          consequuntur delectus architecto magni. Est adipisci autem blanditiis,
-          quam fuga id accusamus ipsam assumenda sunt iusto facilis, laudantium
-          natus sed veritatis deserunt totam necessitatibus eligendi nobis
-          inventore neque, quaerat vero vitae architecto eos? Sequi tempora quae
-          sint distinctio veritatis adipisci maiores quam. Numquam officiis
-          suscipit quaerat ullam obcaecati similique deserunt. Doloremque
-          obcaecati alias odit ipsum officiis rem quasi iure. Sint veniam dolore
-          provident excepturi ex accusamus ullam voluptates quam labore ea,
-          officiis vel placeat dolorem quod hic, nisi ducimus perferendis
-          veritatis? Recusandae nulla quibusdam, provident hic rerum ad animi
-          laborum eum non repellat sint eligendi ex libero error. Fugiat earum
-          animi a dolorem suscipit atque! Facilis, fugiat dignissimos omnis odio
-          deleniti, placeat esse est iusto vero quos illum tempora ducimus
-          dolore obcaecati, fuga praesentium? Eius, unde neque? Ducimus vitae
-          excepturi consequuntur quod ad quisquam impedit, in accusamus corrupti
-          veniam, veritatis facere aspernatur id, esse explicabo quae molestiae
-          aliquam quia laborum reiciendis molestias debitis! Error dolor ad
-          nostrum tempore numquam pariatur, vitae aliquid quod libero? Quod
-          praesentium, molestias, aspernatur quisquam odio quidem ex velit
-          reiciendis non ratione repellendus minima iusto. Minima similique,
-          porro recusandae minus alias neque non aut earum nihil perferendis ut
-          nam autem ducimus possimus accusantium quae at illo ipsum beatae
-          libero sint. Cumque maxime quaerat omnis perspiciatis inventore
-          sapiente repellendus eius at culpa numquam, ipsum deleniti, unde
-          expedita aliquam iusto sed dolore quae vel libero laudantium quasi
-          commodi nostrum ullam. Velit consequuntur omnis impedit neque quaerat
-          libero qui corrupti maiores reiciendis explicabo. Eius est quos modi
-          officiis voluptatem facilis tempore, blanditiis maiores fugiat nemo
-          praesentium minima labore aspernatur libero reprehenderit sit
-          laboriosam illo excepturi! Quis, maiores! Ea deserunt, illum fugiat
-          eos quasi nesciunt fugit sed blanditiis, repudiandae, enim doloremque
-          accusamus a eligendi. Velit sed iste cupiditate ex nesciunt corrupti,
-          hic, laboriosam optio fugit facere saepe, ipsum vel sequi. Culpa
-          asperiores sequi esse cumque totam omnis voluptates assumenda, fugiat
-          nesciunt vel dignissimos magnam! Fugit iure consequatur ab, numquam
-          cum atque maiores eveniet, aliquam odit laboriosam ad illum suscipit,
-          labore a quod accusamus corporis! Iusto mollitia alias, sapiente
-          eveniet sequi voluptatem veniam nostrum ducimus dignissimos asperiores
-          sunt quisquam ipsum sit beatae delectus officia placeat voluptates
-          explicabo at in perspiciatis error. Aliquam quam quis necessitatibus
-          odio accusamus ducimus totam dolore non exercitationem aperiam
-          cupiditate itaque asperiores explicabo dignissimos illo porro dolores
-          ex sequi, eos magnam vel maxime adipisci?
-        </p>
       </div>
       <div className="legal-div">
         <h2 id="data-declaration">Datenschutz</h2>
-        <p>
-          Lorem ipsum, dolor sit amet consectetur adipisicing elit. Doloribus
-          amet quas beatae officia numquam sit reiciendis, nesciunt architecto!
-          Eaque laudantium, cum consequuntur perferendis veniam repellat tempore
-          harum id alias, hic placeat. Impedit, tempore distinctio? Possimus
-          numquam dignissimos culpa provident. Labore doloremque soluta eius
-          esse alias, numquam consequatur nobis autem voluptas quia ducimus,
-          libero consequuntur pariatur blanditiis quae molestiae impedit tempore
-          nemo dicta iure veniam, recusandae ratione! Dignissimos aliquam
-          doloribus repellendus, eaque voluptas cum dolores excepturi minus
-          sequi adipisci dicta ratione ipsum quibusdam sed molestias
-          consequuntur fugiat ex atque temporibus veniam. Neque, quaerat esse
-          consequatur ipsum inventore nulla odio eius porro ipsa commodi. Modi,
-          odit dolorum, consequuntur tempora enim, quia praesentium voluptate ab
-          voluptatum harum ex sit corporis. Eos impedit provident aspernatur,
-          inventore quos ipsum voluptate sint vero incidunt deserunt
-          necessitatibus eum maiores pariatur iusto fugiat mollitia laboriosam!
-          Reiciendis voluptate sunt temporibus? Minima doloribus optio eaque,
-          reiciendis unde reprehenderit nemo, itaque magni quia, eum iste
-          dolorem sit molestias odio quod! Similique delectus et voluptatum
-          reiciendis nam earum, facilis vel, aliquam omnis, magni fuga quo
-          inventore blanditiis. Numquam et incidunt blanditiis. Placeat corrupti
-          repudiandae mollitia, doloribus maiores cumque inventore! Fuga,
-          quibusdam a. Commodi nostrum atque nihil illum quidem magnam,
-          voluptatibus libero molestiae eaque esse, minus laborum cupiditate.
-          Amet itaque blanditiis minus distinctio unde, impedit, quas architecto
-          dolorem provident aliquam ab molestias voluptatem accusamus id neque,
-          voluptatibus inventore. Repellendus vero, et, debitis totam ipsum
-          voluptate voluptates, fuga incidunt ex deleniti minus esse alias quae
-          ab. Nemo, ratione similique. Tenetur veritatis sint nobis asperiores
-          corporis sit quidem, ipsum magni fugiat, odit repellendus perferendis
-          reiciendis blanditiis, iusto porro quaerat laborum dignissimos officia
-          eius eveniet exercitationem ut vel. Et minus quis sed temporibus
-          praesentium sequi laudantium architecto cumque voluptatum numquam ut
-          sit placeat, suscipit adipisci mollitia, nesciunt aliquam at laborum
-          earum nobis! Voluptatibus repellendus distinctio dicta, quam magnam ab
-          quae iste voluptatem molestias itaque. Incidunt laboriosam soluta ad
-          temporibus, quam atque. Distinctio commodi minus vero, pariatur quod
-          provident, nihil amet, consequatur repudiandae nulla dolore voluptates
-          reprehenderit. Error laboriosam impedit recusandae vel ex eum culpa
-          distinctio aperiam quod nemo, ipsa suscipit quo ad magni, odio eius
-          nostrum illo, temporibus nobis! Vitae quos reiciendis in, consectetur
-          qui fuga veritatis impedit incidunt illo ullam doloremque? Sunt, minus
-          dolore hic mollitia vitae velit similique dignissimos quis dolor
-          fugiat beatae omnis molestiae accusantium voluptatem odit. Iusto,
-          placeat! In magni consectetur atque molestiae laboriosam est.
-          Repellendus at deleniti quasi quos corporis cupiditate similique sed
-          accusantium sapiente. Sapiente magnam, distinctio asperiores nihil
-          eligendi obcaecati omnis. Quas tenetur natus, quia culpa at ea aut
-          enim nihil, laborum itaque dolorum quibusdam possimus laudantium
-          pariatur voluptates cumque accusamus magni! Iusto placeat fugiat natus
-          odit excepturi officia officiis laborum hic et autem dolore ad quis,
-          dignissimos molestiae. Repellat expedita eaque fugiat perferendis
-          cupiditate. Quaerat odio quisquam aut ratione minus itaque delectus
-          veniam, in vitae sapiente animi at nam iure! Totam voluptatum sunt
-          pariatur assumenda est obcaecati, quos, sapiente saepe autem
-          laboriosam quasi quam, enim debitis eius eos. Minima, doloribus
-          tempore distinctio velit id sunt odio ipsum in dignissimos, rem amet
-          aut eos modi quae laboriosam ipsa unde ad, repellat quaerat optio iure
-          quos dolorum. Nihil, numquam optio temporibus repellendus incidunt
-          perferendis possimus. Explicabo eveniet obcaecati commodi blanditiis,
-          autem, voluptates rerum quos reprehenderit repellendus earum ut ad
-          ullam magni adipisci laborum. Autem soluta in obcaecati inventore.
-          Culpa consequatur minima commodi libero tempore vel doloremque
-          eligendi molestias expedita maiores amet autem laboriosam nostrum ex
-          beatae voluptatibus quod quaerat soluta ab aperiam ipsam, voluptate
-          accusantium? Culpa magnam veniam ad alias. Corporis mollitia iusto non
-          consectetur quia earum explicabo obcaecati temporibus? Incidunt
-          possimus eaque voluptatum ipsum consequuntur, aut nobis deleniti ex
-          repudiandae ipsam quaerat earum alias beatae ab numquam error magnam
-          repellendus corrupti! Veniam labore earum accusamus voluptatum
-          excepturi praesentium molestiae cumque totam iusto enim dolore nostrum
-          optio, beatae rerum deserunt minus fugit aliquid accusantium maxime
-          illo nihil doloribus. Iste pariatur aliquam, quos eveniet rem natus
-          facere iusto, amet ullam assumenda illum, architecto et ea? Hic esse
-          corrupti ratione autem officia eum quos, delectus, voluptate fugit
-          nemo odit nobis at cumque sed illum vero tenetur tempore, molestias
-          earum error laborum obcaecati. Explicabo minus quae quidem quo omnis
-          accusantium, impedit quas labore a temporibus ipsa ipsum quisquam
-          libero at, sed vero veniam nobis maxime cumque amet! Omnis aperiam
-          facere aliquam tenetur velit excepturi reprehenderit doloribus
-          corporis fugiat quasi? Sunt atque voluptatibus accusamus repellendus
-          et dignissimos, neque delectus natus dolor autem minima officia
-          aliquid fugiat distinctio reiciendis explicabo nobis at quo. Harum
-          perspiciatis quis repudiandae iste esse rerum optio exercitationem
-          nihil? Ipsum suscipit officiis eveniet, eos pariatur enim officia
-          laudantium accusantium veniam harum! Minima quasi, non voluptas
-          aspernatur error nihil quos consequuntur exercitationem dolor aut
-          odio. Quis voluptates deserunt eius, nulla architecto sint iste natus
-          eaque possimus quos hic ad illo corrupti quo! Necessitatibus natus
-          itaque at voluptate nam ut quisquam dolorem rerum. Saepe debitis
-          suscipit tempore maiores commodi repellendus eum eius accusamus, nulla
-          ab sunt obcaecati, nisi illo hic dignissimos. Reprehenderit vitae
-          earum omnis eligendi molestias placeat tempora exercitationem cumque
-          amet repudiandae modi dignissimos perferendis optio quo veniam, neque
-          dolores pariatur sit, blanditiis odio impedit ab velit vero et?
-          Similique laboriosam maxime quae alias necessitatibus laborum! Iure
-          atque corrupti voluptatum laborum natus qui nisi omnis quaerat enim
-          dolorum nobis ipsum quam ut ullam pariatur dignissimos repellendus
-          explicabo unde aliquam cumque, rem quas. Iusto, dignissimos. Iste sunt
-          saepe odit culpa alias, porro numquam qui obcaecati consequatur
-          distinctio eaque corporis ab, doloremque libero? Eum facere aperiam
-          necessitatibus sequi dignissimos, nam illo illum enim earum voluptatem
-          quod aut repudiandae inventore magni iusto quasi cumque cum molestias
-          aspernatur temporibus quae consequuntur possimus vel sit! Animi eum
-          quasi similique ad impedit! Consectetur laudantium excepturi, facere
-          facilis ipsa debitis dolorum nulla eaque libero adipisci nostrum,
-          dignissimos repellat ducimus, ullam reprehenderit. Maxime voluptates
-          accusantium provident. Eos voluptates ipsum laboriosam obcaecati
-          molestias! Fugit alias, distinctio illo cumque nisi est consequuntur
-          labore ipsum itaque sunt, dolores temporibus ipsam blanditiis ut
-          tempora. Ratione ducimus doloribus numquam perferendis similique
-          velit? Nemo repudiandae repellat molestias corrupti rem quia debitis a
-          nostrum? Ipsum, similique consectetur.
-        </p>
       </div>
       <div className="legal-div">
         <h2 id="terms-conditions">Allgemeine Geschäftsbedingungen (AGB)</h2>
-        <p>
-          Lorem ipsum, dolor sit amet consectetur adipisicing elit. Veniam
-          itaque voluptates animi placeat quam sapiente autem vitae facilis
-          provident, architecto laudantium iusto neque corrupti numquam
-          voluptatum sint officiis accusamus at aspernatur dicta expedita est
-          voluptas distinctio! Quas ullam earum labore odit sequi? Cupiditate
-          nisi repellendus quibusdam. Suscipit nostrum molestias, reiciendis hic
-          nesciunt, recusandae sunt quas, vitae eum illum vero nobis!
-          Praesentium atque quos architecto assumenda repellendus amet placeat
-          dignissimos adipisci magni mollitia eius harum ut reprehenderit
-          aliquam, quaerat cupiditate. Reiciendis accusantium totam, adipisci
-          dolorem facere earum doloremque dignissimos, laboriosam ex quasi sunt
-          vel? Omnis aliquam sequi vel assumenda corporis voluptas ab voluptatum
-          quaerat modi debitis consequuntur, ut praesentium id, error quibusdam
-          earum placeat! Aspernatur facere voluptatum labore vero distinctio
-          atque provident, numquam dicta perferendis hic repellat consectetur
-          adipisci ut a est porro at fuga debitis praesentium, explicabo autem?
-          Amet, quod suscipit itaque, neque fugit ducimus, nisi sint quae dolore
-          quas maiores expedita autem assumenda rerum perspiciatis ipsum
-          provident porro vero? Nisi sapiente quam beatae illo ea temporibus
-          cumque illum laboriosam? Tempora corporis provident dignissimos,
-          voluptas, molestiae, molestias saepe earum nesciunt id ex aut harum
-          eum amet perspiciatis minus beatae! Rerum minima sint tempore
-          suscipit, quibusdam fuga eius mollitia sunt ratione laborum in
-          temporibus cum corporis blanditiis id, beatae aut, enim repudiandae
-          quas ullam vero. Accusantium autem cupiditate animi odio commodi
-          incidunt aperiam deserunt recusandae sunt dolor ipsa eligendi,
-          perspiciatis nostrum ex consequatur quae minus neque in maxime rem
-          impedit? Aperiam perspiciatis nam sint vitae magnam ut qui
-          necessitatibus explicabo officiis iusto voluptate ratione eius tempore
-          corrupti nihil inventore, possimus quibusdam odit consequatur fugiat,
-          impedit maxime cum repudiandae rem? Sapiente doloribus rerum voluptate
-          numquam quasi natus maiores libero, voluptatum distinctio esse
-          molestiae ipsam nemo aliquid veritatis! Sunt quibusdam maiores iure
-          voluptatum delectus ab itaque labore magnam nobis nostrum quo
-          recusandae illum aspernatur placeat, quia excepturi quod doloremque
-          quasi reiciendis alias incidunt! Porro rerum repudiandae dolorem sunt
-          quas illo, omnis, eaque aperiam quis iste deleniti. Nihil consequuntur
-          commodi ut tempora optio sed eligendi voluptatibus cumque voluptatem.
-          Dolorum voluptatum consectetur fuga eos aliquid provident id sed
-          nostrum cupiditate expedita quia dicta perspiciatis, amet asperiores
-          recusandae exercitationem in fugiat, vitae quasi, mollitia minima!
-          Assumenda labore earum aliquid inventore magnam quia minima rem
-          voluptate! Reprehenderit ducimus inventore voluptatem sit, rem
-          possimus? Vero quo nobis dolore officia perferendis eaque praesentium
-          totam nemo nam, velit quibusdam molestiae id similique dignissimos
-          consectetur nulla alias ipsum, nisi pariatur voluptatem quaerat
-          debitis corporis. Veritatis, autem deserunt alias quasi laboriosam
-          ducimus? Esse nam pariatur amet, eius tempore unde laudantium ea
-          perferendis, quibusdam animi doloremque maxime sint earum? Laborum at
-          commodi fugit ipsa quos dignissimos enim expedita provident sunt
-          excepturi sapiente, minus delectus harum in! Maxime distinctio aperiam
-          culpa deserunt laborum iste nihil nam at voluptatibus modi ab quos
-          minus, ullam ex recusandae voluptatem necessitatibus reiciendis vel
-          placeat eligendi expedita, non ipsa. Voluptatibus reprehenderit
-          doloremque nostrum placeat? Quod quisquam enim corrupti! Quas cum
-          reprehenderit impedit eum accusamus, ratione quidem iure inventore
-          magni quaerat provident officia odio soluta molestiae expedita at id
-          itaque illum quos nobis harum officiis necessitatibus assumenda aut.
-          Sequi obcaecati saepe eveniet reprehenderit itaque exercitationem,
-          illo a doloribus nisi ut iste recusandae velit. Non incidunt
-          consequuntur aliquam doloribus ducimus error dolorum. Repellendus
-          perspiciatis quasi molestiae quis corporis corrupti necessitatibus
-          natus dolore, consectetur error consequatur quod velit possimus
-          veritatis expedita rerum, vel rem nam quae ad suscipit. Odio, laborum
-          omnis at veniam nisi consectetur quia voluptatum, quisquam quod
-          nostrum, possimus eum temporibus odit incidunt inventore. Nisi,
-          tenetur ex possimus eveniet, amet error, dolor incidunt eaque non
-          accusantium aut maxime enim veniam neque iure ea nulla. Magnam in
-          perspiciatis rerum nostrum fugiat corrupti alias consequatur
-          exercitationem vel ratione dolore cum sit quod aliquid iure expedita,
-          modi quidem! Eaque dolores ducimus, dolorem laboriosam vel omnis quam,
-          adipisci illum, a explicabo voluptate quas minus porro distinctio
-          nobis esse voluptatem odio dolorum deleniti totam sint tenetur.
-          Facilis dolorem molestiae velit officia laborum dicta a aspernatur
-          cupiditate error obcaecati, nihil culpa aliquid esse sit? Dolorem sit
-          quo fugiat obcaecati inventore. Saepe molestiae temporibus itaque
-          vitae, doloribus quos iure cupiditate vero eius natus rerum corrupti
-          mollitia et esse rem possimus totam numquam, recusandae ipsa earum
-          consequatur ab amet? Totam corporis modi recusandae iusto laboriosam
-          quaerat vel maiores eveniet repudiandae dolore itaque illum quibusdam,
-          atque at iste assumenda sunt eum quidem error maxime rerum impedit
-          consequuntur quae? Blanditiis esse similique nobis repudiandae cumque,
-          laudantium velit quo harum laboriosam delectus deserunt, officiis, ut
-          neque placeat asperiores. Fuga repellendus voluptatem provident, esse
-          quae velit quisquam molestiae laboriosam illum distinctio amet
-          suscipit corrupti dolores ullam consequuntur asperiores nisi nobis eos
-          aliquid sapiente ipsum ad et. Ad natus reiciendis est recusandae?
-          Error dolores aliquam natus eaque quam, quae iure nemo tenetur commodi
-          tempora quis ipsum iusto temporibus possimus, labore earum maiores a
-          facilis? Odit libero cupiditate mollitia, eligendi voluptatem ut
-          inventore et. Obcaecati, eos? Consequatur officia quisquam, saepe
-          necessitatibus, officiis maxime ex dolor quia aperiam voluptatibus
-          voluptas unde cupiditate suscipit autem optio cumque, magnam explicabo
-          sunt expedita iusto eaque amet facilis. Iusto officiis impedit nobis
-          fugit asperiores quas, minus nam delectus, deserunt ex excepturi.
-          Reiciendis voluptatum dolorem culpa tempora dolores perferendis qui a
-          unde itaque, ipsam facilis error corrupti sed nobis, adipisci atque.
-          Deleniti obcaecati ipsam similique alias ab atque facilis reiciendis
-          ex sunt accusantium, odio architecto possimus quis id perferendis
-          sequi quaerat dignissimos labore deserunt? Tenetur numquam quaerat
-          molestias, amet exercitationem explicabo ullam debitis qui harum.
-          Debitis ut sit similique iusto aliquam, rerum odit, a distinctio earum
-          veritatis voluptatibus officia cum numquam sapiente quis quia aliquid
-          itaque fuga cumque recusandae omnis explicabo. Temporibus esse fugit
-          vel molestias nisi, accusamus odit animi autem dolorum dignissimos
-          distinctio exercitationem provident incidunt, recusandae nostrum
-          doloremque voluptatum sequi reiciendis! Et, eius veniam doloremque
-          maiores officia consectetur! Consequatur, dolor earum modi quos
-          repellendus explicabo possimus at eos sapiente cumque accusantium
-          fugiat iure libero et excepturi laboriosam harum nemo? Id quisquam,
-          ipsam dolores ducimus accusamus minus perferendis reiciendis. Id
-          vitae, quaerat cumque fuga perferendis consequuntur, adipisci ex nulla
-          voluptatem eum sunt molestiae dolorem ipsum sapiente mollitia et
-          quidem?
-        </p>
+        <h3>Wichtiger Hinweis</h3>
+        {/*====================================
+        DISCLAIMER
+        =======================================*/}
+        <ul>
+          <p>
+            Die giulianaCARE Telefonbetreuung ist ein{" "}
+            <b>Unterstützungsservice</b>. Sie ersetzt Folgendes <b>nicht</b>;
+          </p>
+          <li>Notruf 112</li>
+          <li>einen Hausnotrufdienst gemäß § 78 SGB XI </li>
+          <li>ärtzliche oder pflegerische Betreuung</li>
+          <li>persönliche Vor-Ort-Betreuung</li>
+        </ul>
+        {/*========================================
+        AGB 
+        ===========================================*/}
+        <ul>
+          <div className="paragraph">
+            <h3> § 1 Geltungsbereich und Anbieter</h3>
+            <li>
+              (1) Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle
+              Verträge zwischen:
+              <div className="impress-div"></div>– nachfolgend "Anbieter" oder
+              "HELFI-RUF" genannt – und den Kunden über die Nutzung der
+              giulianaCARE Telefonbetreuung.
+            </li>
+            <li>
+              (2) Diese AGB gelten sowohl gegenüber Verbrauchern (§ 13 BGB) als
+              auch gegenüber Unternehmern (§ 14 BGB). Abweichende Bedingungen
+              des Kunden werden nicht anerkannt, es sei denn, der Anbieter
+              stimmt ihrer Geltung ausdrücklich schriftlich zu.
+            </li>
+            <li>
+              (3) Verbraucher im Sinne dieser AGB ist jede natürliche Person,
+              die ein Rechtsgeschäft zu Zwecken abschließt, die überwiegend
+              weder ihrer gewerblichen noch ihrer selbständigen beruflichen
+              Tätigkeit zugerechnet werden können.
+            </li>
+          </div>
+
+          <div className="paragraph">
+            <h3>§ 2 Vertragsgegenstand und Leistungsbeschreibung </h3>
+            <li>
+              (1) Die giulianaCARE Telefonbetreuung bietet einen automatisierten
+              Sicherheitsanruf-Service für Seniorinnen und Senioren an. Der
+              Service umfasst je nach gewähltem Tarif:
+              <ul className="sub-list">
+                <li>1 - 3 automatische Betreuungsanrufe</li>
+                <li>KI - gestützte Telefongespräche</li>
+                <li>
+                  Individuelle Abfragemöglichkeiten (z.B.
+                  Medikamentenerinnerung, Flüssigkeitszufuhr etc.)
+                </li>
+                <li>Benachrichtigungssystem per SMS und E-Mail</li>
+              </ul>
+            </li>
+            <li>
+              (2) Der Service ist <b>ausdrücklich kein</b>:
+              <ul className="sub-list">
+                <li>Notruf oder Notrufersatz (z.B. Notruf 112)</li>
+                <li>Hausnotrufdienst im Sinne des § 78 SGB XI</li>
+                <li>Medizinischer Dienst oder ärztliche Beratung</li>
+                <li>Pflegedienst oder pflegerische Leistung</li>
+                <li>System zur garantierten Lebensrettung</li>
+              </ul>
+            </li>
+            <li>
+              (3) Der Anbieter bemüht sich um eine zuverlässige
+              Leistungserbringung, kann jedoch aufgrund technischer
+              Gegebenheiten (Netzausfälle, Serverprobleme, Störungen bei
+              Drittanbietern) keine ununterbrochene Verfügbarkeit garantieren.
+            </li>
+          </div>
+
+          <div className="paragraph">
+            <h3>§ 3 Vertragsschluss und Registrierung </h3>
+            <li>
+              (1) Die Darstellung der Leistungen auf der Website stellt kein
+              verbindliches Angebot, sondern eine Aufforderung zur Abgabe eines
+              Angebots dar.
+            </li>
+            <li>
+              (2) Durch Absenden der Registrierung gibt der Kunde ein
+              verbindliches Angebot zum Abschluss eines Nutzungsvertrages ab.
+              Der Vertrag kommt durch die Bestätigung des Anbieters per E-Mail
+              zustande.
+            </li>
+            <li>
+              (3) Der Vertragspartner kann sein:
+              <ul className="sub-list">
+                <li>Der Senior/ die Seniorin selbst, oder</li>
+                <li>
+                  Ein Angehöriger oder Bevollmächtigter des Seniors/ der
+                  Seniorin
+                </li>
+              </ul>
+            </li>
+            <li>
+              (4) Der Vertragspartner versichert, dass alle angegebenen Daten
+              (insbesondere Telefonnummern, Kontaktpersonen, Medikamente)
+              korrekt und vollständig sind.
+            </li>
+          </div>
+          <div className="paragraph">
+            <li>
+              <h3>§ 4 Kostenlose Testphase </h3>
+              (1) Neukunden erhalten eine kostenlose Testphase von{" "}
+              <b>14 Tagen</b> ab Aktivierung des Accounts.
+            </li>
+            <li>
+              (2) Zusätzlich besteht die Möglichkeit, vor der Registrierung
+              einen kostenlosen Testanruf anzufordern.
+            </li>
+            <li>
+              (3) Die Testphase geht automatisch in ein kostenpflichtiges
+              Abonnement über, wenn der Kunde nicht vor Ablauf der Testphase
+              kündigt. Der Kunde wird rechtzeitig per E-Mail an das Ende der
+              Testphase erinnert.
+            </li>
+            <li>
+              (4) Während der Testphase kann der Vertrag jederzeit ohne Angabe
+              von Gründen und ohne Kosten gekündigt werden.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 5 Preise und Zahlungsbedingungen </h3>
+            <li>
+              (1) Es gelten die zum Zeitpunkt des Vertragsschlusses auf der
+              Website ausgewiesenen Preise. Alle Preise verstehen sich inklusive
+              der gesetzlichen Mehrwertsteuer.
+            </li>
+            <li>
+              (2) Die aktuellen Tarife sind:
+              <ul className="sub-list">
+                <li>Sicherheit - 1 Anruf pro Tag - €</li>
+                <li>Gut betreut - 2 Anrufe pro Tag - €</li>
+                <li>Rundum sorglos - 3 Anrufe pro Tag - €</li>
+              </ul>
+            </li>
+            <li>
+              (3) Für jeden Anruf ist eine Zusatzinformation (z.B
+              Medikamentenerinnerung) kostenlos enthalten. Weitere Angaben und
+              Abfragen können auf Wunsch hinzugebucht werden.
+            </li>
+            <li>
+              (4) Die Zahlung erfolgt monatlich im Voraus. Der Rechnungsbetrag
+              wird zu Beginn jedes Abrechnungszeitraums fällig.
+            </li>
+            <li>
+              (5) Folgende Zahlungsmethoden werden akzeptiert:
+              <ul className="sub-list">
+                <li>Alle über Stripe verfügbaren Zahlungsmittel</li>
+              </ul>
+            </li>
+            <li>
+              (6) Bei Zahlungsverzug ist der Anbieter berechtigt, nach
+              zweifacher erfolgloser Mahnung den Zugang zum Service zu sperren.
+              Die Pflicht zur Zahlung der ausstehenden Beträge bleibt unberührt.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 6 Vertragslaufzeit und Kündigung </h3>
+            <li>
+              (1) Der Vertrag wird auf unbestimmte Zeit geschlossen und kann
+              jederzeit mit einer Frist von 14 Tagen zum Monatsende gekündigt
+              werden.
+            </li>
+            <li>
+              (2) Die Kündigung kann erfolgen:
+              <ul className="sub-list">
+                <li>Schriftlich per Post</li>
+                <li>Per E-Mail an info@giuliana-care.de</li>
+                <li>Über den Kündigungs-Button im Dashboard</li>
+              </ul>
+            </li>
+            <li>
+              (3) Das Recht zur außerordentlichen Kündigung aus wichtigem Grund
+              bleibt unberührt.
+            </li>
+            <li>
+              (4) Mit Wirksamwerden der Kündigung werden die automatischen
+              Anrufe eingestellt. Bereits gezahlte Beträge für den laufenden
+              Abrechnungszeitraum werden nicht erstattet.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 7 Widerrufsrecht (Verbraucher) </h3>
+            <li>
+              (1) Verbrauchern steht ein gesetzliches Widerrufsrecht zu. Die
+              Widerrufsbelehrung und das Muster-Widerrufsformular finden Sie am
+              Ende dieser AGB.
+            </li>
+            <li>
+              (2) Mit der Registrierung erklärt sich der Kunde einverstanden,
+              dass der Anbieter vor Ablauf der Widerrufsfrist mit der Ausführung
+              der Dienstleistung beginnt.
+            </li>
+            <li>
+              (3) Bei Widerruf nach Beginn der Leistungserbringung hat der Kunde
+              einen angemessenen Betrag für die bis zum Widerruf erbrachten
+              Leistungen zu zahlen (anteiliger Wertersatz).
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 8 Haftungsbeschränkung </h3>
+            <li>
+              (1) Leistungscharakter: giulianaCARE Telefonbetreuung ist ein
+              technischer Unterstützungs- und Erinnerungsservice. Der Service
+              ersetzt nicht den Notruf 112, Hausnotrufdienste, ärztliche
+              Betreuung, pflegerische Versorgung oder die persönliche
+              Anwesenheit von Angehörigen.
+            </li>
+            <li>
+              (2) Haftungsausschluss: Der Anbieter haftet nicht für Schäden, die
+              entstehen durch:
+              <ul className="sub-list">
+                <li>
+                  Technische Störungen (Server-, Netz- oder Stromausfälle)
+                </li>
+                <li>
+                  Störungen bei Drittanbietern (Telekommunikationsanbieter,
+                  Cloud-Dienste, Hosting-Anbieter)
+                </li>
+                <li>
+                  Nicht-Erreichbarkeit des Seniors (Telefon ausgeschaltet, nicht
+                  abgenommen, besetzt)
+                </li>
+                <li>
+                  Fehlerhafte Einschätzungen durch die KI-gestützte
+                  Gesprächsführung
+                </li>
+                <li>
+                  Verpasste, verspätete oder nicht zugestellte Alarme an
+                  Kontaktpersonen
+                </li>
+                <li>
+                  Nicht erfolgte oder vergessene Medikamenteneinnahme trotz
+                  Erinnerung
+                </li>
+                <li>
+                  Nicht erfolgte oder vergessene Befolgung der angegebenen
+                  Zusatzinformationen oder Abfragen{" "}
+                </li>
+                <li>Falsche oder unvollständige Angaben des Kunden</li>
+              </ul>
+            </li>
+            <li>
+              (3) Beschränkung auf Vorsatz und grobe Fahrlässigkeit: Der
+              Anbieter haftet nur für Schäden, die auf vorsätzlichem oder grob
+              fahrlässigem Verhalten des Anbieters, seiner gesetzlichen
+              Vertreter oder Erfüllungsgehilfen beruhen.
+            </li>
+            <li>
+              (4) Wesentliche Vertragspflichten: Bei Verletzung wesentlicher
+              Vertragspflichten (Kardinalpflichten) haftet der Anbieter auch bei
+              einfacher Fahrlässigkeit, jedoch beschränkt auf den
+              vertragstypischen, vorhersehbaren Schaden.
+            </li>
+            <li>
+              (5) Haftungshöchstgrenze: Die Haftung des Anbieters ist – soweit
+              gesetzlich zulässig – auf den jährlichen Vertragswert des
+              betroffenen Kunden beschränkt.
+            </li>
+            <li>
+              (6) Ausschluss von Folgeschäden: Der Anbieter haftet nicht für
+              indirekte Schäden, entgangenen Gewinn, Vermögensschäden oder
+              Folgeschäden jeder Art.
+            </li>
+            <li>
+              (7) Unberührte Haftung: Die vorstehenden Haftungsbeschränkungen
+              gelten nicht für:
+              <ul className="sub-list">
+                <li>
+                  Schäden aus der Verletzung von Leben, Körper oder Gesundheit,
+                  die auf einer fahrlässigen Pflichtverletzung des Anbieters
+                  beruhen
+                </li>
+                <li>Haftung nach dem Produkthaftungsgesetz</li>
+                <li>Ausdrücklich übernommene Garantien</li>
+              </ul>
+            </li>
+            <li>
+              (8) Kausalität: Der Kunde trägt die Beweislast für die Kausalität
+              zwischen einer Pflichtverletzung des Anbieters und dem
+              eingetretenen Schaden.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 9 Pflichten des Kunden</h3>
+            <li>
+              (1) Der Kunde ist verpflichtet:{" "}
+              <ul className="sub-list">
+                <li>
+                  Korrekte und vollständige Angaben bei der Registrierung zu
+                  machen
+                </li>
+                <li>
+                  Änderungen seiner Daten unverzüglich im Portal zu
+                  aktualisieren
+                </li>
+                <li>
+                  Mindestens eine erreichbare Kontaktperson zu hinterlegen
+                </li>
+                <li>
+                  Dafür zu sorgen, dass das Telefon des Seniors zu den
+                  Anrufzeiten eingeschaltet und erreichbar ist
+                </li>
+                <li>
+                  Medikamenteninformationen aktuell zu halten, falls diese
+                  Funktion genutzt wird
+                </li>
+              </ul>
+            </li>
+            <li>
+              (2) Der Kunde wird ausdrücklich darauf hingewiesen, dass in
+              medizinischen Notfällen immer der Notruf 112 zu wählen ist.
+            </li>
+            <li>
+              (3) Der Kunde stellt sicher, dass der Senior/ die Seniorin und
+              alle Kontaktpersonen über die Nutzung des Services informiert sind
+              und eingewilligt haben.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 10 Pflichten des Anbieters</h3>
+            <li>
+              (1) Der Anbieter bemüht sich, die vereinbarten Anrufe zu den
+              festgelegten Zeiten durchzuführen.
+            </li>
+            <li>
+              (2) Bei Nicht-Erreichbarkeit des Seniors unternimmt das System bis
+              zu 2 Anrufversuche mit zeitlichem Abstand.
+            </li>
+            <li>
+              (3) Nach Ausschöpfung aller Anrufversuche werden die hinterlegten
+              Kontaktpersonen per SMS und/oder E-Mail benachrichtigt ("Best
+              Effort" – keine Garantie der Zustellung).
+            </li>
+            <li>
+              (4) Der Anbieter stellt das Online-Portal zur Verwaltung des
+              Accounts zur Verfügung.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 11 Leistungsänderungen und Preisanpassungen</h3>
+            <li>
+              (1) Der Anbieter behält sich vor, den Leistungsumfang zu erweitern
+              oder zu verbessern.
+            </li>
+            <li>
+              (2) Preisänderungen werden dem Kunden mindestens 4 Wochen vor
+              Inkrafttreten per E-Mail mitgeteilt.
+            </li>
+            <li>
+              (3) Bei Preiserhöhungen hat der Kunde ein Sonderkündigungsrecht
+              zum Zeitpunkt des Inkrafttretens der neuen Preise.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 12 Datenschutz</h3>
+            <li>
+              (1) Der Anbieter verarbeitet personenbezogene Daten gemäß der
+              EU-Datenschutzgrundverordnung (DSGVO) und dem
+              Bundesdatenschutzgesetz (BDSG).
+            </li>
+            <li>
+              (2) Details zur Datenverarbeitung finden Sie in unserer{" "}
+              <a href="#data-declaration" className="colored-link">
+                Datenschutzerklärung
+              </a>
+              .
+            </li>
+            <li>
+              (3) Insbesondere werden Anruf-Transkripte zur Qualitätssicherung
+              gespeichert. Transkripte aus den Anrufen eines laufenden
+              Abonnements werden nach 90 Tagen gelöscht, Transkripte kostenloser
+              Testanrufe nach 24 Monaten ab dem letzten Kontakt. Die im
+              Einzelnen geltenden Fristen finden Sie in Abschnitt 5.3 der
+              Datenschutzerklärung.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 13 Gewährleistung</h3>
+            <li>
+              (1) Der Anbieter gewährleistet, dass der Service im Wesentlichen
+              der Leistungsbeschreibung entspricht.
+            </li>
+            <li>
+              (2) Der Kunde ist verpflichtet, Mängel unverzüglich nach
+              Feststellung zu melden.
+            </li>
+            <li>
+              (3) Bei berechtigten Mängelrügen wird der Anbieter nach seiner
+              Wahl den Mangel beseitigen oder eine Ersatzleistung erbringen.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 14 Höhere Gewalt</h3>
+            <li>
+              (1) Der Anbieter haftet nicht für Leistungsstörungen, die auf
+              höhere Gewalt zurückzuführen sind.
+            </li>
+            <li>
+              (2) Als höhere Gewalt gelten insbesondere:
+              <ul className="sub-list">
+                <li>Naturkatastrophen</li>
+                <li>Krieg, Terroranschläge, Aufruhr</li>
+                <li>Epidemien und Pandemien</li>
+                <li>Großflächige Stromausfälle</li>
+                <li>Ausfall von Telekommunikationsnetzen</li>
+                <li>Behördliche Anordnungen</li>
+                <li>Cyberangriffe auf kritische Infrastruktur</li>
+              </ul>
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 15 Sperrung und Kündigung durch Anbieter</h3>
+            <li>
+              (1) Der Anbieter ist berechtigt, den Zugang zum Service
+              vorübergehend zu sperren bei:
+              <ul className="sub-list">
+                <li>Zahlungsverzug von mehr als 14 Tagen trotz Mahnung</li>
+                <li>Missbrauch des Services</li>
+                <li>Verstoß gegen diese AGB</li>
+              </ul>
+            </li>
+            <li>
+              (2) Der Anbieter kann den Vertrag aus wichtigem Grund
+              außerordentlich kündigen, insbesondere bei wiederholten oder
+              schwerwiegenden Vertragsverletzungen durch den Kunden.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 16 Vertragsübertragung</h3>
+            <li>
+              (1) Der Kunde kann seine Rechte und Pflichten aus diesem Vertrag
+              nur mit vorheriger schriftlicher Zustimmung des Anbieters auf
+              Dritte übertragen.
+            </li>
+            <li>
+              (2) Der Anbieter ist berechtigt, Rechte und Pflichten aus diesem
+              Vertrag auf verbundene Unternehmen oder Rechtsnachfolger zu
+              übertragen.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 17 Schlussbestimmungen und Salvatorische Klausel</h3>
+            <li>
+              (1) Es gilt das Recht der Bundesrepublik Deutschland unter
+              Ausschluss des UN-Kaufrechts.
+            </li>
+            <li>
+              (2) Sollten einzelne Bestimmungen dieser AGB unwirksam sein oder
+              werden, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
+            </li>
+            <li>
+              (3) Änderungen oder Ergänzungen dieser AGB bedürfen der
+              Schriftform. Dies gilt auch für die Abbedingung dieses
+              Schriftformerfordernisses.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 18 Gerichtsstand (B2B)</h3>
+            <li>
+              (1) Für Unternehmer ist der Gerichtsstand für alle Streitigkeiten
+              aus oder im Zusammenhang mit diesem Vertrag der Sitz des
+              Anbieters.
+            </li>
+            <li>
+              (2) Für Verbraucher gelten die gesetzlichen Regelungen zum
+              Gerichtsstand.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 19 Streitbeilegung</h3>
+            <li>
+              Der Anbieter ist zur Teilnahme an einem Streitbeilegungsverfahren
+              vor einer Verbraucherschlichtungsstelle weder bereit noch
+              verpflichtet.
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>§ 20 Kontakt und Beschwerden</h3>
+            <li>
+              Bei Fragen, Beschwerden oder Anregungen erreichen Sie uns unter:
+              <ul className="sub-list">
+                <li>Telefon: {tel}</li>
+                <li>E-Mail-Adresse: {email}</li>
+              </ul>
+            </li>
+          </div>
+          <div className="paragraph">
+            <h3>Widerrufsrecht</h3>
+            <li>
+              Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen
+              diesen Vertrag zu widerrufen. Die Widerrufsfrist beträgt vierzehn
+              Tage ab dem Tag des Vertragsschlusses.
+            </li>
+            <li>
+              Um Ihr Widerrufsrecht auszuüben, müssen Sie uns mittels einer
+              eindeutigen Erklärung (z.B. ein mit der Post versandter Brief oder
+              E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen,
+              informieren. Sie können dafür das beigefügte
+              Muster-Widerrufsformular verwenden, das jedoch nicht
+              vorgeschrieben ist. Zur Wahrung der Widerrufsfrist reicht es aus,
+              dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor
+              Ablauf der Widerrufsfrist absenden.
+              <ul className="sub-list">
+                <li>
+                  Postalisch: {corpName}, {name}, {adress}
+                </li>
+                <li>Per E-Mail: {email}</li>
+              </ul>
+            </li>
+            <h3>Folgen des Widerrufs</h3>
+            <li>
+              Wenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle
+              Zahlungen, die wir von Ihnen erhalten haben, unverzüglich und
+              spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem
+              die Mitteilung über Ihren Widerruf dieses Vertrags bei uns
+              eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe
+              Zahlungsmittel, das Sie bei der ursprünglichen Transaktion
+              eingesetzt haben, es sei denn, mit Ihnen wurde ausdrücklich etwas
+              anderes vereinbart; in keinem Fall werden Ihnen wegen dieser
+              Rückzahlung Entgelte berechnet. Haben Sie verlangt, dass die
+              Dienstleistung während der Widerrufsfrist beginnen soll, so haben
+              Sie uns einen angemessenen Betrag zu zahlen, der dem Anteil der
+              bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des
+              Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits
+              erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im
+              Vertrag vorgesehenen Dienstleistungen entspricht.
+            </li>
+            <div className="reject-form">
+              An:
+              <ul>
+                <li>{corpName}</li>
+                <li>{name}</li>
+                <li>{adress}</li>
+                <li>{email}</li>
+              </ul>
+              <br />
+              <br />
+              <p>
+                Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*)
+                abgeschlossenen Vertrag über die Erbringung der folgenden
+                Dienstleistung: <br /> <br />{" "}
+                <b>giulianaCARE Telefonbetreuung</b> <br />
+                <br />
+                Bestellt am (*) / erhalten am (*): <br />
+                <br />
+                Name des/der Verbraucher(s): <br />
+                <br />
+                Anschrift des/der Verbraucher(s): <br />
+                <br />
+                Datum: <br />
+                <br />
+                Unterschrift des/der Verbraucher(s) (nur bei Mitteilung auf
+                Papier): <br />
+                <br />
+                <span className="small-font">
+                  (*) Unzutreffendes streichen.
+                </span>
+              </p>
+            </div>
+          </div>
+        </ul>
       </div>
       <Footer />
     </div>
