@@ -369,56 +369,74 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 }
 
 /*
-function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = null): void
+function notifyEmergencyContacts(PDO $db, int $clientId, ?string $customReason = null): void
 {
     if ($clientId <= 0) {
-        error_log("notifyEmergencyContacts abgebrochen: Ungültige Client ID ($clientId)");
+        error_log("NOTIFY ERROR: Ungültige Client ID ($clientId)");
         return;
     }
 
+    // 1. Client-Daten abfragen
     $stmt = $db->prepare("SELECT lastname, firstname, title, sms_status FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$client) {
-        error_log("notifyEmergencyContacts: Client ID $clientId nicht in Datenbank gefunden.");
+        error_log("NOTIFY ERROR: Client ID $clientId nicht in Datenbank gefunden.");
         return;
     }
 
-    $clientName = trim(($client['title'] ?? '') . ' ' . $client['firstname'] . " " . $client['lastname']);
+    $clientName = trim(($client['title'] ?? '') . ' ' . $client['firstname'] . ' ' . $client['lastname']);
     $smsEnabled = !empty($client['sms_status']);
 
+    // 2. Notfallkontakte abfragen
     $stmtContacts = $db->prepare("SELECT lastname, firstname, email, tel1 FROM contacts WHERE client_id = ?");
     $stmtContacts->execute([$clientId]);
     $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
 
-    if (empty($contacts)) return;
-
-    $subject = "NOTFALL-ALARM: $clientName benötigt Hilfe!";
-
-    if ($customReason) {
-        $messageText = "ACHTUNG: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $customReason\n\nBitte werden Sie umgehend aktiv!";
-    } else {
-        $messageText = "ACHTUNG: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
+    if (empty($contacts)) {
+        error_log("NOTIFY WARNING: Keine Notfallkontakte für Client ID $clientId hinterlegt.");
+        return;
     }
 
+    // 3. Nachrichten & Betreff vorbereiten (Header Injection verhindern)
+    $rawSubject = "NOTFALL-ALARM: $clientName benötigt Hilfe!";
+    // Entferne potenzielle Zeilenumbrüche im Betreff
+    $subject = str_replace(["\r", "\n"], '', $rawSubject);
+
+    if ($customReason) {
+        // Grund säubern (keine HTML-Tags oder schädlichen Zeichen)
+        $cleanReason = strip_tags($customReason);
+        $messageText = "giulianaCARE Warnung: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $cleanReason\n\nBitte werden Sie umgehend aktiv!";
+    } else {
+        $messageText = "giulianaCARE Warnung: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
+    }
+
+    // Standardisierte E-Mail-Header
+    $headers  = "From: info@giuliana-care.de\r\n";
+    $headers .= "Reply-To: info@giuliana-care.de\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $headers .= "Content-Transfer-Encoding: 8bit\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion();
+
+    // 4. Benachrichtigungen versenden
     foreach ($contacts as $contact) {
+        // E-Mail versenden
         if (!empty($contact['email'])) {
-            $headers = [
-                'From' => 'no-reply@giulianacare.de',
-                'Reply-To' => 'support@giulianacare.de',
-                'Content-Type' => 'text/plain; charset=UTF-8',
-                'X-Mailer' => 'PHP/' . phpversion()
-            ];
-            mail($contact['email'], $subject, $messageText, $headers);
+            $mailSent = mail($contact['email'], $subject, $messageText, $headers);
+            if (!$mailSent) {
+                error_log("NOTIFY ERROR: E-Mail-Versand an Client ID $clientId (Kontakt ID/Email) fehlgeschlagen.");
+            }
         }
 
-        $phoneToSms = $contact['phone'] ?? null;
+        // SMS versenden
+        $phoneToSms = $contact['tel1'] ?? null;
         if ($smsEnabled && !empty($phoneToSms)) {
             sendSmsNotification($phoneToSms, $messageText);
         }
     }
 }
+
 */
 
 function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = null): void

@@ -699,7 +699,8 @@ export default function Dashboard() {
                         {/* ABSICHERUNG: (protocols || []) nutzen */}
                         {(protocols || [])
                           .filter(
-                            (protocol) => protocol.client_id === client.id,
+                            (protocol) =>
+                              String(protocol.client_id) === String(client.id),
                           )
                           .map((protocol) => (
                             <div key={protocol.id} className="protocol-card">
@@ -718,7 +719,8 @@ export default function Dashboard() {
 
                         {/* ABSICHERUNG: (protocols || []) nutzen */}
                         {(protocols || []).filter(
-                          (protocol) => protocol.client_id === client.id,
+                          (protocol) =>
+                            String(protocol.client_id) === String(client.id),
                         ).length === 0 && (
                           <p>Keine Protokolleinträge vorhanden.</p>
                         )}
