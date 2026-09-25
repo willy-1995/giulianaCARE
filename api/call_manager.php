@@ -467,8 +467,8 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = 
         // E-Mail Prüfen & Versenden
         if (!empty($contact['email'])) {
             $headers = [
-                'From' => 'no-reply@giuliana-care.de',
-                'Reply-To' => 'support@giuliana-care.de',
+                'From' => 'info@giuliana-care.de',
+                'Reply-To' => 'info@giuliana-care.de',
                 'Content-Type' => 'text/plain; charset=UTF-8',
                 'X-Mailer' => 'PHP/' . phpversion()
             ];
