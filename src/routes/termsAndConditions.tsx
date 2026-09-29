@@ -35,7 +35,7 @@ import {
 
 const MAX_LENGTH = 500;
 
-export default function Legal() {
+export default function TermsAndConditions() {
   const { hash } = useLocation();
 
   useEffect(() => {
@@ -52,12 +52,7 @@ export default function Legal() {
   return (
     <div className="body-div legal-content">
       <Navbar />
-      <div className="legal-div">
-        <h2 id="imprint">Impressum</h2>
-      </div>
-      <div className="legal-div">
-        <h2 id="data-declaration">Datenschutz</h2>
-      </div>
+
       <div className="legal-div">
         <h2 id="terms-conditions">Allgemeine Geschäftsbedingungen (AGB)</h2>
 

@@ -1,0 +1,19 @@
+.imprint-content {
+  width: 90%;
+  margin: 0 auto;
+  h2 {
+    margin-top: 40px;
+    margin-bottom: 20px;
+  }
+
+  .imprint-section {
+    margin-bottom: 20px;
+    border-radius: 15px;
+    box-shadow: 0 0 10px var(--accent-color);
+    padding: 10px;
+
+    h3 {
+      margin-bottom: 10px;
+    }
+  }
+}

@@ -9,9 +9,10 @@ import { ProtectedRoute } from "./routes/protectedRoutes";
 import Dashboard from "./routes/dashboard";
 import Settings from "./routes/settings";
 import Request from "./routes/request";
-import Legal from "./routes/legals";
+import TermsAndConditions from "./routes/termsAndConditions";
 import Feedback from "./routes/feedback";
 import { Datasecurity } from "./routes/datasecurity";
+import { Imprint } from "./routes/imprint";
 import { Salespartnership } from "./routes/salespartnership";
 import "./routes/styles/main.scss";
 import { useEffect } from "react";
@@ -40,7 +41,8 @@ function App() {
           <Route path="/registration" element={<Registration />} />
           <Route path="/login" element={<Login />} />
           <Route path="/request" element={<Request />} />
-          <Route path="/legal" element={<Legal />} />
+          <Route path="/termsAndConditions" element={<TermsAndConditions />} />
+          <Route path="/imprint" element={<Imprint />} />
           <Route path="/datasecurity" element={<Datasecurity />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/salespartnership" element={<Salespartnership />} />
