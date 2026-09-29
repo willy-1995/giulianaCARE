@@ -2,10 +2,36 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Footer from "./components/footer";
 import Navbar from "./components/navbar";
-import { tel, email, adress, name, corpName } from "../assets/constants";
-import "./styles/request.scss";
+import {
+  tel,
+  email,
+  adress,
+  name,
+  corpName,
+  price1,
+  price2,
+  price3,
+} from "../assets/constants";
 import "./styles/main.scss";
 import "./styles/legals.scss";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faTimes,
+  faCheck,
+  faPhone,
+  faEnvelope,
+  faXmark,
+  faThumbsUp,
+  faUsers,
+  faPhoneVolume,
+  faTriangleExclamation,
+  faHandHoldingHeart,
+  faShieldHalved,
+  faRobot,
+  faCircleQuestion,
+  faHandshakeAngle,
+  faCircleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
 
 const MAX_LENGTH = 500;
 
@@ -34,14 +60,17 @@ export default function Legal() {
       </div>
       <div className="legal-div">
         <h2 id="terms-conditions">Allgemeine Geschäftsbedingungen (AGB)</h2>
-        <h3>Wichtiger Hinweis</h3>
+
         {/*====================================
         DISCLAIMER
         =======================================*/}
-        <ul>
+        <ul className="disclaimer">
+          <h3>
+            Wichtiger Hinweis <FontAwesomeIcon icon={faCircleExclamation} />
+          </h3>
           <p>
             Die giulianaCARE Telefonbetreuung ist ein{" "}
-            <b>Unterstützungsservice</b>. Sie ersetzt Folgendes <b>nicht</b>;
+            <b>Unterstützungsservice</b>. Sie ersetzt Folgendes <b>nicht</b>:
           </p>
           <li>Notruf 112</li>
           <li>einen Hausnotrufdienst gemäß § 78 SGB XI </li>
@@ -51,15 +80,15 @@ export default function Legal() {
         {/*========================================
         AGB 
         ===========================================*/}
-        <ul>
+        <ul className="agb-list">
           <div className="paragraph">
             <h3> § 1 Geltungsbereich und Anbieter</h3>
             <li>
               (1) Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle
               Verträge zwischen:
               <div className="impress-div"></div>– nachfolgend "Anbieter" oder
-              "HELFI-RUF" genannt – und den Kunden über die Nutzung der
-              giulianaCARE Telefonbetreuung.
+              "giulianaCARE Telefonbetreuung" genannt – und den Kunden über die
+              Nutzung der giulianaCARE Telefonbetreuung.
             </li>
             <li>
               (2) Diese AGB gelten sowohl gegenüber Verbrauchern (§ 13 BGB) als
@@ -163,15 +192,17 @@ export default function Legal() {
             <h3>§ 5 Preise und Zahlungsbedingungen </h3>
             <li>
               (1) Es gelten die zum Zeitpunkt des Vertragsschlusses auf der
-              Website ausgewiesenen Preise. Alle Preise verstehen sich inklusive
-              der gesetzlichen Mehrwertsteuer.
+              Website ausgewiesenen Preise.{" "}
+              {/*Alle Preise verstehen sich inklusive
+              der gesetzlichen Mehrwertsteuer. */}{" "}
+              {/* VAT ADDITION!!! */}
             </li>
             <li>
               (2) Die aktuellen Tarife sind:
               <ul className="sub-list">
-                <li>Sicherheit - 1 Anruf pro Tag - €</li>
-                <li>Gut betreut - 2 Anrufe pro Tag - €</li>
-                <li>Rundum sorglos - 3 Anrufe pro Tag - €</li>
+                <li>Sicherheit - 1 Anruf pro Tag - {price1}€</li>
+                <li>Gut betreut - 2 Anrufe pro Tag - {price2}€</li>
+                <li>Rundum sorglos - 3 Anrufe pro Tag - {price3}€</li>
               </ul>
             </li>
             <li>
@@ -565,19 +596,24 @@ export default function Legal() {
               bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des
               Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits
               erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im
-              Vertrag vorgesehenen Dienstleistungen entspricht.
+              Vertrag vorgesehenen Dienstleistungen entspricht. Das
+              Widerrufsformular senden Sie bitte an:
             </li>
             <div className="reject-form">
-              An:
               <ul>
                 <li>{corpName}</li>
                 <li>{name}</li>
                 <li>{adress}</li>
                 <li>{email}</li>
               </ul>
+              <li>
+                oder verwenden Sie den "Kündigen"-Button innerhalb der
+                Widerrufsfrist im Dashboard unter "Einstellungen".
+              </li>
+
               <br />
               <br />
-              <p>
+              <p className="revocation">
                 Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*)
                 abgeschlossenen Vertrag über die Erbringung der folgenden
                 Dienstleistung: <br /> <br />{" "}

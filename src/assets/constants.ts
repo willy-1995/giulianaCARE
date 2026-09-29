@@ -7,3 +7,4 @@ export const email = "info@giuliana-care.de";
 export const corpName = "giulianaCARE";
 export const name = "Lucas Wingenfeld";
 export const adress = "Meßdorfer Straße 332, 53123 Bonn"
+export const country = "Deutschland"
