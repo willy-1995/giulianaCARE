@@ -56,11 +56,9 @@ export function Imprint() {
         <section className="imprint-section">
           <h3>Redaktionell verantwortlich</h3>
           <p>
-            [Vorname Nachname]
+            {name} <br />
+            {adress}
             <br />
-            [Straße und Hausnummer]
-            <br />
-            [PLZ und Ort]
           </p>
         </section>
 
