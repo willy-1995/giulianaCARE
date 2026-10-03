@@ -21,7 +21,7 @@ $userId = getUserIdFromToken();
 
 $input = json_decode(file_get_contents("php://input"), true);
 
-// Domain/Base-URL dynamisch aus .env laden (Fallback auf giuliana-care.de)
+// Domain/Base-URL dynamisch aus .env laden
 $clientUrl = $_ENV['CLIENT_URL'] ?? 'https://giuliana-care.de';
 
 // Price-IDs dynamisch aus der .env-Datei auslesen
@@ -43,12 +43,20 @@ if (empty($selectedPackage) || empty($priceMap[$selectedPackage])) {
     exit;
 }
 
-// ✅ Korrektur: Die zugewiesene Price-ID in der Variable $priceId speichern
 $priceId = $priceMap[$selectedPackage];
 
 try {
-    // Optional: Nächsten 1. des Monats als Abrechnungs-Anker
-    $firstOfNextMonth = strtotime('first day of next month 00:00:00');
+    // -------------------------------------------------------------
+    // Berechnungen für 14 Tage Trial + Abrechnung zum 1. des Monats
+    // -------------------------------------------------------------
+    $trialDays = 14;
+
+    // Zeitpunkt, an dem die 14 Tage Testphase enden
+    $trialEndTimestamp = strtotime("+{$trialDays} days");
+
+    // Der 1. des Monats, der auf das Ende der Testphase folgt
+    // (Bsp: Registrierung am 10. Okt -> Trial endet 24. Okt -> Anker ist 1. Nov)
+    $firstOfNextMonthAfterTrial = strtotime('first day of next month 00:00:00', $trialEndTimestamp);
 
     $session = \Stripe\Checkout\Session::create([
         'line_items' => [[
@@ -59,7 +67,14 @@ try {
         'success_url' => $clientUrl . '/dashboard?welcome=true',
         'cancel_url'  => $clientUrl . '/registration?canceled=true',
 
-        // Optional & sehr empfohlen: User-ID mitgeben für spätere Webhook-Zuordnung
+        // Abo-Einstellungen für Trial & anteilige Abrechnung
+        'subscription_data' => [
+            'trial_period_days' => $trialDays,
+            'billing_cycle_anchor' => $firstOfNextMonthAfterTrial,
+            'proration_behavior' => 'create_prorations', // Berechnet den Restmonat anteilig
+        ],
+
+        // User-ID für spätere Webhook-Zuordnung mitgeben
         'client_reference_id' => $userId,
         'metadata' => [
             'user_id' => $userId,

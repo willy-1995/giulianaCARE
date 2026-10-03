@@ -181,4 +181,35 @@ class UserManager
         $sql = "DELETE FROM users WHERE id = :id";
         return $this->conn->prepare($sql)->execute([':id' => $id]);
     }
+
+    /**
+     * Kündigt das Stripe-Abo zum Ende des aktuellen Abrechnungszeitraums (bzw. der Trial).
+     * Der Service bleibt bis dahin voll nutzbar!
+     */
+    // ===========================================
+    //CANCEL SUBSCRIPTION
+    //============================================
+    public function cancelSubscriptionAtPeriodEnd($userId)
+    {
+        $user = $this->getUser($userId);
+
+        if (!$user || empty($user['stripe_subscription_id'])) {
+            throw new Exception("Keine aktive Subscription für diesen Nutzer gefunden.");
+        }
+
+        $stripeSecretKey = $_ENV['STRIPE_SECRET_KEY'] ?? getenv('STRIPE_SECRET_KEY');
+        \Stripe\Stripe::setApiKey($stripeSecretKey);
+
+        // Stripe anweisen, das Abo zum Periodenende nicht mehr zu verlängern
+        $subscription = \Stripe\Subscription::update($user['stripe_subscription_id'], [
+            'cancel_at_period_end' => true,
+        ]);
+
+        // Status in der lokalen Datenbank vermerken
+        $sql = "UPDATE users SET subscription_status = 'cancel_pending' WHERE id = :id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':id' => $userId]);
+
+        return $subscription;
+    }
 }

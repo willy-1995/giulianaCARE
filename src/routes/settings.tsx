@@ -1,21 +1,24 @@
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import SubNavbar from "./components/navbar_sub";
 import Footer from "./components/footer";
 import { deleteUser } from "../assets/deleter";
 import { updateUser } from "../assets/updater";
 import "./styles/settings.scss";
 import "./styles/main.scss";
-import { faL } from "@fortawesome/free-solid-svg-icons";
 
 export default function Settings() {
-  //STATES
+  // STATES
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // Beispielhafter Form-State für die Benutzerdaten
+
+  // State für Statusanzeigen
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("");
+  const [cancelMessage, setCancelMessage] = useState<string>("");
+
+  // Form-State für Benutzerdaten
   const [formData, setFormData] = useState({
     email: "",
     price: "",
@@ -24,17 +27,49 @@ export default function Settings() {
   });
   const [message, setMessage] = useState("");
 
-  //==========================
-  //Functions
-  //==========================
+  // User-Daten & Abo-Status beim Laden abrufen
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
 
-  //Logout
+        const response = await fetch(
+          "https://giuliana-care.de/api/users_manager.php",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        const data = await response.json();
+        if (data.success && data.user) {
+          setFormData({
+            email: data.user.email || "",
+            price: data.user.price || "",
+            country: data.user.country || "",
+            area_code: data.user.area_code || "",
+          });
+          setSubscriptionStatus(data.user.subscription_status || "");
+        }
+      } catch (err) {
+        console.error("Fehler beim Laden der Benutzerdaten:", err);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Logout
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
   };
 
-  //Update Account Data
+  // Update Account Data Form Handler
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
@@ -59,26 +94,70 @@ export default function Settings() {
     }
   };
 
-  //Delete Account
+  // 1. Abonnement kündigen (Service bleibt bis Periodenende nutzbar)
+  const handleCancelSubscription = async () => {
+    const confirmed = window.confirm(
+      "Möchtest du dein Abonnement zum nächstmöglichen Zeitpunkt kündigen?\n\n" +
+        "Du kannst alle Funktionen von giuliana-care.de bis zum Ende deines aktuellen Abrechnungszeitraums (bzw. deiner 14-tägigen Testphase) uneingeschränkt weiter nutzen. Es werden keine weiteren Beiträge abgebucht.",
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        "https://giuliana-care.de/api/cancel_subscription.php",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSubscriptionStatus("cancel_pending");
+        setCancelMessage(
+          "Dein Abonnement ist gekündigt und läuft zum Ende der Periode aus.",
+        );
+        alert(data.message);
+      } else {
+        alert(data.message || "Fehler beim Kündigen des Abonnements.");
+      }
+    } catch (err) {
+      alert("Netzwerkfehler beim Kündigen des Abonnements.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Account endgültig löschen
   const handleDeleteAccount = async () => {
-    if (confirm("Abonnement kündigen und Account wirklich löschen?")) {
+    const confirmed = window.confirm(
+      "Achtung: Möchtest du deinen Account und alle zugehörigen Daten unwiderruflich löschen?\n\n" +
+        "Dein Abonnement wird dabei sofort beendet und du verlierst augenblicklich den Zugriff auf giuliana-care.de.",
+    );
+
+    if (confirmed) {
       const result = await deleteUser(setLoading);
 
       if (result.success) {
+        localStorage.removeItem("token");
         navigate("/registration", {
           state: {
-            message:
-              "Dein Account wurde gelöscht und das Abonnement zum nächstmöglichen Zeitpunkt gekündigt.",
+            message: "Dein Account wurde gelöscht und das Abonnement beendet.",
           },
         });
       } else {
-        // Fehlerbehandlung (z. B. Banner oder Toast anzeigen)
         alert(result.message || "Fehler beim Löschen des Accounts");
       }
     }
   };
 
-  //CLEAR MESSAGE
   const clearMessage = () => {
     setMessage("");
   };
@@ -106,18 +185,45 @@ export default function Settings() {
           </button>
         </div>
 
-        <button
-          onClick={handleDeleteAccount}
-          className="deleteAccount setting-button"
-        >
-          Kündigen
-        </button>
+        {/* Abo-Verwaltung & Kündigung */}
+        <div className="setting-section">
+          <h3>Abonnement & Mitgliedschaft</h3>
+
+          {subscriptionStatus === "cancel_pending" ? (
+            <p className="status-info warning">
+              Dein Abo ist gekündigt. Du kannst den Service noch bis zum Ende
+              der aktuellen Laufzeit nutzen.
+            </p>
+          ) : subscriptionStatus === "canceled" ? (
+            <p className="status-info danger">
+              Dein Abonnement ist abgelaufen.
+            </p>
+          ) : (
+            <button
+              onClick={handleCancelSubscription}
+              className="logout setting-button"
+              disabled={loading}
+            >
+              {loading ? "Wird verarbeitet..." : "Abonnement kündigen"}
+            </button>
+          )}
+
+          {cancelMessage && <p className="status-message">{cancelMessage}</p>}
+        </div>
+
+        {/* Gefahrenbereich: Account löschen */}
+        <div className="setting-section danger-zone">
+          <button
+            onClick={handleDeleteAccount}
+            className="deleteAccount setting-button"
+            disabled={loading}
+          >
+            Account sofort löschen
+          </button>
+        </div>
       </div>
-      {/* 
-      =========================
-      MODAL FOR DATA UPDATE
-      =========================
-      */}
+
+      {/* MODAL FOR DATA UPDATE */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -146,16 +252,13 @@ export default function Settings() {
                     onChange={handleChange}
                   >
                     <option value="" disabled hidden>
-                      Paket wählen
-                    </option>
-                    <option value="" disabled hidden>
                       Betreuungspaket wählen
                     </option>
                     <option value="sicherheit">
                       Sicherheit 19€ - 1 Anruf pro Tag
                     </option>
                     <option value="gutBetreut">
-                      Gut bretreut 26€ - 2 Anrufe pro Tag
+                      Gut betreut 26€ - 2 Anrufe pro Tag
                     </option>
                     <option value="rundumSorglos">
                       Rundum Sorglos 32€ - 3 Anrufe pro Tag
