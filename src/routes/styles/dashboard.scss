@@ -55,11 +55,6 @@
         width: 100%;
       }
       .client-card {
-        background: linear-gradient(
-          to bottom,
-          var(--accent-color) 0%,
-          white 50%
-        );
         border-radius: 15px;
         width: 100%;
 
@@ -70,6 +65,11 @@
             justify-content: space-between;
             padding: 10px;
             color: white;
+            background: linear-gradient(
+              to right,
+              var(--accent-color) 0%,
+              white 80%
+            );
 
             h2 {
               display: flex;
