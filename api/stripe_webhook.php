@@ -22,7 +22,6 @@ if (empty($sig_header) || empty($payload)) {
 try {
     $event = \Stripe\Webhook::constructEvent($payload, $sig_header, $endpoint_secret);
 } catch (\Stripe\Exception\SignatureVerificationException $e) {
-    // Ungültige Signatur
     http_response_code(400);
     echo json_encode(["error" => "Ungültige Stripe-Signatur"]);
     exit();
@@ -47,11 +46,13 @@ switch ($event->type) {
         $subscriptionId = $session->subscription ?? null;
 
         if ($userId && $customerId && $subscriptionId) {
-            $userManager->updateStripeSubscription($userId, $customerId, $subscriptionId, 'active');
+            // Status aus der Checkout-Session abfragen (kann 'active' oder 'trialing' sein)
+            $status = $session->payment_status === 'paid' || $session->status === 'complete' ? 'active' : 'trialing';
+            $userManager->updateStripeSubscription($userId, $customerId, $subscriptionId, $status);
         }
         break;
 
-    // B) Wiederkehrende Zahlung erfolgreich (z. B. im Folgemonat)
+    // B) Wiederkehrende Zahlung erfolgreich
     case 'invoice.payment_succeeded':
         $invoice = $event->data->object;
         $subscriptionId = $invoice->subscription ?? null;
@@ -61,7 +62,23 @@ switch ($event->type) {
         }
         break;
 
-    // C) Wiederkehrende Zahlung fehlgeschlagen (z. B. Karte abgelaufen / Konto nicht gedeckt)
+    // C) Abo wurde aktualisiert (z.B. Kündigung vorgemerkt oder Paket gewechselt)
+    case 'customer.subscription.updated':
+        $subscription = $event->data->object;
+        $subscriptionId = $subscription->id ?? null;
+
+        if ($subscriptionId) {
+            // Falls Kündigung zum Periodenende vorgemerkt wurde:
+            if ($subscription->cancel_at_period_end) {
+                $userManager->updateSubscriptionStatusBySubId($subscriptionId, 'cancel_pending');
+            } else {
+                // Ansonsten Stripe-Status direkt übernehmen (z.B. 'active', 'past_due', 'trialing')
+                $userManager->updateSubscriptionStatusBySubId($subscriptionId, $subscription->status);
+            }
+        }
+        break;
+
+    // D) Wiederkehrende Zahlung fehlgeschlagen
     case 'invoice.payment_failed':
         $invoice = $event->data->object;
         $subscriptionId = $invoice->subscription ?? null;
@@ -71,7 +88,7 @@ switch ($event->type) {
         }
         break;
 
-    // D) Abo wurde endgültig gekündigt oder nach Fehlversuchen von Stripe beendet
+    // E) Abo endgültig abgelaufen / gelöscht
     case 'customer.subscription.deleted':
         $subscription = $event->data->object;
         $subscriptionId = $subscription->id ?? null;
@@ -82,10 +99,10 @@ switch ($event->type) {
         break;
 
     default:
-        // Andere Events (z.B. payment_intent.created) ignorieren wir schweigend
+        // Andere Events ignorieren
         break;
 }
 
-// 6. Stripe mitteilen, dass der Webhook erfolgreich empfangen wurde
+// 6. Stripe Bestätigung
 http_response_code(200);
 echo json_encode(["status" => "success"]);
