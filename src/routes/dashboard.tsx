@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { useEffect } from "react";
 import { loadClients } from "../assets/loader";
@@ -105,6 +105,7 @@ const formatTime = (totalMinutes: number | undefined) => {
 
 export default function Dashboard() {
   //STATES
+  const [welcomeModal, setWelcomeModal] = useState(false);
   const [clientModal, setClientModal] = useState(false);
   const [contactModal, setContactModal] = useState(false);
   const [message, setMessage] = useState("");
@@ -118,6 +119,8 @@ export default function Dashboard() {
   const [currentEditId, setCurrentEditId] = useState<number | null>(null);
   const [user, setUser] = useState<User | null>(null); // for call display
   const [protocols, setProtocols] = useState<Protocol[]>([]);
+  // SEARCH PARAMS FÜR BEGRÜSSUNGS-CHECK
+  const [searchParams, setSearchParams] = useSearchParams();
 
   //Price formation for frontend
   // Preisschema mit explizitem Typ definieren
@@ -126,6 +129,20 @@ export default function Dashboard() {
     sicherheit: "Sicherheit",
     rundumSorglos: "Rundum sorglos",
   };
+
+  //=====================
+  // CHECK FOR WELCOME MODAL
+  //=====================
+  useEffect(() => {
+    // Prüft, ob ?welcome=true in der URL steht
+    if (searchParams.get("welcome") === "true") {
+      setWelcomeModal(true);
+
+      // Parameter aus der URL entfernen, damit das Modal bei einem Page-Reload nicht erneut aufploppt
+      searchParams.delete("welcome");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   //=====================
   //GET LISTS
@@ -501,6 +518,13 @@ export default function Dashboard() {
   return (
     <div className="body-div dashboard-div">
       <SubNavbar />
+      {welcomeModal && (
+        <div className="modal-overlay">
+          <div className="modal welcome-modal">
+            <h2>Herzlich willkommen bei giulianaCARE!</h2>
+          </div>
+        </div>
+      )}
 
       {message && <div className="message-div">{message}</div>}
       <div className="dash-section">

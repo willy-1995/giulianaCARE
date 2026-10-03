@@ -52,7 +52,7 @@ try {
             'billing_cycle_anchor' => $firstOfNextMonth,
             'proration_behavior' => 'create_prorations',
         ],
-        'success_url' => $clientUrl . '/dashboard?session_id={CHECKOUT_SESSION_ID}',
+        'success_url' => $clientUrl . '/dashboard?welcome=true',
         'cancel_url'  => $clientUrl . '/registration?canceled=true',
     ]);
 
