@@ -22,7 +22,6 @@ class UserManager
     public function createUser($userData)
     {
         try {
-            // Wir behalten die Transaction bei, falls du später wieder erweitern willst
             $this->conn->beginTransaction();
 
             $sql = "INSERT INTO users (email, password, price, country, area_code, agb_accepted) 
@@ -31,11 +30,11 @@ class UserManager
             $hashedPassword = password_hash($userData['password'], PASSWORD_BCRYPT);
 
             $stmt->execute([
-                ':email'     => $userData['email'],
-                ':password'  => $hashedPassword,
-                ':price'     => $userData['price'] ?? null,
-                ':country'   => $userData['country'] ?? null,
-                ':area_code' => $userData['area_code'] ?? null,
+                ':email'        => $userData['email'],
+                ':password'     => $hashedPassword,
+                ':price'        => $userData['price'] ?? null,
+                ':country'      => $userData['country'] ?? null,
+                ':area_code'    => $userData['area_code'] ?? null,
                 ':agb_accepted' => $userData['agb_accepted'] ?? null,
             ]);
 
@@ -51,10 +50,16 @@ class UserManager
 
     // ==========================================
     // READ: Einzelnen Nutzer laden
+    // [GEÄNDERT]: Stripe-Spalten werden jetzt mit ausgelesen!
     // ==========================================
     public function getUser($id)
     {
-        $sql = "SELECT id, email, price, country, area_code, created_at FROM users WHERE id = :id";
+        $sql = "SELECT id, email, price, country, area_code, 
+                       stripe_customer_id, stripe_subscription_id, subscription_status, 
+                       created_at 
+                FROM users 
+                WHERE id = :id";
+
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([':id' => $id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -66,18 +71,18 @@ class UserManager
 
     // ==========================================
     // LOGIN: Authentifizierung
+    // (Unverändert - `SELECT *` liefert bereits alle Spalten inkl. Stripe zurück)
     // ==========================================
     public function login($email, $password)
     {
-        // Wir selektieren alles, um die ID für das JWT zu haben
         $sql = "SELECT * FROM users WHERE email = :email LIMIT 1";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([':email' => $email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && password_verify($password, $user['password'])) {
-            unset($user['password']); // Passwort aus dem Resultat entfernen
-            return $user; // Gibt id, email, created_at zurück
+            unset($user['password']);
+            return $user;
         }
         return false;
     }
@@ -90,7 +95,6 @@ class UserManager
         try {
             $this->conn->beginTransaction();
 
-            // 1. User-Stammdaten aktualisieren
             $sqlUser = "UPDATE users 
                         SET email = :email, 
                             price = :price, 
@@ -107,19 +111,16 @@ class UserManager
                 ':id'        => $id
             ]);
 
-            // 2. Falls der Preis geändert wurde, ungültige Anrufe im zugehörigen Client zurücksetzen
             if (isset($userData['price'])) {
                 $price = $userData['price'];
 
                 if ($price === 'sicherheit') {
-                    // Paket 'sicherheit': call_2, medication_2, call_3, medication_3 löschen
                     $sqlClient = "UPDATE clients 
                                   SET call_2 = NULL, medication_2 = NULL, call_3 = NULL, medication_3 = NULL 
                                   WHERE user_id = :user_id";
                     $stmtClient = $this->conn->prepare($sqlClient);
                     $stmtClient->execute([':user_id' => $id]);
                 } elseif ($price === 'gutBetreut') {
-                    // Paket 'gutBetreut': call_3, medication_3 löschen
                     $sqlClient = "UPDATE clients 
                                   SET call_3 = NULL, medication_3 = NULL 
                                   WHERE user_id = :user_id";
@@ -137,12 +138,46 @@ class UserManager
     }
 
     // ==========================================
+    // [NEU] STRIPE: Abo-Daten aktualisieren (für Webhook & Checkout)
+    // ==========================================
+    public function updateStripeSubscription($userId, $customerId, $subscriptionId, $status = 'active')
+    {
+        $sql = "UPDATE users 
+                SET stripe_customer_id = :cust, 
+                    stripe_subscription_id = :sub, 
+                    subscription_status = :status 
+                WHERE id = :id";
+
+        $stmt = $this->conn->prepare($sql);
+        return $stmt->execute([
+            ':cust'   => $customerId,
+            ':sub'    => $subscriptionId,
+            ':status' => $status,
+            ':id'     => $userId
+        ]);
+    }
+
+    // ==========================================
+    // [NEU] STRIPE: Status per Subscription-ID aktualisieren (für Webhook)
+    // ==========================================
+    public function updateSubscriptionStatusBySubId($subscriptionId, $status)
+    {
+        $sql = "UPDATE users 
+                SET subscription_status = :status 
+                WHERE stripe_subscription_id = :sub";
+
+        $stmt = $this->conn->prepare($sql);
+        return $stmt->execute([
+            ':status' => $status,
+            ':sub'    => $subscriptionId
+        ]);
+    }
+
+    // ==========================================
     // DELETE: Nutzer löschen
     // ==========================================
     public function deleteUser($id)
     {
-        // Dank "ON DELETE CASCADE" in der DB werden verknüpfte 
-        // Clients und Contacts automatisch mitgelöscht.
         $sql = "DELETE FROM users WHERE id = :id";
         return $this->conn->prepare($sql)->execute([':id' => $id]);
     }

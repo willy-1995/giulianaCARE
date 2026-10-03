@@ -25,8 +25,7 @@ try {
 
             $userId = $userManager->createUser($input);
 
-            // Nutzt deine createJWT aus jwt.php
-            // Hinweis: 'username' wird hier als Rolle/Name übergeben, je nachdem was du im Token brauchst
+            // [HINWEIS]: Nach der Registrierung ist der subscription_status standardmäßig 'unpaid'
             $token = createJWT((int)$userId, $input['email'], $input['price']);
 
             http_response_code(201);
@@ -34,7 +33,8 @@ try {
                 "success" => true,
                 "message" => "Registrierung erfolgreich!",
                 "token" => $token,
-                "userId" => $userId
+                "userId" => $userId,
+                "subscription_status" => "unpaid" // [NEU]: Status explizit für Frontend mitgeben
             ]);
             break;
 
@@ -43,12 +43,16 @@ try {
         // ==========================================
         case 'GET':
             $currentUserId = getUserIdFromToken();
-            $userData = $userManager->getUser($currentUserId); // Methode in deiner UserManager-Klasse
+            $userData = $userManager->getUser($currentUserId);
 
             if ($userData) {
-                // Passwort vor der Ausgabe entfernen!
+                // Passwort vor der Ausgabe entfernen (falls aus Versehen dabei)
                 unset($userData['password']);
 
+                // [GEÄNDERT]: $userData enthält durch das users_crud-Update jetzt bereits:
+                // - stripe_customer_id
+                // - stripe_subscription_id
+                // - subscription_status ('unpaid', 'active', 'canceled', 'past_due')
                 echo json_encode([
                     "success" => true,
                     "user" => $userData
@@ -59,13 +63,10 @@ try {
             }
             break;
 
-
-
         // ==========================================
         // UPDATE (PROFIL AKTUALISIEREN)
         // ==========================================
         case 'PUT':
-            // Nutzt DEINE Funktion aus jwt.php
             $currentUserId = getUserIdFromToken();
 
             if ($userManager->updateUser($currentUserId, $input)) {
@@ -80,7 +81,6 @@ try {
         // DELETE (ACCOUNT LÖSCHEN)
         // ==========================================
         case 'DELETE':
-            // Nutzt DEINE Funktion aus jwt.php
             $currentUserId = getUserIdFromToken();
 
             if ($userManager->deleteUser($currentUserId)) {

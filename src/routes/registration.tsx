@@ -52,25 +52,44 @@ function Registration() {
     e.preventDefault();
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/users_manager.php`, // Deine API Route
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        },
-      );
+      // 1. Account in deiner DB anlegen
+      const response = await fetch(`${API_BASE}/api/users_manager.php`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
       const result: ApiResponse = await response.json();
 
       if (result.success && result.token) {
         localStorage.setItem("token", result.token);
-        setMessage(result.message);
 
-        setTimeout(() => {
-          // Navigation mit bestehendem State "fromRegistration"
-          navigate("/dashboard", { state: { fromRegistration: true } });
-        }, 2000);
+        // 2. Stripe Checkout-Session anfragen
+        const stripeResponse = await fetch(
+          `${API_BASE}/api/create_checkout_session.php`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${result.token}`,
+            },
+            body: JSON.stringify({
+              price: formData.price,
+              email: formData.email,
+            }),
+          },
+        );
+
+        const stripeResult = await stripeResponse.json();
+
+        if (stripeResult.success && stripeResult.url) {
+          // 3. Zur Stripe Bezahlseite weiterleiten
+          window.location.href = stripeResult.url;
+        } else {
+          setMessage(
+            stripeResult.message || "Fehler beim Erstellen der Bezahlseite.",
+          );
+        }
       } else {
         setMessage(result.message);
       }
