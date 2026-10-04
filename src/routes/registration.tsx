@@ -182,11 +182,11 @@ function Registration() {
               required
             />
             Ich akzeptiere die{" "}
-            <a href="/agb" target="_blank">
+            <a href="/termsAndConditions" target="_blank">
               AGB
             </a>{" "}
             und die{" "}
-            <a href="/datenschutz" target="_blank">
+            <a href="/datasecurity" target="_blank">
               Datenschutzerklärung
             </a>
             .
