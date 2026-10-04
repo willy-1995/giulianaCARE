@@ -544,11 +544,9 @@ export default function Dashboard() {
                 <li>
                   <h3>Zusatzinformationen & Abfragen</h3>
                   Formuliere möglichst präzise, was der Sprachassistent abfragen
-                  soll, welche Abfragen getätigt werden sollen.
-                  <br />
-                  <br />
-                  Achte darauf, dass es verständlich für die zu betreuende
-                  Person bleibt. Verwende für sie/ihn gewohnte Begriffe.
+                  soll und welche Abfragen getätigt werden sollen. Achte darauf,
+                  dass es verständlich für die zu betreuende Person bleibt.
+                  Verwende für sie/ihn gewohnte Begriffe.
                 </li>
                 <li>
                   <h3>Angabe von Telefonnummern</h3>
@@ -558,7 +556,7 @@ export default function Dashboard() {
               </ul>
             </details>
 
-            <button onClick={() => closeWelcomeModal}>Verstanden</button>
+            <button onClick={closeWelcomeModal}>Verstanden</button>
           </div>
         </div>
       )}

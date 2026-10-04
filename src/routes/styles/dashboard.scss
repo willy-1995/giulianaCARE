@@ -339,3 +339,51 @@
 .currentPrice {
   margin-bottom: 20px;
 }
+
+.welcome-modal {
+  h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--accent-color);
+  }
+
+  p {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  details {
+    margin-bottom: 20px;
+
+    summary {
+      text-align: center;
+      list-style: none; // Standard für Firefox, Chrome, Edge (modern)
+      color: var(--button-color);
+      cursor: pointer;
+
+      // WebKit-spezifisch für ältere Safari- & Chrome-Versionen
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      // Optional: Verhindert den blauen Fokus-Rahmen beim Anklicken
+      &:focus {
+        outline: none;
+      }
+    }
+
+    ul {
+      border-radius: 15px;
+      box-shadow: 0 0 10px var(--accent-color);
+      margin-top: 10px;
+
+      li {
+        padding: 10px;
+
+        h3 {
+          margin-bottom: 5px;
+        }
+      }
+    }
+  }
+}
