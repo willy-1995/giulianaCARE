@@ -12,20 +12,30 @@ export default function Settings() {
   // STATES
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // State für Statusanzeigen
+  // Modals
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
+  // Statusanzeigen
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("");
   const [cancelMessage, setCancelMessage] = useState<string>("");
 
-  // Form-State für Benutzerdaten
+  // Form-States
   const [formData, setFormData] = useState({
     email: "",
     price: "",
     country: "",
     area_code: "",
   });
-  const [message, setMessage] = useState("");
+
+  const [passwordData, setPasswordData] = useState({
+    current_password: "",
+    new_password: "",
+  });
+
+  const [profileMessage, setProfileMessage] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
 
   // User-Daten & Abo-Status beim Laden abrufen
   useEffect(() => {
@@ -69,32 +79,69 @@ export default function Settings() {
     navigate("/login");
   };
 
-  // Update Account Data Form Handler
-  const handleChange = (
+  // Handlers für Inputs
+  const handleProfileChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Account-Daten aktualisieren
-  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Profil-Daten aktualisieren
+  const handleProfileUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const result = await updateUser(formData, setLoading);
 
     if (result.success) {
-      setMessage(result.message || "Profil erfolgreich aktualisiert!");
+      setProfileMessage(result.message || "Profil erfolgreich aktualisiert!");
       setTimeout(() => {
-        setIsModalOpen(false);
-        setMessage("");
+        setIsProfileModalOpen(false);
+        setProfileMessage("");
       }, 1500);
     } else {
-      setMessage(result.message || "Fehler beim Aktualisieren des Profils.");
+      setProfileMessage(
+        result.message || "Fehler beim Aktualisieren des Profils.",
+      );
     }
   };
 
-  // 1. Abonnement kündigen (Service bleibt bis Periodenende nutzbar)
+  // Passwort aktualisieren
+  const handlePasswordUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!passwordData.current_password || !passwordData.new_password) {
+      setPasswordMessage("Bitte fülle beide Passwortfelder aus.");
+      return;
+    }
+
+    // Kombiniert Profildaten mit den Passwortdaten an den Updater schicken
+    const payload = {
+      ...formData,
+      current_password: passwordData.current_password,
+      new_password: passwordData.new_password,
+    };
+
+    const result = await updateUser(payload, setLoading);
+
+    if (result.success) {
+      setPasswordMessage("Passwort erfolgreich geändert!");
+      setTimeout(() => {
+        setIsPasswordModalOpen(false);
+        setPasswordMessage("");
+        setPasswordData({ current_password: "", new_password: "" });
+      }, 1500);
+    } else {
+      setPasswordMessage(result.message || "Fehler beim Ändern des Passworts.");
+    }
+  };
+
+  // Abonnement kündigen
   const handleCancelSubscription = async () => {
     const confirmed = window.confirm(
       "Möchtest du dein Abonnement zum nächstmöglichen Zeitpunkt kündigen?\n\n" +
@@ -135,7 +182,7 @@ export default function Settings() {
     }
   };
 
-  // 2. Account endgültig löschen
+  // Account endgültig löschen
   const handleDeleteAccount = async () => {
     const confirmed = window.confirm(
       "Achtung: Möchtest du deinen Account und alle zugehörigen Daten unwiderruflich löschen?\n\n" +
@@ -158,10 +205,6 @@ export default function Settings() {
     }
   };
 
-  const clearMessage = () => {
-    setMessage("");
-  };
-
   return (
     <div className="body-div settings-div">
       <SubNavbar />
@@ -174,10 +217,17 @@ export default function Settings() {
         <div className="setting-section">
           <h3>Dein Account</h3>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => setIsProfileModalOpen(true)}
             className="logout setting-button"
           >
-            Bearbeiten
+            Daten bearbeiten
+          </button>
+
+          <button
+            onClick={() => setIsPasswordModalOpen(true)}
+            className="logout setting-button"
+          >
+            Passwort ändern
           </button>
 
           <button onClick={handleLogout} className="logout setting-button">
@@ -223,15 +273,17 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* MODAL FOR DATA UPDATE */}
-      {isModalOpen && (
+      {/* MODAL 1: PROFIL DATEN ÄNDERN */}
+      {isProfileModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h3 className="modal-heading">Daten ändern</h3>
 
-            {message && <p className="modal-message">{message}</p>}
+            {profileMessage && (
+              <p className="modal-message">{profileMessage}</p>
+            )}
 
-            <form onSubmit={handleUpdate}>
+            <form onSubmit={handleProfileUpdate}>
               <div className="form-div">
                 <label>
                   E-Mail
@@ -239,8 +291,9 @@ export default function Settings() {
                     type="email"
                     name="email"
                     value={formData.email}
-                    onChange={handleChange}
+                    onChange={handleProfileChange}
                     placeholder="Deine E-Mail"
+                    required
                   />
                 </label>
 
@@ -249,7 +302,7 @@ export default function Settings() {
                   <select
                     name="price"
                     value={formData.price}
-                    onChange={handleChange}
+                    onChange={handleProfileChange}
                   >
                     <option value="" disabled hidden>
                       Betreuungspaket wählen
@@ -271,7 +324,7 @@ export default function Settings() {
                   <select
                     name="country"
                     value={formData.country}
-                    onChange={handleChange}
+                    onChange={handleProfileChange}
                   >
                     <option value="" disabled hidden>
                       Land wählen
@@ -288,7 +341,7 @@ export default function Settings() {
                     type="text"
                     name="area_code"
                     value={formData.area_code}
-                    onChange={handleChange}
+                    onChange={handleProfileChange}
                     placeholder="Postleitzahl"
                     maxLength={5}
                   />
@@ -300,8 +353,8 @@ export default function Settings() {
                   type="button"
                   className="cancel-btn"
                   onClick={() => {
-                    setIsModalOpen(false);
-                    clearMessage();
+                    setIsProfileModalOpen(false);
+                    setProfileMessage("");
                   }}
                 >
                   Abbrechen
@@ -314,6 +367,65 @@ export default function Settings() {
           </div>
         </div>
       )}
+
+      {/* MODAL 2: PASSWORT ÄNDERN */}
+      {isPasswordModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 className="modal-heading">Passwort ändern</h3>
+
+            {passwordMessage && (
+              <p className="modal-message">{passwordMessage}</p>
+            )}
+
+            <form onSubmit={handlePasswordUpdate}>
+              <div className="form-div">
+                <label>
+                  Aktuelles Passwort
+                  <input
+                    type="password"
+                    name="current_password"
+                    value={passwordData.current_password}
+                    onChange={handlePasswordChange}
+                    placeholder="Aktuelles Passwort"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Neues Passwort
+                  <input
+                    type="password"
+                    name="new_password"
+                    value={passwordData.new_password}
+                    onChange={handlePasswordChange}
+                    placeholder="Neues Passwort"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    setIsPasswordModalOpen(false);
+                    setPasswordMessage("");
+                    setPasswordData({ current_password: "", new_password: "" });
+                  }}
+                >
+                  Abbrechen
+                </button>
+                <button type="submit" className="save-btn" disabled={loading}>
+                  {loading ? "Speichere..." : "Passwort speichern"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );
