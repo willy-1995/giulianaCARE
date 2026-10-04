@@ -213,7 +213,7 @@
                 box-shadow: 0 0 10px var(--accent-color);
 
                 @media (max-width: 700px) {
-                  width: 90%;
+                  width: 100%;
                 }
 
                 p {
@@ -262,6 +262,8 @@
   .contact-list {
     display: flex;
     gap: 20px;
+    width: 90%;
+    margin: 0 auto;
     margin-left: 10px;
 
     @media (max-width: 800px) {
@@ -270,13 +272,12 @@
     }
 
     .contact-card {
-      border: 3px solid var(--accent-color);
+      width: 100%;
       border-radius: 15px;
       padding: 10px;
       box-shadow: 0 0 10px var(--accent-color);
 
       @media (max-width: 800px) {
-        width: 95%;
         margin: 0 auto;
       }
 
@@ -296,6 +297,8 @@
 
 .protocol-area {
   margin-top: 40px;
+  display: flex;
+  flex-direction: column;
 
   h3 {
     margin-bottom: 20px;
@@ -303,7 +306,16 @@
   }
 
   .protocol-list {
-    margin-left: 10px;
+    @media (max-width: 800px) {
+      margin: 0 auto;
+      width: 90%;
+      border-radius: 15px;
+      box-shadow: 0 0 10px var(--accent-color);
+      padding: 10px;
+    }
+
+    .protocol-card {
+    }
   }
 }
 
