@@ -177,7 +177,7 @@
               background-color: white;
               color: gray;
 
-              @media (max-width: 700px) {
+              @media (max-width: 800px) {
                 text-align: unset;
                 padding-left: 10px;
                 border-radius: 15px;
@@ -190,6 +190,7 @@
             h3 {
               padding: 10px;
             }
+
             .calls {
               display: flex;
               align-items: center;
@@ -200,8 +201,7 @@
               margin: 0 auto;
               width: 90%;
 
-              @media (max-width: 700px) {
-                display: flex;
+              @media (max-width: 800px) {
                 flex-direction: column;
               }
 
@@ -211,13 +211,13 @@
                 border-radius: 15px;
                 box-shadow: 0 0 10px var(--accent-color);
 
-                @media (max-width: 700px) {
+                @media (max-width: 800px) {
                   width: 100%;
                 }
 
                 p {
                   margin-bottom: 10px;
-                  @media (max-width: 700px) {
+                  @media (max-width: 800px) {
                     padding-left: 10px;
                   }
                 }
