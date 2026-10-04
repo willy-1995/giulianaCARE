@@ -179,7 +179,7 @@ export default function Settings() {
           >
             Bearbeiten
           </button>
-          <button className="setting-button">Zahlungsdaten</button>
+
           <button onClick={handleLogout} className="logout setting-button">
             Ausloggen
           </button>
