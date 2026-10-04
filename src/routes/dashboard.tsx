@@ -838,6 +838,7 @@ export default function Dashboard() {
                     onChange={handleClientChange}
                   />
                 </label>
+                {/*
                 <label>
                   Sprachniveau in Deutsch
                   <select
@@ -855,6 +856,8 @@ export default function Dashboard() {
                     <option value="no_german">Spricht kein Deutsch</option>
                   </select>
                 </label>
+                */}
+                {/*
                 <label>
                   Bevorzugte Sprache
                   <input
@@ -865,6 +868,8 @@ export default function Dashboard() {
                     onChange={handleClientChange}
                   />
                 </label>
+                */}
+
                 <label>
                   Adresse (Straße, Hausnummer, Postleitzahl, Ort)
                   <input
