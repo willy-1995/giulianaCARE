@@ -16,8 +16,13 @@ import SubNavbar from "./components/navbar_sub";
 import Footer from "./components/footer";
 import "./styles/dashboard.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash, faSliders } from "@fortawesome/free-solid-svg-icons";
+import {
+  faTrash,
+  faSliders,
+  faCaretDown,
+} from "@fortawesome/free-solid-svg-icons";
 import { API_BASE } from "../assets/base_url";
+import { corpName } from "../assets/constants";
 
 interface Client {
   status: string;
@@ -143,6 +148,11 @@ export default function Dashboard() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  //CLOSE WELCOME MODAL
+  const closeWelcomeModal = () => {
+    setWelcomeModal(false);
+  };
 
   //=====================
   //GET LISTS
@@ -521,7 +531,34 @@ export default function Dashboard() {
       {welcomeModal && (
         <div className="modal-overlay">
           <div className="modal welcome-modal">
-            <h2>Herzlich willkommen bei giulianaCARE!</h2>
+            <h2>Herzlich willkommen bei {corpName}!</h2>
+            <p>
+              Du kannst nun den Telefonassistenten für dein(e) Angehörige(n)
+              einrichten und die Notfallkontakte angeben.
+            </p>
+            <details>
+              <summary>
+                Tipps beim Einrichten <FontAwesomeIcon icon={faCaretDown} />
+              </summary>
+              <ul>
+                <li>
+                  <h3>Zusatzinformationen & Abfragen</h3>
+                  Formuliere möglichst präzise, was der Sprachassistent abfragen
+                  soll, welche Abfragen getätigt werden sollen.
+                  <br />
+                  <br />
+                  Achte darauf, dass es verständlich für die zu betreuende
+                  Person bleibt. Verwende für sie/ihn gewohnte Begriffe.
+                </li>
+                <li>
+                  <h3>Angabe von Telefonnummern</h3>
+                  Gib bei allen Telefonnummern den Ländercode an (Beispiel +49
+                  177 ...).
+                </li>
+              </ul>
+            </details>
+
+            <button onClick={() => closeWelcomeModal}>Verstanden</button>
           </div>
         </div>
       )}
