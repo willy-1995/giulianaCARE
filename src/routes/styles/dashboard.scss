@@ -164,6 +164,9 @@
             @media (max-width: 700px) {
               display: flex;
               flex-direction: column;
+              border-radius: 15px;
+              box-shadow: 0 0 10px var(--accent-color);
+              background-color: white;
             }
 
             p {
@@ -178,6 +181,8 @@
               @media (max-width: 700px) {
                 text-align: unset;
                 padding-left: 10px;
+                border-radius: 15px;
+                box-shadow: unset;
               }
             }
           }
@@ -208,7 +213,7 @@
                 box-shadow: 0 0 10px var(--accent-color);
 
                 @media (max-width: 700px) {
-                  width: 100%;
+                  width: 90%;
                 }
 
                 p {
