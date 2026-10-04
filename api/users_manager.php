@@ -64,16 +64,21 @@ try {
             break;
 
         // ==========================================
-        // UPDATE (PROFIL AKTUALISIEREN)
+        // UPDATE (PROFIL / PASSWORT AKTUALISIEREN)
         // ==========================================
         case 'PUT':
             $currentUserId = getUserIdFromToken();
 
-            if ($userManager->updateUser($currentUserId, $input)) {
-                echo json_encode(["success" => true, "message" => "Profil aktualisiert."]);
-            } else {
+            try {
+                if ($userManager->updateUser($currentUserId, $input)) {
+                    echo json_encode(["success" => true, "message" => "Aktualisierung erfolgreich."]);
+                } else {
+                    http_response_code(400);
+                    echo json_encode(["success" => false, "message" => "Update fehlgeschlagen."]);
+                }
+            } catch (Exception $e) {
                 http_response_code(400);
-                echo json_encode(["success" => false, "message" => "Update fehlgeschlagen."]);
+                echo json_encode(["success" => false, "message" => $e->getMessage()]);
             }
             break;
 

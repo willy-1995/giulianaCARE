@@ -90,17 +90,48 @@ class UserManager
     // ==========================================
     // UPDATE: Basis-Daten aktualisieren
     // ==========================================
+    // ==========================================
+    // UPDATE: Basis-Daten & optional Passwort aktualisieren
+    // ==========================================
     public function updateUser($id, $userData)
     {
         try {
             $this->conn->beginTransaction();
 
+            // 1. Wenn ein neues Passwort angegeben wurde, prüfen wir das aktuelle Passwort
+            if (!empty($userData['new_password'])) {
+                if (empty($userData['current_password'])) {
+                    throw new Exception("Bitte gib dein aktuelles Passwort ein.");
+                }
+
+                // Aktuellen Passwort-Hash aus der DB holen
+                $sqlPass = "SELECT password FROM users WHERE id = :id";
+                $stmtPass = $this->conn->prepare($sqlPass);
+                $stmtPass->execute([':id' => $id]);
+                $currentHash = $stmtPass->fetchColumn();
+
+                // Altes Passwort abgleichen
+                if (!$currentHash || !password_verify($userData['current_password'], $currentHash)) {
+                    throw new Exception("Das aktuelle Passwort ist nicht korrekt.");
+                }
+
+                // Neues Passwort hashen und abspeichern
+                $newHashedPassword = password_hash($userData['new_password'], PASSWORD_BCRYPT);
+                $sqlUpdatePass = "UPDATE users SET password = :password WHERE id = :id";
+                $stmtUpdatePass = $this->conn->prepare($sqlUpdatePass);
+                $stmtUpdatePass->execute([
+                    ':password' => $newHashedPassword,
+                    ':id'       => $id
+                ]);
+            }
+
+            // 2. Allgemeine Benutzerdaten aktualisieren
             $sqlUser = "UPDATE users 
-                        SET email = :email, 
-                            price = :price, 
-                            country = :country, 
-                            area_code = :area_code
-                        WHERE id = :id";
+                    SET email = :email, 
+                        price = :price, 
+                        country = :country, 
+                        area_code = :area_code
+                    WHERE id = :id";
 
             $stmtUser = $this->conn->prepare($sqlUser);
             $stmtUser->execute([
@@ -111,19 +142,20 @@ class UserManager
                 ':id'        => $id
             ]);
 
+            // 3. Pflege-Anrufe bereinigen bei Paketänderung
             if (isset($userData['price'])) {
                 $price = $userData['price'];
 
                 if ($price === 'sicherheit') {
                     $sqlClient = "UPDATE clients 
-                                  SET call_2 = NULL, medication_2 = NULL, call_3 = NULL, medication_3 = NULL 
-                                  WHERE user_id = :user_id";
+                              SET call_2 = NULL, medication_2 = NULL, call_3 = NULL, medication_3 = NULL 
+                              WHERE user_id = :user_id";
                     $stmtClient = $this->conn->prepare($sqlClient);
                     $stmtClient->execute([':user_id' => $id]);
                 } elseif ($price === 'gutBetreut') {
                     $sqlClient = "UPDATE clients 
-                                  SET call_3 = NULL, medication_3 = NULL 
-                                  WHERE user_id = :user_id";
+                              SET call_3 = NULL, medication_3 = NULL 
+                              WHERE user_id = :user_id";
                     $stmtClient = $this->conn->prepare($sqlClient);
                     $stmtClient->execute([':user_id' => $id]);
                 }
