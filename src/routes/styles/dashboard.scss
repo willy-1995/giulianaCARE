@@ -309,6 +309,8 @@
     border-radius: 15px;
     box-shadow: 0 0 10px var(--accent-color);
     padding: 10px;
+    height: 400px;
+    overflow-y: scroll;
 
     @media (max-width: 800px) {
       margin: 0 auto;
@@ -320,7 +322,8 @@
 
     .protocol-card {
       // x-offset | y-offset | blur-radius | spread-radius | color
-      box-shadow: 0 8px 6px -6px gray;
+      box-shadow: 0 8px 6px -6px rgb(159, 158, 158);
+      margin-bottom: 20px;
     }
   }
 }
