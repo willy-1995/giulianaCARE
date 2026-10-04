@@ -110,7 +110,7 @@ const formatTime = (totalMinutes: number | undefined) => {
 
 export default function Dashboard() {
   //STATES
-  const [welcomeModal, setWelcomeModal] = useState(false);
+  const [welcomeModal, setWelcomeModal] = useState(true);
   const [clientModal, setClientModal] = useState(false);
   const [contactModal, setContactModal] = useState(false);
   const [message, setMessage] = useState("");
