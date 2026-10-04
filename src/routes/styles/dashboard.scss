@@ -306,6 +306,10 @@
   }
 
   .protocol-list {
+    border-radius: 15px;
+    box-shadow: 0 0 10px var(--accent-color);
+    padding: 10px;
+
     @media (max-width: 800px) {
       margin: 0 auto;
       width: 90%;
