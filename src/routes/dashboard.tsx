@@ -528,10 +528,6 @@ export default function Dashboard() {
 
       {message && <div className="message-div">{message}</div>}
       <div className="dash-section">
-        <div className="dash-header">
-          <h2>Angemeldete Person</h2>
-        </div>
-
         <div className="client-div section-sub-div">
           {loading ? (
             <div className="spinner">Daten werden geladen... </div>
