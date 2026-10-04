@@ -170,9 +170,8 @@
             }
 
             p {
-              padding: 5px;
               text-align: center;
-              padding: 10px 0;
+              padding: 10px 5px;
               border-radius: 15px;
               box-shadow: 0 0 10px var(--accent-color);
               background-color: white;
@@ -273,6 +272,7 @@
       border-radius: 15px;
       padding: 10px;
       box-shadow: 0 0 10px var(--accent-color);
+      width: 90%;
 
       @media (max-width: 800px) {
         margin: 0 auto;
