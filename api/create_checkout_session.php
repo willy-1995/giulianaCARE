@@ -46,18 +46,6 @@ if (empty($selectedPackage) || empty($priceMap[$selectedPackage])) {
 $priceId = $priceMap[$selectedPackage];
 
 try {
-    // -------------------------------------------------------------
-    // Berechnungen für 14 Tage Trial + Abrechnung zum 1. des Monats
-    // -------------------------------------------------------------
-    $trialDays = 14;
-
-    // Zeitpunkt, an dem die 14 Tage Testphase enden
-    $trialEndTimestamp = strtotime("+{$trialDays} days");
-
-    // Der 1. des Monats, der auf das Ende der Testphase folgt
-    // (Bsp: Registrierung am 10. Okt -> Trial endet 24. Okt -> Anker ist 1. Nov)
-    $firstOfNextMonthAfterTrial = strtotime('first day of next month 00:00:00', $trialEndTimestamp);
-
     $session = \Stripe\Checkout\Session::create([
         'line_items' => [[
             'price'    => $priceId,
@@ -67,11 +55,9 @@ try {
         'success_url' => $clientUrl . '/dashboard?welcome=true',
         'cancel_url'  => $clientUrl . '/registration?canceled=true',
 
-        // Abo-Einstellungen für Trial & anteilige Abrechnung
+        // Nur 14 Tage Testphase – Abrechnung erfolgt flexibel am 15. Tag
         'subscription_data' => [
-            'trial_period_days' => $trialDays,
-            'billing_cycle_anchor' => $firstOfNextMonthAfterTrial,
-            'proration_behavior' => 'create_prorations', // Berechnet den Restmonat anteilig
+            'trial_period_days' => 14,
         ],
 
         // User-ID für spätere Webhook-Zuordnung mitgeben

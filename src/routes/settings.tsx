@@ -254,7 +254,7 @@ export default function Settings() {
               className="logout setting-button"
               disabled={loading}
             >
-              {loading ? "Wird verarbeitet..." : "Abonnement kündigen"}
+              {loading ? "Wird verarbeitet..." : "Abo kündigen"}
             </button>
           )}
 
