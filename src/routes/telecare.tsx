@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import {
@@ -17,6 +18,7 @@ import {
   faRobot,
   faCircleQuestion,
   faHandshakeAngle,
+  faHeart,
 } from "@fortawesome/free-solid-svg-icons";
 import Navbar from "./components/navbar";
 import Footer from "./components/footer";
@@ -63,8 +65,10 @@ function TeleCare() {
     "Keine Extra-Geräte. Keine Installation. Die betreute Person muss nur den Hörer abnehmen!",
     "Zuschuss von 27 Euro durch die Pflegekasse ab Pflegestufe 1",
     "Sorgen Sie präventiv für die Eigenständigkeit ihres Senioren",
-    "Hoher Datenschutzvorkehrungen und Serverstandort in Deutschland",
+    "Hohe Datenschutzvorkehrungen und Serverstandort in Deutschland",
   ];
+
+  const navigate = useNavigate();
 
   // TIMER SLIDESHOW PHRASES
   useEffect(() => {
@@ -160,6 +164,10 @@ function TeleCare() {
     setModal(false);
   };
 
+  const toRegist = () => {
+    navigate("/registration");
+  };
+
   return (
     <div className="body-div telecare-content">
       <Navbar />
@@ -229,7 +237,7 @@ function TeleCare() {
             </p>
 
             <div className="intro-button-div">
-              <button>
+              <button onClick={toRegist}>
                 14 Tage kostenlos testen <FontAwesomeIcon icon={faThumbsUp} />
               </button>
               <button onClick={openModal}>
@@ -270,18 +278,10 @@ function TeleCare() {
       {/** STATISTICS DIV */}
       <div className="quick_statistic_div" ref={statsRef}>
         <h2>
-          <span className="stat-number">{displayCount}</span> betreute
-          Seniorinnen und Senioren
-          <FontAwesomeIcon icon={faUsers} className="stat-icon" />
-        </h2>
-        <h2>
-          <span className="stat-number">{displayMinutes}</span> Minuten
-          Betreuungsanrufe
-          <FontAwesomeIcon icon={faPhoneVolume} className="stat-icon" />
-        </h2>
-        <h2>
-          <span className="stat-number">{}</span> Vorfälle erkannt
-          <FontAwesomeIcon icon={faTriangleExclamation} className="stat-icon" />
+          Bereits <span className="stat-number">{displayCount}</span>{" "}
+          Seniorinnen und Senioren und deren Angehörige vertrauen auf die
+          Telefonbetreuung von giulianaCARE
+          <FontAwesomeIcon icon={faHeart} />
         </h2>
       </div>
       {/*____________________________ */}

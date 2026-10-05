@@ -292,11 +292,11 @@
 Quick Stats Div
 ====================================================================*/
 .quick_statistic_div {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 10px;
-  padding-bottom: 0;
+
   border-radius: 15px;
   box-shadow: 0 0 10px var(--accent-color);
   width: 90%;
@@ -317,8 +317,7 @@ Quick Stats Div
 
   h2 {
     text-align: center;
-    margin-bottom: 20px;
-
+    font-size: 2rem;
     .stat-number {
       color: var(--accent-color);
       text-shadow: 0 0 5px var(--accent-color);
