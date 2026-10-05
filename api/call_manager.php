@@ -7,6 +7,10 @@ ob_start();
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/my_php_errors.log');
 
+// 1. CONFIG IMMER DIREKT GELADEN (VOR ALLEM ANDEREN)
+require_once __DIR__ . "/config.php";
+require_once __DIR__ . "/database.php";
+
 // --- 1. WEBHOOK-JSON SOFORT AUSLESEN ---
 $rawInput = file_get_contents('php://input');
 $input = json_decode($rawInput, true) ?? [];
@@ -15,8 +19,8 @@ $input = json_decode($rawInput, true) ?? [];
 $messageType = $input['message']['type'] ?? '';
 
 if ($messageType === 'tool-calls' || isset($input['message']['toolCalls']) || isset($input['toolCalls'])) {
-    require_once "config.php";
-    require_once "database.php";
+    //require_once "config.php";
+    //require_once "database.php";
 
     $dbInstance = new Database();
     $db = $dbInstance->getConnection();
@@ -26,8 +30,8 @@ if ($messageType === 'tool-calls' || isset($input['message']['toolCalls']) || is
 }
 
 if ($messageType === 'end-of-call-report') {
-    require_once "config.php";
-    require_once "database.php";
+    //require_once "config.php";
+    //require_once "database.php";
 
     $dbInstance = new Database();
     $db = $dbInstance->getConnection();
@@ -38,49 +42,48 @@ if ($messageType === 'end-of-call-report') {
 }
 
 // --- 3. STANDARD FORMULAR- & API-ANFRAGEN BEARBEITEN ---
-require_once "cors.php";
-require_once "config.php";
-require_once "envloader.php";
-require_once "database.php";
-require_once "rate_limiter.php";
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    require_once __DIR__ . "/cors.php";
+    require_once __DIR__ . "/envloader.php";
+    require_once __DIR__ . "/rate_limiter.php";
 
-$action = $_POST['action'] ?? null;
-$clientId = $_POST['clientId'] ?? $_POST['client_id'] ?? null;
-$callType = $_POST['call_type'] ?? 'call_1';
-$directPhoneNumber = $_POST['phone_number'] ?? null;
+    $action = $_POST['action'] ?? null;
+    $clientId = $_POST['clientId'] ?? $_POST['client_id'] ?? null;
+    $callType = $_POST['call_type'] ?? 'call_1';
+    $directPhoneNumber = $_POST['phone_number'] ?? null;
 
-// DB-Verbindung herstellen
-$dbInstance = new Database();
-$db = $dbInstance->getConnection();
+    $dbInstance = new Database();
+    $db = $dbInstance->getConnection();
 
-switch ($action) {
-    case 'start':
-        if ($clientId) {
-            initializeCallStatus($db, $clientId, $callType);
-            executeCall($db, $clientId, 'tel1', 1, $callType);
-            echo json_encode(["success" => true, "message" => "Anruf ($callType) für Client $clientId gestartet."]);
+    switch ($action) {
+        case 'start':
+            if ($clientId) {
+                initializeCallStatus($db, $clientId, $callType);
+                executeCall($db, $clientId, 'tel1', 1, $callType);
+                echo json_encode(["success" => true, "message" => "Anruf ($callType) für Client $clientId gestartet."]);
+                exit;
+            } else {
+                echo json_encode(["success" => false, "message" => "Keine Client ID übergeben."]);
+                exit;
+            }
+            break;
+
+        case 'test_call':
+            checkRateLimit('landingpage_test_call', 2, 3600);
+            if ($directPhoneNumber) {
+                executeDirectTestCall($directPhoneNumber);
+                echo json_encode(["success" => true, "message" => "Testanruf gestartet."]);
+                exit;
+            } else {
+                echo json_encode(["success" => false, "message" => "Keine Telefonnummer übergeben."]);
+                exit;
+            }
+            break;
+
+        default:
+            echo json_encode(["success" => false, "message" => "Aktion nicht erkannt."]);
             exit;
-        } else {
-            echo json_encode(["success" => false, "message" => "Keine Client ID übergeben."]);
-            exit;
-        }
-        break;
-
-    case 'test_call':
-        checkRateLimit('landingpage_test_call', 2, 3600);
-        if ($directPhoneNumber) {
-            executeDirectTestCall($directPhoneNumber);
-            echo json_encode(["success" => true, "message" => "Testanruf gestartet."]);
-            exit;
-        } else {
-            echo json_encode(["success" => false, "message" => "Keine Telefonnummer übergeben."]);
-            exit;
-        }
-        break;
-
-    default:
-        echo json_encode(["success" => false, "message" => "Aktion nicht erkannt."]);
-        exit;
+    }
 }
 
 // --- FUNKTIONEN ---
