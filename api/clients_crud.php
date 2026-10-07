@@ -41,7 +41,7 @@ class ClientsManager
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
                 ':user_id'      => $clientData['user_id'], // ID des Users, der den Client erstellt
-                ':status'   => $clientData['status'] ?? 'active',
+                ':status'   => 'active',
                 ':title'     => $clientData['title'] ?? null,
                 ':lastname'     => $clientData['lastname'] ?? null,
                 ':firstname'    => $clientData['firstname'] ?? null,
