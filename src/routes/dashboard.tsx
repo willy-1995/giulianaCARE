@@ -1180,6 +1180,7 @@ export default function Dashboard() {
                     placeholder="beispiel@muster.de..."
                     value={formDataContacts.email}
                     onChange={handleContactChange}
+                    required
                   />
                 </label>
               </div>
