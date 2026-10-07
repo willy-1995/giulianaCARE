@@ -22,11 +22,18 @@
 
     input {
       background-color: white;
-      margin-bottom: 10px;
+      margin-bottom: 20px;
+      width: 90%;
     }
 
     button {
-      margin-bottom: 10px;
+      margin-bottom: 20px;
     }
   }
+}
+
+.reset-link {
+  color: white;
+  margin-bottom: 10px;
+  cursor: pointer;
 }

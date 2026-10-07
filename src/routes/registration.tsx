@@ -141,17 +141,6 @@ function Registration() {
           </select>
 
           <input
-            type="text"
-            name="area_code"
-            placeholder="Postleitzahl"
-            value={formData.area_code}
-            onChange={handleChange}
-            maxLength={5}
-            minLength={5}
-            required
-          />
-
-          <input
             type="email"
             name="email"
             placeholder="E-Mail"
@@ -180,6 +169,7 @@ function Registration() {
               checked={formData.agb_accepted}
               onChange={handleChange}
               required
+              className="regist-check"
             />
             Ich akzeptiere die{" "}
             <a href="/termsAndConditions" target="_blank">

@@ -18,7 +18,11 @@ function Login() {
   const [isloading, setIsLoading] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const navigate = useNavigate();
+  // States für "Passwort vergessen"
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
 
+  //FUNCTIONS
   const loginHandler = async (e: any) => {
     e.preventDefault();
     console.log("Klick"); //LOG
@@ -77,6 +81,37 @@ function Login() {
     }
   };
 
+  //Password Reset Handler
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/auth/forgot_password.php?action=request`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: forgotEmail }),
+        },
+      );
+      const data = await res.json();
+      setMessage(data.message);
+    } catch (err) {
+      setMessage(
+        "Fehler beim Beim Password-Reset. Bitte versuche es später erneut.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  //CLOSE PASSWORD RESET MODAL
+  const closePasswordReset = () => {
+    setShowForgot(false);
+    setMessage("");
+  };
+
   return (
     <div className="body-div login-div">
       <Navbar />
@@ -104,6 +139,9 @@ function Login() {
                 : "Prüfe..."
               : "Einloggen"}
           </button>
+          <p className="reset-link" onClick={() => setShowForgot(true)}>
+            Password zurücksetzen
+          </p>
           <Link to={"/telecare"} id="to-landing">
             <span className="link-normal">Zurück</span>
           </Link>
@@ -112,6 +150,26 @@ function Login() {
       </div>
 
       <Footer />
+      {showForgot && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <form className="pw-reset-form" onSubmit={handleForgotSubmit}>
+              <h2>Passwort zurücksetzen</h2>
+              <input
+                type="email"
+                placeholder="Bitte E-Mail-Adresse eingeben"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                required
+              />
+              <button type="submit" disabled={isloading}>
+                {isloading ? "Sende..." : "Link anfordern"}
+              </button>
+              <button onClick={closePasswordReset}>Abbrechen</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
