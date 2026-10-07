@@ -14,6 +14,7 @@ import Feedback from "./routes/feedback";
 import { Datasecurity } from "./routes/datasecurity";
 import { Imprint } from "./routes/imprint";
 import { Salespartnership } from "./routes/salespartnership";
+import ResetPassword from "./routes/resetPassword";
 import "./routes/styles/main.scss";
 import { useEffect } from "react";
 
@@ -40,6 +41,7 @@ function App() {
           <Route path="/telecare" element={<TeleCare />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/resetPassword" element={<ResetPassword />} />
           <Route path="/request" element={<Request />} />
           <Route path="/termsAndConditions" element={<TermsAndConditions />} />
           <Route path="/imprint" element={<Imprint />} />
