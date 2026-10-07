@@ -134,6 +134,19 @@ export default function Dashboard() {
     sicherheit: "Sicherheit",
     rundumSorglos: "Rundum sorglos",
   };
+  // Country Codes
+  const COUNTRY_CODES = [
+    { code: "+49", label: "🇩🇪 Deutschland (+49)" },
+    { code: "+43", label: "🇦🇹 Österreich (+43)" },
+    { code: "+41", label: "🇨🇭 Schweiz (+41)" },
+  ];
+  // States für die Vorwahl-Selects in den Modals
+  const [countryTel1, setCountryTel1] = useState("");
+  const [countryTel2, setCountryTel2] = useState("");
+  const [countryContactTel, setCountryContactTel] = useState("");
+
+  //_____________________________________________________________________________________________________
+  //_____________________________________________________________________________________________________
 
   //=====================
   // CHECK FOR WELCOME MODAL
@@ -525,6 +538,45 @@ export default function Dashboard() {
     }
   };
 
+  //Handle County Codes (for client/contact-Form)
+  // Handler für Klient Tel 1
+  const handleCountryChangeTel1 = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCode = e.target.value;
+    setCountryTel1(newCode);
+    const currentDigits = (formDataClients.tel1 || "").replace(/^\+\d+\s*/, "");
+    setFormDataClients((prev) => ({
+      ...prev,
+      tel1: `${newCode} ${currentDigits}`,
+    }));
+  };
+
+  // Handler für Klient Tel 2
+  const handleCountryChangeTel2 = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCode = e.target.value;
+    setCountryTel2(newCode);
+    const currentDigits = (formDataClients.tel2 || "").replace(/^\+\d+\s*/, "");
+    setFormDataClients((prev) => ({
+      ...prev,
+      tel2: `${newCode} ${currentDigits}`,
+    }));
+  };
+
+  // Handler für Kontakt Tel
+  const handleCountryChangeContactTel = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const newCode = e.target.value;
+    setCountryContactTel(newCode);
+    const currentDigits = (formDataContacts.tel1 || "").replace(
+      /^\+\d+\s*/,
+      "",
+    );
+    setFormDataContacts((prev) => ({
+      ...prev,
+      tel1: `${newCode} ${currentDigits}`,
+    }));
+  };
+
   return (
     <div className="body-div dashboard-div">
       <SubNavbar />
@@ -843,25 +895,63 @@ export default function Dashboard() {
                     required
                   />
                 </label>
+                {/* TELEFONNUMMER 1 */}
+                <label>
+                  Vorwahl Telefon 1
+                  <select
+                    value={countryTel1}
+                    onChange={handleCountryChangeTel1}
+                    required
+                  >
+                    <option value="" disabled hidden>
+                      Vorwahl wählen...
+                    </option>
+                    {COUNTRY_CODES.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label>
                   Telefonnummer 1
                   <input
                     type="tel"
                     name="tel1"
-                    placeholder="Bspw. 0228 12345678"
+                    placeholder="Bspw. +49 170 1234567"
                     value={formDataClients.tel1}
                     onChange={handleClientChange}
+                    disabled={!countryTel1 && !formDataClients.tel1}
                     required
                   />
                 </label>
+                {/* TELEFONNUMMER 2 */}
+                <label>
+                  Vorwahl Telefon 2
+                  <select
+                    value={countryTel2}
+                    onChange={handleCountryChangeTel2}
+                  >
+                    <option value="" disabled hidden>
+                      Vorwahl wählen...
+                    </option>
+                    {COUNTRY_CODES.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
                 <label>
                   Telefonnummer 2
                   <input
                     type="tel"
                     name="tel2"
-                    placeholder="Bspw. 0228 12345678"
+                    placeholder="Bspw. +49 170 1234567"
                     value={formDataClients.tel2}
                     onChange={handleClientChange}
+                    disabled={!countryTel2 && !formDataClients.tel2}
                   />
                 </label>
                 <label>
@@ -1056,13 +1146,30 @@ export default function Dashboard() {
                   />
                 </label>
                 <label>
+                  Vorwahl Telefon
+                  <select
+                    value={countryContactTel}
+                    onChange={handleCountryChangeContactTel}
+                  >
+                    <option value="" disabled hidden>
+                      Vorwahl wählen...
+                    </option>
+                    {COUNTRY_CODES.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
                   Telefon
                   <input
                     type="tel"
                     name="tel1"
-                    placeholder="Bspw. 0228 12345678"
+                    placeholder="Bspw. +49 170 1234567"
                     value={formDataContacts.tel1}
                     onChange={handleContactChange}
+                    disabled={!countryContactTel && !formDataContacts.tel1}
                   />
                 </label>
                 <label>
