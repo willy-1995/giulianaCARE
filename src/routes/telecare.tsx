@@ -27,6 +27,7 @@ import "./styles/main.scss";
 import "./styles/telecare.scss";
 import { loadClients } from "../assets/loader";
 import { loadVapiStats } from "../assets/loader";
+import { price1, price2, price3, corpName } from "../assets/constants";
 
 function TeleCare() {
   const [isOpen, setIsOpen] = useState(false);
@@ -402,33 +403,33 @@ function TeleCare() {
             <h2>Sicherheit</h2>
             <div className="price"></div>
             <div className="intervall">
-              <p>19€</p>
+              <p>{price1}</p>
               <span>
                 1 Anruf <br /> pro Tag
               </span>
-              <button>Jetzt testen</button>
+              <button onClick={toRegist}>Jetzt testen</button>
             </div>
           </div>
           <div className="price-card card">
             <h2>Gut betreut</h2>
             <div className="price"></div>
             <div className="intervall price-highlight">
-              <p>26€</p>
+              <p>{price2}</p>
               <span>
                 2 Anrufe <br /> pro Tag
               </span>
-              <button>Jetzt testen</button>
+              <button onClick={toRegist}>Jetzt testen</button>
             </div>
           </div>
           <div className="price-card card">
             <h2>Rundum sorglos</h2>
             <div className="price"></div>
             <div className="intervall">
-              <p>32€</p>
+              <p>{price3}</p>
               <span>
                 3 Anrufe <br /> pro Tag
               </span>
-              <button>Jetzt testen</button>
+              <button onClick={toRegist}>Jetzt testen</button>
             </div>
           </div>
         </div>
