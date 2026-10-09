@@ -187,7 +187,7 @@ function Registration() {
           </button>
         </form>
 
-        {message && <div className="message-div">{message}</div>}
+        {deleteMessage && <div className="deleteMessage">{deleteMessage}</div>}
       </div>
 
       <Footer />
