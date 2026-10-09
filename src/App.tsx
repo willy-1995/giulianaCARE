@@ -17,6 +17,8 @@ import { Salespartnership } from "./routes/salespartnership";
 import ResetPassword from "./routes/resetPassword";
 import "./routes/styles/main.scss";
 import { useEffect } from "react";
+//Test
+import { ClientSearch } from "./routes/TEST_SEARCH_CLIENT";
 
 function App() {
   // Hier definieren wir die Zustände für Token und ID
@@ -48,6 +50,8 @@ function App() {
           <Route path="/datasecurity" element={<Datasecurity />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/salespartnership" element={<Salespartnership />} />
+          {/*TEST */}
+          <Route path="/TEST_SEARCH_CLIENT" element={<ClientSearch />} />
           {/*protected sites */}
           <Route
             path="/dashboard"

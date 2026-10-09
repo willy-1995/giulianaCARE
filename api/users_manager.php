@@ -17,7 +17,7 @@ try {
         // CREATE (REGISTRIERUNG)
         // ==========================================
         case 'POST':
-            if (empty($input['email']) || empty($input['password']) || empty($input['area_code']) || empty($input['country']) || empty($input['price']) || !isset($input['agb_accepted'])) {
+            if (empty($input['email']) || empty($input['password']) || empty($input['country']) || empty($input['price']) || !isset($input['agb_accepted'])) {
                 http_response_code(400);
                 echo json_encode(["success" => false, "message" => "Bitte alle Felder ausfüllen."]);
                 exit;
