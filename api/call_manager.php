@@ -442,7 +442,7 @@ function notifyEmergencyContacts(PDO $db, int $clientId, ?string $customReason =
 
 */
 
-function notifyEmergencyContacts(PDO $db, int $clientId, string $customReason = null): void
+function notifyEmergencyContacts(PDO $db, int $clientId, ?string $customReason = null): void
 {
     if ($clientId <= 0) {
         error_log("NOTIFY DEBUG: Abgebrochen – Ungültige Client ID ($clientId)");
