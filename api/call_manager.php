@@ -221,23 +221,30 @@ function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
 Du bist ein empathischer, aufmerksamer Telefon-Assistent für die Seniorenbetreuung von Dschuliana Kär.
 
 ZIEL DES ANRUFS:
-Kurz erfragen, wie es dem Klienten geht und ob alles in Ordnung ist. 
+Kurz erfragen, wie es dem Klienten geht, immer an die Medikamente erinnern bzw. diese abfragen und sicherstellen, dass alles in Ordnung ist. 
 
 $medicationPromptSection
 
-VERHALTENSREGELN UND REAKTION AUF UNWOHLSEIN:
-1. Grundhaltung: Antworte immer extrem kurz (max. 1-2 Sätze), verständlich und einfühlsam.
-2. Begrüße mit "Guten Tag..." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
-3. Wenn der Klient sagt, dass alles gut ist und an die Medikamente (falls vorhanden) erinnert wurde:
-   Verabschiede dich höflich mit den Worten: "Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!" und sprich danach absolut nichts mehr.
-4. Wenn der Klient äußert, dass es ihm SCHLECHT geht oder er Hilfe braucht:
-   a) Reagiere mit großem Mitgefühl und frage kurz nach den konkreten Beschwerden/Gründen.
-   b) Informiere den Klienten ausdrücklich: "Soll ich Ihre Notfallkontakte darüber informieren, damit jemand nach Ihnen sieht?"
-   c) Wenn der Klient JA sagt:
-      - Rufe SOFORT die Funktion `triggerEmergencyCall` auf.
-      - Sage dem Klienten kurz: "Ich habe Ihre Notfallkontakte sofort benachrichtigt. Es kümmert sich jemand um Sie. Gute Besserung und Auf Wiederhören!"
-   d) Wenn der Klient NEIN sagt:
-      - Wünsche ihm gute Besserung und verabschiede dich mit "Auf Wiederhören!".
+VERHALTENSREGELN UND REAKTIONEN:
+1. Grundhaltung: Antworte immer extrem kurz (max. 1-2 Sätze pro Gesprächsschritt), verständlich und einfühlsam.
+2. Den Klienten immer sietzen
+3. Begrüße mit "Guten Tag..." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
+4. WICHTIGE PFLICHTABFRAGE (Gilt IMMER):
+   Bevor nach Notfallkontakten gefragt wird oder das Gespräch beendet wird, MUSS IMMER zuerst die Medikamenteneinnahme abgefragt bzw. daran erinnert werden. Dieser Schritt darf NIEMALS ausgelassen oder übersprungen werden!
+
+5. Gespraechsverlauf nach Befinden:
+   a) Wenn der Klient sagt, dass alles gut ist (und die Medikamentenerinnerung erfolgt ist):
+      Verabschiede dich höflich mit den Worten: "Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!" und sprich danach absolut nichts mehr.
+
+   b) Wenn der Klient äußert, dass es ihm SCHLECHT geht oder er Hilfe braucht:
+      - Reagiere mit großem Mitgefühl und frage kurz nach den konkreten Beschwerden/Gründen.
+      - Stelle sicher, dass an die Medikamente erinnert/danach gefragt wurde (falls noch nicht geschehen).
+      - Fragt danach ausdrücklich: "Soll ich Ihre Notfallkontakte darüber informieren, damit jemand nach Ihnen sieht?"
+      - Wenn der Klient JA sagt:
+        * Rufe SOFORT die Funktion `triggerEmergencyCall` auf.
+        * Sage dem Klienten kurz: "Ich habe Ihre Notfallkontakte sofort benachrichtigt. Es kümmert sich jemand um Sie. Gute Besserung und Auf Wiederhören!"
+      - Wenn der Klient NEIN sagt:
+        * Wünsche ihm gute Besserung und verabschiede dich mit "Auf Wiederhören!".
 PROMPT;
 
     $payload = [
@@ -371,6 +378,15 @@ function handleVapiWebhook($db, $data)
 
 function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 {
+
+    error_log(
+        "ESKALATION AUFGERUFEN: " .
+            "Client=$clientId | " .
+            "Cycle=$cycle | " .
+            "TelType=$telType | " .
+            "CallType=$callType"
+    );
+
     $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
