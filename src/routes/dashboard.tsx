@@ -11,7 +11,7 @@ import { deleteClient } from "../assets/deleter";
 import { deleteContact } from "../assets/deleter";
 import { loadUser } from "../assets/loader";
 import { loadProtocol } from "../assets/loader";
-import { checkCallTimes } from "../assets/call_api";
+//import { checkCallTimes } from "../assets/call_api";
 import SubNavbar from "./components/navbar_sub";
 import Footer from "./components/footer";
 import "./styles/dashboard.scss";
@@ -233,8 +233,9 @@ export default function Dashboard() {
   }, []);
 
   //==================
-  // CALL API
+  // CALL API OLD (ONLY FRONTEND - TRIGGERS ONLY WHEN DASH OPEN)
   //==================
+  /*
   useEffect(() => {
     const timer = setInterval(() => {
       checkCallTimes();
@@ -243,6 +244,7 @@ export default function Dashboard() {
     //Cleanup for reload or leaving site
     return () => clearInterval(timer);
   }, []);
+  */
 
   //==================
   //HANDLE MODALS
