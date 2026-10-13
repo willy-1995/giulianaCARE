@@ -10,11 +10,12 @@ require_once __DIR__ . "/call_manager.php";
 $dbInstance = new Database();
 $db = $dbInstance->getConnection();
 
-$currentTime = date('H:i'); // Aktuelle Stunde und Minute (z.B. "08:30")
+$currentTime = date('H:i'); // Aktuelle Stunde und Minute (z.B. "00:10")
 $currentDate = date('Y-m-d'); // Heutiges Datum
+$currentTimestamp = time();
 
 // ==========================================
-// 1. REGULÄRE TÄGLICHE ANRUFE PRÜFEN
+// 1. REGULÄRE TÄGLICHE ANRUFE PRÜFEN (ROBUST)
 // ==========================================
 try {
     $stmt = $db->prepare("SELECT id, status, call_1, call_2, call_3 FROM clients WHERE status = 'active'");
@@ -34,11 +35,17 @@ try {
 
         foreach ($callTypes as $callType => $callTime) {
             if (!empty($callTime)) {
-                $shortCallTime = substr($callTime, 0, 5);
+                $shortCallTime = substr($callTime, 0, 5); // z.B. "00:10"
 
-                error_log("CRON CHECK: Client $clientId | Typ $callType | Soll: '$shortCallTime' vs Ist: '$currentTime'");
+                // Zeit-Toleranz-Berechnung (Vergleich via Timestamp)
+                $callTimestamp = strtotime("$currentDate $shortCallTime:00");
+                $timeDiff = $currentTimestamp - $callTimestamp;
 
-                if ($shortCallTime === $currentTime) {
+                // Bedingung: Die Soll-Zeit ist erreicht ($timeDiff >= 0) 
+                // UND es ist maximal 5 Minuten her ($timeDiff <= 300), damit alte nicht nachgeholt werden
+                if ($timeDiff >= 0 && $timeDiff <= 300) {
+                    error_log("CRON CHECK: Client $clientId | Typ $callType | Soll: '$shortCallTime' | Diff: {$timeDiff}s");
+
                     $checkStmt = $db->prepare("SELECT id FROM call_history_log WHERE client_id = ? AND call_type = ? AND call_date = ?");
                     $checkStmt->execute([$clientId, $callType, $currentDate]);
 
@@ -60,11 +67,11 @@ try {
 } catch (Exception $e) {
     error_log("CRON ERROR (Main Calls): " . $e->getMessage());
 }
+
 // ==========================================
 // 2. FÄLLIGE RETRYS PRÜFEN UND AUSFÜHREN
 // ==========================================
 try {
-    // Wichtig: Wir holen nur Retrys, deren Zeit erreicht ist
     $stmt = $db->prepare("
         SELECT client_id, attempt_cycle, last_tel_used, call_type 
         FROM call_status 
@@ -82,8 +89,6 @@ try {
 
         error_log("CRONJOB: Starte WIEDERHOLUNGSANRUF (Versuch $cycle) für Client ID $clientId ($callType)...");
 
-        // WICHTIG: Sofort den Status auf 'calling' setzen UND scheduled_time weit in die Zukunft, 
-        // damit dieser Datensatz bei einem gleichzeitigen zweiten Cron-Durchlauf nicht doppelt greift!
         $updateStmt = $db->prepare("
             UPDATE call_status 
             SET status = 'calling', scheduled_time = DATE_ADD(NOW(), INTERVAL 1 HOUR) 
@@ -91,7 +96,6 @@ try {
         ");
         $updateStmt->execute([$clientId]);
 
-        // Anruf ausführen
         executeCall($db, $clientId, $lastTel, $cycle, $callType);
     }
 } catch (Exception $e) {
