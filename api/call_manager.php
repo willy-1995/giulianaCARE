@@ -238,7 +238,7 @@ PROMPT;
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
             // ERGÄNZT: Zwingend erforderlich für Tool-Calls!
-            //'serverUrl' => 'https://giuliana-care.de/api/call_manager.php',
+            'serverUrl' => 'https://giuliana-care.de/api/call_manager.php',
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
             'endCallPhrases' => [
                 "Auf Wiederhören!",
