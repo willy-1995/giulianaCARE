@@ -332,18 +332,29 @@ function logClientIncident(PDO $db, int $clientId, string $reason): void
 
 function handleVapiWebhook($db, $data)
 {
-    $endedReason = $data['message']['endedReason'] ?? '';
-    $metadata = $data['message']['call']['metadata'] ?? $data['message']['metadata'] ?? [];
+    $message = $data['message'] ?? [];
+    $endedReason = $message['endedReason'] ?? $message['call']['endedReason'] ?? '';
 
-    $clientId = $metadata['clientId'] ?? null;
-    $cycle    = (int)($metadata['cycle'] ?? 1);
+    // ROBUST: Metadaten über alle möglichen Pfade hinweg suchen
+    $metadata = $message['call']['metadata'] ?? $message['metadata'] ?? $data['metadata'] ?? [];
+
+    $clientId = isset($metadata['clientId']) ? (int)$metadata['clientId'] : null;
+    $cycle    = isset($metadata['cycle']) ? (int)$metadata['cycle'] : 1;
     $telType  = $metadata['telType'] ?? 'tel1';
     $callType = $metadata['callType'] ?? 'call_1';
 
-    if (!$clientId) return;
+    // Falls ClientId immer noch fehlt, versuche sie über variableValues zu finden
+    if (!$clientId && isset($message['call']['assistantOverrides']['variableValues']['clientId'])) {
+        $clientId = (int)$message['call']['assistantOverrides']['variableValues']['clientId'];
+    }
+
+    if (!$clientId) {
+        error_log("VAPI WEBHOOK ERROR: Konnte Client ID aus den Metadaten nicht auslesen! Payload: " . json_encode($data));
+        return;
+    }
 
     if ($endedReason === 'customer-ended-call' || $endedReason === 'assistant-ended-call') {
-        $summary = $data['message']['analysis']['summary'] ?? '';
+        $summary = $message['analysis']['summary'] ?? '';
 
         $stmt = $db->prepare("SELECT status FROM call_status WHERE client_id = ?");
         $stmt->execute([$clientId]);
@@ -353,7 +364,7 @@ function handleVapiWebhook($db, $data)
             updateCallStatus($db, $clientId, 'completed', $summary);
         }
     } else {
-        error_log("VAPI INFO: Anruf nicht erfolgreich (Reason: $endedReason). Starte Eskalation/Retry...");
+        error_log("VAPI INFO: Anruf nicht erfolgreich (Reason: $endedReason). Starte Eskalation für Client ID $clientId (Tel: $telType, Cycle: $cycle)...");
         escalateCall($db, $clientId, $cycle, $telType, $callType);
     }
 }
