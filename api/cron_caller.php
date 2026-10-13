@@ -17,9 +17,11 @@ $currentDate = date('Y-m-d'); // Heutiges Datum
 // 1. REGULÄRE TÄGLICHE ANRUFE PRÜFEN
 // ==========================================
 try {
-    $stmt = $db->prepare("SELECT id, call_1, call_2, call_3 FROM clients WHERE status = 'active'");
+    $stmt = $db->prepare("SELECT id, status, call_1, call_2, call_3 FROM clients WHERE status = 'active'");
     $stmt->execute();
     $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    error_log("CRON DEBUG: Aktive Klienten gefunden: " . count($clients));
 
     foreach ($clients as $client) {
         $clientId = $client['id'];
@@ -34,21 +36,22 @@ try {
             if (!empty($callTime)) {
                 $shortCallTime = substr($callTime, 0, 5);
 
-                if ($shortCallTime === $currentTime) {
+                error_log("CRON CHECK: Client $clientId | Typ $callType | Soll: '$shortCallTime' vs Ist: '$currentTime'");
 
-                    // Prüfen, ob heute schon geloggt
+                if ($shortCallTime === $currentTime) {
                     $checkStmt = $db->prepare("SELECT id FROM call_history_log WHERE client_id = ? AND call_type = ? AND call_date = ?");
                     $checkStmt->execute([$clientId, $callType, $currentDate]);
 
                     if (!$checkStmt->fetch()) {
-                        error_log("CRON: Starte automatischen $callType für Client $clientId um $currentTime");
+                        error_log("CRON START: Führe Anruf aus und schreibe Log...");
 
-                        // Loggen, um Mehrfachstart in derselben Minute zu verhindern
                         $logStmt = $db->prepare("INSERT INTO call_history_log (client_id, call_type, call_date) VALUES (?, ?, ?)");
                         $logStmt->execute([$clientId, $callType, $currentDate]);
 
                         initializeCallStatus($db, $clientId, $callType);
                         executeCall($db, $clientId, 'tel1', 1, $callType);
+                    } else {
+                        error_log("CRON BLOCK: Heute für Client $clientId ($callType) bereits geloggt.");
                     }
                 }
             }
@@ -57,7 +60,6 @@ try {
 } catch (Exception $e) {
     error_log("CRON ERROR (Main Calls): " . $e->getMessage());
 }
-
 // ==========================================
 // 2. FÄLLIGE RETRYS PRÜFEN UND AUSFÜHREN
 // ==========================================
