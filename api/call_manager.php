@@ -13,6 +13,10 @@ require_once __DIR__ . "/database.php";
 
 // --- 1. WEBHOOK-JSON SOFORT AUSLESEN ---
 $rawInput = file_get_contents('php://input');
+// <--- HIER DEN DEBUG-CODE EINFÜGEN --->
+if (!empty($rawInput)) {
+    file_put_contents(__DIR__ . '/vapi_webhook_debug.log', date('Y-m-d H:i:s') . " - " . $rawInput . "\n\n", FILE_APPEND);
+}
 $input = json_decode($rawInput, true) ?? [];
 
 // --- 2. VAPI WEBHOOKS DIREKT ABFANGEN (Bevor POST-Variablen geprüft werden) ---
