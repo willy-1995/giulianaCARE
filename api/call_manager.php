@@ -33,7 +33,10 @@ if ($messageType === 'tool-calls' || isset($input['message']['toolCalls']) || is
     exit;
 }
 
-if ($messageType === 'end-of-call-report') {
+// ERWEITERT: Fängt sowohl den end-of-call-report als auch den status-update (wenn der Anruf beendet wurde) ab
+$callStatus = $input['message']['status'] ?? '';
+
+if ($messageType === 'end-of-call-report' || ($messageType === 'status-update' && $callStatus === 'ended')) {
     //require_once "config.php";
     //require_once "database.php";
 
