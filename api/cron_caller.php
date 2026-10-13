@@ -96,4 +96,7 @@ try {
     error_log("CRON ERROR (Retry-Handler): " . $e->getMessage());
 }
 
-echo "Cron-Check erfolgreich ausgeführt um " . date('Y-m-d H:i:s');
+echo json_encode([
+    "success" => true,
+    "message" => "Cron-Check erfolgreich ausgeführt um " . date('Y-m-d H:i:s')
+]);
