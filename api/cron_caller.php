@@ -71,9 +71,12 @@ try {
 // ==========================================
 // 2. FÄLLIGE RETRYS PRÜFEN UND AUSFÜHREN
 // ==========================================
+// ==========================================
+// 2. FÄLLIGE RETRYS PRÜFEN UND AUSFÜHREN
+// ==========================================
 try {
     $stmt = $db->prepare("
-        SELECT client_id, attempt_cycle, last_tel_used, call_type 
+        SELECT client_id, attempt_cycle, call_type 
         FROM call_status 
         WHERE status = 'retry_scheduled' 
           AND scheduled_time <= NOW()
@@ -83,26 +86,22 @@ try {
 
     foreach ($dueRetries as $retry) {
         $clientId = $retry['client_id'];
-        $cycle    = (int)$retry['attempt_cycle'];
-        $lastTel  = !empty($retry['last_tel_used']) ? $retry['last_tel_used'] : 'tel1';
+        $cycle    = (int)$retry['attempt_cycle']; // Sollte hier 2 sein
         $callType = $retry['call_type'] ?? 'call_1';
 
-        error_log("CRONJOB: Starte WIEDERHOLUNGSANRUF (Versuch $cycle) für Client ID $clientId ($callType)...");
+        error_log("CRONJOB: Starte WIEDERHOLUNGSANRUF (Zyklus $cycle) für Client ID $clientId ($callType)... Startet wieder mit tel1.");
 
+        // Status auf calling setzen
         $updateStmt = $db->prepare("
             UPDATE call_status 
-            SET status = 'calling', scheduled_time = DATE_ADD(NOW(), INTERVAL 1 HOUR) 
+            SET status = 'calling', last_tel_used = 'tel1' 
             WHERE client_id = ?
         ");
         $updateStmt->execute([$clientId]);
 
-        executeCall($db, $clientId, $lastTel, $cycle, $callType);
+        // WICHTIG: Jedes neue Zyklus-Start beginnt IMMER mit 'tel1'!
+        executeCall($db, $clientId, 'tel1', $cycle, $callType);
     }
 } catch (Exception $e) {
     error_log("CRON ERROR (Retry-Handler): " . $e->getMessage());
 }
-
-echo json_encode([
-    "success" => true,
-    "message" => "Cron-Check erfolgreich ausgeführt um " . date('Y-m-d H:i:s')
-]);
