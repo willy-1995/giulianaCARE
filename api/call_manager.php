@@ -250,11 +250,6 @@ PROMPT;
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
-        'serverMessages' => [
-            'end-of-call-report',
-            'status-update',
-            'tool-calls'
-        ],
         'assistantOverrides' => [
             // ERGÄNZT: Zwingend erforderlich für Tool-Calls!
 
