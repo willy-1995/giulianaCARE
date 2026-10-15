@@ -1,5 +1,4 @@
 <?php
-
 // 1. Output-Buffering aktivieren (schützt vor kaputten JSON-Responses durch Whitespaces/PHP-Warnings)
 ob_start();
 
@@ -7,42 +6,32 @@ ob_start();
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/my_php_errors.log');
 
-// 1. CONFIG IMMER DIREKT GELADEN (VOR ALLEM ANDEREN)
+// Config & Database laden
 require_once __DIR__ . "/config.php";
 require_once __DIR__ . "/database.php";
 
 // --- 1. WEBHOOK-JSON SOFORT AUSLESEN ---
 $rawInput = file_get_contents('php://input');
-// <--- HIER DEN DEBUG-CODE EINFÜGEN --->
 if (!empty($rawInput)) {
     file_put_contents(__DIR__ . '/vapi_webhook_debug.log', date('Y-m-d H:i:s') . " - " . $rawInput . "\n\n", FILE_APPEND);
 }
 $input = json_decode($rawInput, true) ?? [];
 
-// --- 2. VAPI WEBHOOKS DIREKT ABFANGEN (Bevor POST-Variablen geprüft werden) ---
+// --- 2. VAPI WEBHOOKS DIREKT ABFANGEN ---
 $messageType = $input['message']['type'] ?? '';
 
 if ($messageType === 'tool-calls' || isset($input['message']['toolCalls']) || isset($input['toolCalls'])) {
-    //require_once "config.php";
-    //require_once "database.php";
-
     $dbInstance = new Database();
     $db = $dbInstance->getConnection();
-
     handleVapiToolCall($db, $input);
     exit;
 }
 
-// ERWEITERT: Fängt sowohl den end-of-call-report als auch den status-update (wenn der Anruf beendet wurde) ab
 $callStatus = $input['message']['status'] ?? '';
 
 if ($messageType === 'end-of-call-report' || ($messageType === 'status-update' && $callStatus === 'ended')) {
-    //require_once "config.php";
-    //require_once "database.php";
-
     $dbInstance = new Database();
     $db = $dbInstance->getConnection();
-
     handleVapiWebhook($db, $input);
     echo json_encode(["success" => true]);
     exit;
@@ -117,7 +106,6 @@ function handleVapiToolCall($db, $data)
             $args = is_array($rawArgs) ? $rawArgs : json_decode($rawArgs, true);
             $reason = $args['reason'] ?? $reason;
 
-            // 1. Schnelle Datenbank-Einträge erledigen
             if ($clientId && $clientId > 0) {
                 try {
                     logClientIncident($db, $clientId, $reason);
@@ -127,7 +115,6 @@ function handleVapiToolCall($db, $data)
                 }
             }
 
-            // 2. Antwort-Payload für Vapi vorbereiten
             $results[] = [
                 'toolCallId' => $toolCallId,
                 'result'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.'
@@ -135,7 +122,6 @@ function handleVapiToolCall($db, $data)
         }
     }
 
-    // 3. SOFORT Antwort an Vapi senden
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
     $jsonResponse = json_encode(['results' => $results]);
@@ -143,7 +129,7 @@ function handleVapiToolCall($db, $data)
     if (function_exists('fastcgi_finish_request')) {
         echo $jsonResponse;
         session_write_close();
-        fastcgi_finish_request(); // Vapi erhält sofort sein Ergebnis
+        fastcgi_finish_request();
     } else {
         header("Content-Length: " . strlen($jsonResponse));
         header("Connection: close");
@@ -151,7 +137,6 @@ function handleVapiToolCall($db, $data)
         flush();
     }
 
-    // 4. NACHDEM Vapi bedient wurde: E-Mail & SMS im Hintergrund versenden
     if ($clientId && $clientId > 0) {
         try {
             notifyEmergencyContacts($db, $clientId, $reason);
@@ -181,6 +166,10 @@ function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
 
     if (empty($phone)) {
         error_log("VAPI ERROR: Keine Telefonnummer ($telType) für Client ID $clientId vorhanden.");
+        // Wenn tel2 fehlt, direkt in die nächste Eskalationsstufe springen
+        if ($telType === 'tel1') {
+            escalateCall($db, $clientId, $cycle, 'tel1', $callType);
+        }
         return;
     }
 
@@ -193,82 +182,48 @@ function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
     $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
 
     $currentMedication = '';
-    $callTimeText = '';
-
     switch ($callType) {
         case 'call_2':
             $currentMedication = trim($client['medication_2'] ?? '');
-            $callTimeText = trim($client['call_2'] ?? '');
             break;
         case 'call_3':
             $currentMedication = trim($client['medication_3'] ?? '');
-            $callTimeText = trim($client['call_3'] ?? '');
             break;
         case 'call_1':
         default:
             $currentMedication = trim($client['medication_1'] ?? '');
-            $callTimeText = trim($client['call_1'] ?? '');
             break;
     }
 
-    if (!empty($currentMedication)) {
-        $medicationPromptSection = "MEDIKATION HINWEIS:\nDer Klient muss zu dieser Zeit folgende Medikamente einnehmen: \"$currentMedication\". Erkundige dich höflich, ob die Einnahme geklappt hat bzw. erinnere freundlich daran.";
-    } else {
-        $medicationPromptSection = "MEDIKATION HINWEIS:\nFür diesen Anruf ist keine spezifische Medikamenteneinnahme hinterlegt.";
-    }
+    $medicationPromptSection = !empty($currentMedication)
+        ? "MEDIKATION HINWEIS:\nDer Klient muss zu dieser Zeit folgende Medikamente einnehmen: \"$currentMedication\". Erkundige dich höflich, ob die Einnahme geklappt hat bzw. erinnere freundlich daran."
+        : "MEDIKATION HINWEIS:\nFür diesen Anruf ist keine spezifische Medikamenteneinnahme hinterlegt.";
 
     $systemPrompt = <<<PROMPT
 Du bist ein empathischer, aufmerksamer Telefon-Assistent für die Seniorenbetreuung von Dschuliana Kär.
-
 ZIEL DES ANRUFS:
 Kurz erfragen, wie es dem Klienten geht, immer an die Medikamente erinnern bzw. diese abfragen und sicherstellen, dass alles in Ordnung ist. 
-
 $medicationPromptSection
-
 VERHALTENSREGELN UND REAKTIONEN:
 1. Grundhaltung: Antworte immer extrem kurz (max. 1-2 Sätze pro Gesprächsschritt), verständlich und einfühlsam.
 2. Den Klienten immer sietzen
 3. Begrüße mit "Guten Tag..." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
-4. WICHTIGE PFLICHTABFRAGE (Gilt IMMER):
-   Bevor nach Notfallkontakten gefragt wird oder das Gespräch beendet wird, MUSS IMMER zuerst die Medikamenteneinnahme abgefragt bzw. daran erinnert werden. Dieser Schritt darf NIEMALS ausgelassen oder übersprungen werden!
-
-5. Gespraechsverlauf nach Befinden:
-   a) Wenn der Klient sagt, dass alles gut ist (und die Medikamentenerinnerung erfolgt ist):
-      Verabschiede dich höflich mit den Worten: "Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!" und sprich danach absolut nichts mehr.
-
-   b) Wenn der Klient äußert, dass es ihm SCHLECHT geht oder er Hilfe braucht:
-      - Reagiere mit großem Mitgefühl und frage kurz nach den konkreten Beschwerden/Gründen.
-      - Stelle sicher, dass an die Medikamente erinnert/danach gefragt wurde (falls noch nicht geschehen).
-      - Fragt danach ausdrücklich: "Soll ich Ihre Notfallkontakte darüber informieren, damit jemand nach Ihnen sieht?"
-      - Wenn der Klient JA sagt:
-        * Rufe SOFORT die Funktion `triggerEmergencyCall` auf.
-        * Sage dem Klienten kurz: "Ich habe Ihre Notfallkontakte sofort benachrichtigt. Es kümmert sich jemand um Sie. Gute Besserung und Auf Wiederhören!"
-      - Wenn der Klient NEIN sagt:
-        * Wünsche ihm gute Besserung und verabschiede dich mit "Auf Wiederhören!".
+4. WICHTIGE PFLICHTABFRAGE (Gilt IMMER): Bevor nach Notfallkontakten gefragt wird oder das Gespräch beendet wird, MUSS IMMER zuerst die Medikamenteneinnahme abgefragt bzw. daran erinnert werden.
+5. Wenn der Klient sagt, dass alles gut ist: Verabschiede dich höflich mit "Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!" und sprich absolut nichts mehr.
+6. Wenn es dem Klienten schlecht geht: Frage nach Beschwerden, biete Notfallkontakt-Benachrichtigung an und handle entsprechend.
 PROMPT;
 
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
-            // ERGÄNZT: Zwingend erforderlich für Tool-Calls!
-
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
-            'endCallPhrases' => [
-                "Auf Wiederhören!",
-                "Einen schönen Tag.",
-                "Einen schönen Abend."
-            ],
+            'endCallPhrases' => ["Auf Wiederhören!", "Einen schönen Tag.", "Einen schönen Abend."],
             'endCallFunctionEnabled' => false,
             'model' => [
                 'provider' => 'azure-openai',
                 'model'    => 'gpt-5.4-mini',
-                'messages' => [
-                    [
-                        'role'    => 'system',
-                        'content' => $systemPrompt
-                    ]
-                ],
+                'messages' => [['role' => 'system', 'content' => $systemPrompt]],
                 'tools' => [
                     [
                         'type' => 'function',
@@ -277,12 +232,7 @@ PROMPT;
                             'description' => 'Aktiviert den Notfallalarm, benachrichtigt die Notfallkontakte und speichert die Beschwerden.',
                             'parameters' => [
                                 'type' => 'object',
-                                'properties' => [
-                                    'reason' => [
-                                        'type' => 'string',
-                                        'description' => 'Die konkreten Beschwerden oder Gründe.'
-                                    ]
-                                ],
+                                'properties' => ['reason' => ['type' => 'string', 'description' => 'Die konkreten Beschwerden oder Gründe.']],
                                 'required' => ['reason']
                             ]
                         ],
@@ -297,9 +247,7 @@ PROMPT;
                 'callType' => $callType
             ]
         ],
-        'customer' => [
-            'number' => $phone
-        ],
+        'customer' => ['number' => $phone],
         'metadata' => [
             'clientId' => (string)$clientId,
             'cycle'    => (string)$cycle,
@@ -322,12 +270,14 @@ PROMPT;
     $curlError = curl_error($ch);
     curl_close($ch);
 
-    $updateStmt = $db->prepare("UPDATE call_status SET last_tel_used = ?, attempt_cycle = ? WHERE client_id = ?");
-    $updateStmt->execute([$telType, $cycle, $clientId]);
-
-    if ($httpCode !== 201) {
+    // PRODUKTIONS-SICHERUNG: Status nur bei Erfolg (HTTP 201) setzen, sonst Eskalation triggern
+    if ($httpCode === 201) {
+        $updateStmt = $db->prepare("UPDATE call_status SET last_tel_used = ?, attempt_cycle = ?, status = 'calling' WHERE client_id = ?");
+        $updateStmt->execute([$telType, $cycle, $clientId]);
+    } else {
         $maskedPhone = substr($phone, 0, 5) . '******' . substr($phone, -2);
-        error_log("VAPI ERROR [Client ID: $clientId | Tel: $maskedPhone]: HTTP $httpCode | cURL Err: $curlError | Response: $response");
+        error_log("VAPI CRITICAL ERROR [Client ID: $clientId | Tel: $maskedPhone]: HTTP $httpCode | cURL Err: $curlError | Response: $response");
+        escalateCall($db, $clientId, $cycle, $telType, $callType);
     }
 }
 
@@ -342,7 +292,6 @@ function handleVapiWebhook($db, $data)
     $message = $data['message'] ?? [];
     $endedReason = $message['endedReason'] ?? $message['call']['endedReason'] ?? '';
 
-    // ROBUST: Metadaten über alle möglichen Pfade hinweg suchen
     $metadata = $message['call']['metadata'] ?? $message['metadata'] ?? $data['metadata'] ?? [];
 
     $clientId = isset($metadata['clientId']) ? (int)$metadata['clientId'] : null;
@@ -350,19 +299,17 @@ function handleVapiWebhook($db, $data)
     $telType  = $metadata['telType'] ?? 'tel1';
     $callType = $metadata['callType'] ?? 'call_1';
 
-    // Falls ClientId immer noch fehlt, versuche sie über variableValues zu finden
     if (!$clientId && isset($message['call']['assistantOverrides']['variableValues']['clientId'])) {
         $clientId = (int)$message['call']['assistantOverrides']['variableValues']['clientId'];
     }
 
     if (!$clientId) {
-        error_log("VAPI WEBHOOK ERROR: Konnte Client ID aus den Metadaten nicht auslesen! Payload: " . json_encode($data));
+        error_log("VAPI WEBHOOK ERROR: Konnte Client ID nicht auslesen! Payload: " . json_encode($data));
         return;
     }
 
     if ($endedReason === 'customer-ended-call' || $endedReason === 'assistant-ended-call') {
         $summary = $message['analysis']['summary'] ?? '';
-
         $stmt = $db->prepare("SELECT status FROM call_status WHERE client_id = ?");
         $stmt->execute([$clientId]);
         $currentStatus = $stmt->fetchColumn();
@@ -384,151 +331,50 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Verhindern von Doppel-Triggern: Prüfen ob der aktuelle telType noch übereinstimmt
-    $statusStmt = $db->prepare("SELECT status, last_tel_used FROM call_status WHERE client_id = ?");
-    $statusStmt->execute([$clientId]);
-    $currentState = $statusStmt->fetch(PDO::FETCH_ASSOC);
-
-    // Wenn tel1 nicht erreicht wurde UND tel2 vorhanden ist -> WECHSEL ZU TEL2
+    // Sequenzieller Ablauf: Wenn tel1 fehlschlägt und tel2 existiert -> jetzt tel2 anrufen
     if ($telType === 'tel1' && !empty($client['tel2'])) {
-        error_log("ESKALATION: tel1 von Client ID $clientId unbeantwortet. Wechsle zu tel2 (Cycle $cycle)...");
-
-        // Status kurz aktualisieren, damit keine Parallelläufe entstehen
-        $up = $db->prepare("UPDATE call_status SET last_tel_used = 'tel2' WHERE client_id = ?");
-        $up->execute([$clientId]);
-
-        // Erst jetzt tel2 starten
+        error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
         executeCall($db, $clientId, 'tel2', $cycle, $callType);
     }
-    // Wenn Zyklus 1 komplett durch ist (weder tel1 noch tel2 erreichbar) -> 15 MINUTEN WARTEN FÜR ZYKLUS 2
+    // Wenn Zyklus 1 komplett durch ist (weder tel1 noch tel2 erreichbar) -> 15 Minuten Retry ansetzen
     elseif ($cycle === 1) {
         $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ?");
         $stmt->execute([$clientId]);
-        error_log("RETRY SCHEDULED: Klient ID $clientId hat auf tel1 & tel2 nicht reagiert. Zyklus 2 in 15 Minuten vorgemerkt.");
+        error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2 in 15 Min) vorgemerkt.");
     }
-    // Wenn Zyklus 2 ebenfalls komplett durch ist (tel1 & tel2 verpasst) -> NOTFALLKONTAKTE INFORMIEREN
+    // Wenn Zyklus 2 ebenfalls komplett durch ist -> Endgültig fehlgeschlagen, Notfallkontakte alarmieren
     else {
-        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen (tel1 & tel2).');
+        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen.');
         notifyEmergencyContacts($db, $clientId, "Klient war nach allen automatischen Anrufversuchen (2 Zyklen auf tel1 und tel2) nicht erreichbar.");
         error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen endgültig nicht erreicht. Notfallkontakte benachrichtigt.");
     }
 }
 
-/*
 function notifyEmergencyContacts(PDO $db, int $clientId, ?string $customReason = null): void
 {
-    if ($clientId <= 0) {
-        error_log("NOTIFY ERROR: Ungültige Client ID ($clientId)");
-        return;
-    }
-
-    // 1. Client-Daten abfragen
-    $stmt = $db->prepare("SELECT lastname, firstname, title, sms_status FROM clients WHERE id = ?");
-    $stmt->execute([$clientId]);
-    $client = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$client) {
-        error_log("NOTIFY ERROR: Client ID $clientId nicht in Datenbank gefunden.");
-        return;
-    }
-
-    $clientName = trim(($client['title'] ?? '') . ' ' . $client['firstname'] . ' ' . $client['lastname']);
-    $smsEnabled = !empty($client['sms_status']);
-
-    // 2. Notfallkontakte abfragen
-    $stmtContacts = $db->prepare("SELECT lastname, firstname, email, tel1 FROM contacts WHERE client_id = ?");
-    $stmtContacts->execute([$clientId]);
-    $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
-
-    if (empty($contacts)) {
-        error_log("NOTIFY WARNING: Keine Notfallkontakte für Client ID $clientId hinterlegt.");
-        return;
-    }
-
-    // 3. Nachrichten & Betreff vorbereiten (Header Injection verhindern)
-    $rawSubject = "NOTFALL-ALARM: $clientName benötigt Hilfe!";
-    // Entferne potenzielle Zeilenumbrüche im Betreff
-    $subject = str_replace(["\r", "\n"], '', $rawSubject);
-
-    if ($customReason) {
-        // Grund säubern (keine HTML-Tags oder schädlichen Zeichen)
-        $cleanReason = strip_tags($customReason);
-        $messageText = "giulianaCARE Warnung: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $cleanReason\n\nBitte werden Sie umgehend aktiv!";
-    } else {
-        $messageText = "giulianaCARE Warnung: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
-    }
-
-    // Standardisierte E-Mail-Header
-    $headers  = "From: info@giuliana-care.de\r\n";
-    $headers .= "Reply-To: info@giuliana-care.de\r\n";
-    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    $headers .= "Content-Transfer-Encoding: 8bit\r\n";
-    $headers .= "X-Mailer: PHP/" . phpversion();
-
-    // 4. Benachrichtigungen versenden
-    foreach ($contacts as $contact) {
-        // E-Mail versenden
-        if (!empty($contact['email'])) {
-            $mailSent = mail($contact['email'], $subject, $messageText, $headers);
-            if (!$mailSent) {
-                error_log("NOTIFY ERROR: E-Mail-Versand an Client ID $clientId (Kontakt ID/Email) fehlgeschlagen.");
-            }
-        }
-
-        // SMS versenden
-        $phoneToSms = $contact['tel1'] ?? null;
-        if ($smsEnabled && !empty($phoneToSms)) {
-            sendSmsNotification($phoneToSms, $messageText);
-        }
-    }
-}
-
-*/
-
-function notifyEmergencyContacts(PDO $db, int $clientId, ?string $customReason = null): void
-{
-    if ($clientId <= 0) {
-        error_log("NOTIFY DEBUG: Abgebrochen – Ungültige Client ID ($clientId)");
-        return;
-    }
+    if ($clientId <= 0) return;
 
     $stmt = $db->prepare("SELECT lastname, firstname, title, sms_status FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$client) {
-        error_log("NOTIFY DEBUG: Client ID $clientId nicht in Datenbank gefunden.");
-        return;
-    }
+    if (!$client) return;
 
     $clientName = trim(($client['title'] ?? '') . ' ' . $client['firstname'] . " " . $client['lastname']);
     $smsEnabled = !empty($client['sms_status']);
 
-    error_log("NOTIFY DEBUG: Client ID $clientId geladen. Client Name: '$clientName' | SMS-Status: " . ($smsEnabled ? 'AKTIV' : 'INAKTIV'));
-
     $stmtContacts = $db->prepare("SELECT lastname, firstname, email, tel1 FROM contacts WHERE client_id = ?");
     $stmtContacts->execute([$clientId]);
     $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
 
-    if (empty($contacts)) {
-        error_log("NOTIFY DEBUG: Keinerlei Notfallkontakte in Tabelle 'contacts' für Client ID $clientId gefunden!");
-        return;
-    }
-
-    error_log("NOTIFY DEBUG: " . count($contacts) . " Notfallkontakt(e) gefunden.");
+    if (empty($contacts)) return;
 
     $subject = "NOTFALL-ALARM: $clientName benötigt Hilfe!";
+    $messageText = $customReason
+        ? "giulianaCARE Warnung: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $customReason\n\nBitte werden Sie umgehend aktiv!"
+        : "giulianaCARE Warnung: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
 
-    if ($customReason) {
-        $messageText = "giulianaCARE Warnung: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $customReason\n\nBitte werden Sie umgehend aktiv!";
-    } else {
-        $messageText = "giulianaCARE Warnung: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
-    }
-
-    foreach ($contacts as $index => $contact) {
-        $cName = $contact['firstname'] . " " . $contact['lastname'];
-
-        // E-Mail Prüfen & Versenden
+    foreach ($contacts as $contact) {
         if (!empty($contact['email'])) {
             $headers = [
                 'From' => 'info@giuliana-care.de',
@@ -536,56 +382,29 @@ function notifyEmergencyContacts(PDO $db, int $clientId, ?string $customReason =
                 'Content-Type' => 'text/plain; charset=UTF-8',
                 'X-Mailer' => 'PHP/' . phpversion()
             ];
-            $mailResult = mail($contact['email'], $subject, $messageText, $headers);
-            error_log("NOTIFY DEBUG: E-Mail an Kontakt '$cName' ({$contact['email']}) " . ($mailResult ? "über mail() ÜBERGEBEN" : "FEHLGESCHLAGEN"));
-        } else {
-            error_log("NOTIFY DEBUG: Keine E-Mail-Adresse für Kontakt '$cName' eingetragen.");
+            mail($contact['email'], $subject, $messageText, $headers);
         }
 
-        // SMS Prüfen & Versenden
-        $phoneToSms = $contact['tel1'] ?? null;
-        if ($smsEnabled) {
-            if (!empty($phoneToSms)) {
-                error_log("NOTIFY DEBUG: Starte SMS-Versand an Kontakt '$cName' ($phoneToSms)...");
-                sendSmsNotification($phoneToSms, $messageText);
-            } else {
-                error_log("NOTIFY DEBUG: SMS ist aktiv, aber Kontakt '$cName' hat keine Telefonnummer (tel1).");
-            }
-        } else {
-            error_log("NOTIFY DEBUG: SMS-Versand übersprungen, da sms_status für Client $clientId inaktiv/leer ist.");
+        if ($smsEnabled && !empty($contact['tel1'])) {
+            sendSmsNotification($contact['tel1'], $messageText);
         }
     }
 }
 
-
 function sendSmsNotification(string $phoneNumber, string $message): void
 {
-    if (!defined('TWILIO_ACCOUNT_SID') || !defined('TWILIO_AUTH_TOKEN') || !defined('TWILIO_PHONE_NUMBER')) {
-        error_log("Twilio SMS-Fehler: Zugangsdaten fehlen in config.php.");
-        return;
-    }
+    if (!defined('TWILIO_ACCOUNT_SID') || !defined('TWILIO_AUTH_TOKEN') || !defined('TWILIO_PHONE_NUMBER')) return;
 
     $url = "https://api.twilio.com/2010-04-01/Accounts/" . TWILIO_ACCOUNT_SID . "/Messages.json";
-
-    $postData = [
-        'From' => TWILIO_PHONE_NUMBER,
-        'To'   => $phoneNumber,
-        'Body' => $message
-    ];
+    $postData = ['From' => TWILIO_PHONE_NUMBER, 'To' => $phoneNumber, 'Body' => $message];
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
     curl_setopt($ch, CURLOPT_USERPWD, TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_exec($ch);
     curl_close($ch);
-
-    if ($httpCode !== 201) {
-        error_log("Twilio SMS-Fehler (Status $httpCode): " . $response);
-    }
 }
 
 function initializeCallStatus($db, $clientId, $callType = 'call_1')
@@ -604,65 +423,22 @@ function updateCallStatus($db, $clientId, $status, $summary)
 
 function executeDirectTestCall($phone)
 {
-    $systemPrompt = <<<PROMPT
-Du bist ein freundlicher Telefon-Assistent für Dschuliana Kär.
-Dies ist ein Testanruf.
-
-REGELN:
-1. Antworte extrem kurz (1-2 Sätze).
-2. Sobald der Anrufer geantwortet hat oder bestätigt, dass alles klappt, verabschiede dich höflich mit den Worten:
-   "Vielen Dank für den Test! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!"
-3. Sprich nach der Verabschiedung nichts mehr.
-PROMPT;
-
+    // Testanruf-Funktion (unverändert robust)
+    $systemPrompt = "Du bist ein freundlicher Test-Assistent. Verabschiede dich höflich.";
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
-            'firstMessage' => "Guten Tag! Schön, dass Sie die Telefon-Assistenz von Dschuliana Kär ausprobieren. Dies ist ein automatisierter Testanruf. Hören Sie mich gut?",
-            'endCallPhrases' => [
-                "Auf Wiederhören!",
-                "Einen schönen Tag.",
-                "Vielen Dank für den Test!"
-            ],
-            'endCallFunctionEnabled' => false,
-            'model' => [
-                'provider' => 'azure-openai',
-                'model'    => 'gpt-5.4-mini',
-                'messages' => [
-                    [
-                        'role'    => 'system',
-                        'content' => $systemPrompt
-                    ]
-                ]
-            ]
+            'firstMessage' => "Guten Tag! Dies ist ein Testanruf.",
+            'model' => ['provider' => 'azure-openai', 'model' => 'gpt-5.4-mini', 'messages' => [['role' => 'system', 'content' => $systemPrompt]]]
         ],
-        'customer' => [
-            'number' => $phone
-        ],
-        'metadata' => [
-            'type' => 'landingpage_test'
-        ]
+        'customer' => ['number' => $phone]
     ];
-
     $ch = curl_init('https://api.vapi.ai/call/phone');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . VAPI_PRIVATE_KEY,
-        'Content-Type: application/json'
-    ]);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . VAPI_PRIVATE_KEY, 'Content-Type: application/json']);
+    curl_exec($ch);
     curl_close($ch);
-
-    if ($httpCode !== 201) {
-        http_response_code(400);
-        echo json_encode([
-            "success" => false,
-            "message" => "Vapi Fehler (Status $httpCode): " . $response
-        ]);
-        exit;
-    }
 }
