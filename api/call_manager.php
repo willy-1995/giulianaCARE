@@ -378,30 +378,39 @@ function handleVapiWebhook($db, $data)
 
 function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 {
-
-    error_log(
-        "ESKALATION AUFGERUFEN: " .
-            "Client=$clientId | " .
-            "Cycle=$cycle | " .
-            "TelType=$telType | " .
-            "CallType=$callType"
-    );
+    error_log("ESKALATION AUFGERUFEN: Client=$clientId | Cycle=$cycle | TelType=$telType | CallType=$callType");
 
     $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Verhindern von Doppel-Triggern: Prüfen ob der aktuelle telType noch übereinstimmt
+    $statusStmt = $db->prepare("SELECT status, last_tel_used FROM call_status WHERE client_id = ?");
+    $statusStmt->execute([$clientId]);
+    $currentState = $statusStmt->fetch(PDO::FETCH_ASSOC);
+
+    // Wenn tel1 nicht erreicht wurde UND tel2 vorhanden ist -> WECHSEL ZU TEL2
     if ($telType === 'tel1' && !empty($client['tel2'])) {
-        error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
+        error_log("ESKALATION: tel1 von Client ID $clientId unbeantwortet. Wechsle zu tel2 (Cycle $cycle)...");
+
+        // Status kurz aktualisieren, damit keine Parallelläufe entstehen
+        $up = $db->prepare("UPDATE call_status SET last_tel_used = 'tel2' WHERE client_id = ?");
+        $up->execute([$clientId]);
+
+        // Erst jetzt tel2 starten
         executeCall($db, $clientId, 'tel2', $cycle, $callType);
-    } elseif ($cycle === 1) {
+    }
+    // Wenn Zyklus 1 komplett durch ist (weder tel1 noch tel2 erreichbar) -> 15 MINUTEN WARTEN FÜR ZYKLUS 2
+    elseif ($cycle === 1) {
         $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ?");
         $stmt->execute([$clientId]);
-        error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2) vorgemerkt.");
-    } else {
-        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen.');
-        notifyEmergencyContacts($db, $clientId, "Klient war nach mehreren Versuchen telefonisch nicht erreichbar.");
-        error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen nicht erreicht. Notfallkontakte benachrichtigt.");
+        error_log("RETRY SCHEDULED: Klient ID $clientId hat auf tel1 & tel2 nicht reagiert. Zyklus 2 in 15 Minuten vorgemerkt.");
+    }
+    // Wenn Zyklus 2 ebenfalls komplett durch ist (tel1 & tel2 verpasst) -> NOTFALLKONTAKTE INFORMIEREN
+    else {
+        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen (tel1 & tel2).');
+        notifyEmergencyContacts($db, $clientId, "Klient war nach allen automatischen Anrufversuchen (2 Zyklen auf tel1 und tel2) nicht erreichbar.");
+        error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen endgültig nicht erreicht. Notfallkontakte benachrichtigt.");
     }
 }
 

@@ -71,17 +71,19 @@ try {
 // ==========================================
 // 2. FÄLLIGE RETRYS PRÜFEN UND AUSFÜHREN
 // ==========================================
-// ==========================================
-// 2. FÄLLIGE RETRYS PRÜFEN UND AUSFÜHREN
-// ==========================================
 try {
+    // Zeitzone für PHP explizit auf Berlin setzen, um Differenzen zu vermeiden
+    date_default_timezone_set('Europe/Berlin');
+    $nowFormatted = date('Y-m-d H:i:s');
+
+    // Wir prüfen gegen den formatierten PHP-Zeitstempel, um MySQL-Zeitzonenprobleme zu umgehen
     $stmt = $db->prepare("
         SELECT client_id, attempt_cycle, call_type 
         FROM call_status 
         WHERE status = 'retry_scheduled' 
-          AND scheduled_time <= NOW()
+          AND scheduled_time <= ?
     ");
-    $stmt->execute();
+    $stmt->execute([$nowFormatted]);
     $dueRetries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($dueRetries as $retry) {
@@ -89,9 +91,9 @@ try {
         $cycle    = (int)$retry['attempt_cycle']; // Sollte hier 2 sein
         $callType = $retry['call_type'] ?? 'call_1';
 
-        error_log("CRONJOB: Starte WIEDERHOLUNGSANRUF (Zyklus $cycle) für Client ID $clientId ($callType)... Startet wieder mit tel1.");
+        error_log("CRONJOB: Starte WIEDERHOLUNGSANRUF (Zyklus $cycle) für Client ID $clientId ($callType)... Beginnt wieder mit tel1.");
 
-        // Status auf calling setzen
+        // Status auf calling setzen und last_tel_used strikt auf tel1 zurücksetzen
         $updateStmt = $db->prepare("
             UPDATE call_status 
             SET status = 'calling', last_tel_used = 'tel1' 
@@ -99,7 +101,7 @@ try {
         ");
         $updateStmt->execute([$clientId]);
 
-        // WICHTIG: Jedes neue Zyklus-Start beginnt IMMER mit 'tel1'!
+        // Zyklus 2 startet streng sequenziell wieder mit tel1
         executeCall($db, $clientId, 'tel1', $cycle, $callType);
     }
 } catch (Exception $e) {
