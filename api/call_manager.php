@@ -216,10 +216,12 @@ PROMPT;
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
+        'voicemailId' => null,
         'assistantOverrides' => [
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
             'endCallPhrases' => ["Auf Wiederhören!", "Einen schönen Tag.", "Einen schönen Abend."],
             'endCallFunctionEnabled' => false,
+            'voicemailMessage' => '',
             'model' => [
                 'provider' => 'azure-openai',
                 'model'    => 'gpt-5.4-mini',
@@ -291,6 +293,7 @@ function handleVapiWebhook($db, $data)
 {
     $message = $data['message'] ?? [];
     $endedReason = $message['endedReason'] ?? $message['call']['endedReason'] ?? '';
+    $summary = $message['analysis']['summary'] ?? '';
 
     $metadata = $message['call']['metadata'] ?? $message['metadata'] ?? $data['metadata'] ?? [];
 
@@ -308,8 +311,11 @@ function handleVapiWebhook($db, $data)
         return;
     }
 
-    if ($endedReason === 'customer-ended-call' || $endedReason === 'assistant-ended-call') {
-        $summary = $message['analysis']['summary'] ?? '';
+    // Prüfen, ob es eine Mailbox war (anhand von Summary oder Voicemail-Erkennung)
+    $isVoicemail = stripos($summary, 'voicemail') !== false || stripos($summary, 'Anrufbeantworter') !== false || stripos($summary, 'nachricht') !== false;
+
+    // Nur wenn es KEINE Mailbox war UND ein echtes Gespräch stattfand, gilt es als 'completed'
+    if (($endedReason === 'customer-ended-call' || $endedReason === 'assistant-ended-call') && !$isVoicemail) {
         $stmt = $db->prepare("SELECT status FROM call_status WHERE client_id = ?");
         $stmt->execute([$clientId]);
         $currentStatus = $stmt->fetchColumn();
@@ -318,7 +324,8 @@ function handleVapiWebhook($db, $data)
             updateCallStatus($db, $clientId, 'completed', $summary);
         }
     } else {
-        error_log("VAPI INFO: Anruf nicht erfolgreich (Reason: $endedReason). Starte Eskalation für Client ID $clientId (Tel: $telType, Cycle: $cycle)...");
+        // Mailbox oder echter Nichterfolg -> Direkt in die Eskalation (tel2 / Retry)
+        error_log("VAPI INFO: Anruf nicht erfolgreich oder Mailbox erkannt (Reason: $endedReason, Voicemail: " . ($isVoicemail ? 'Ja' : 'Nein') . "). Starte Eskalation für Client ID $clientId...");
         escalateCall($db, $clientId, $cycle, $telType, $callType);
     }
 }
