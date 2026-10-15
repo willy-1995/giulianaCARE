@@ -216,12 +216,11 @@ PROMPT;
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
         'phoneNumberId' => VAPI_PHONE_ID,
-        'voicemailId' => null,
         'assistantOverrides' => [
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
             'endCallPhrases' => ["Auf Wiederhören!", "Einen schönen Tag.", "Einen schönen Abend."],
             'endCallFunctionEnabled' => false,
-            'voicemailMessage' => '',
+
             'model' => [
                 'provider' => 'azure-openai',
                 'model'    => 'gpt-5.4-mini',
