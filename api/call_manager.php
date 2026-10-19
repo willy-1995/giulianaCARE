@@ -360,20 +360,22 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
     $stmt->execute([$clientId]);
     $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Sequenzieller Ablauf: Wenn tel1 fehlschlägt und tel2 existiert -> jetzt tel2 anrufen
+    if (!$client) return;
+
+    // Wenn tel1 fehlschlägt und tel2 vorhanden ist -> IMMER zu tel2 wechseln (egal ob Zyklus 1 oder 2)
     if ($telType === 'tel1' && !empty($client['tel2'])) {
         error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
         executeCall($db, $clientId, 'tel2', $cycle, $callType);
     }
-    // Wenn Zyklus 1 komplett durch ist (weder tel1 noch tel2 erreichbar) -> 15 Minuten Retry ansetzen
+    // Wenn tel2 (oder tel1, falls tel2 leer ist) ebenfalls fehlgeschlagen ist:
     elseif ($cycle === 1) {
+        // Zyklus 1 komplett durch -> 15 Minuten Retry für Zyklus 2 ansetzen
         $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ?");
         $stmt->execute([$clientId]);
         error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2 in 15 Min) vorgemerkt.");
-    }
-    // Wenn Zyklus 2 ebenfalls komplett durch ist -> Endgültig fehlgeschlagen, Notfallkontakte alarmieren
-    else {
-        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen.');
+    } else {
+        // Zyklus 2 komplett durch (nach tel1 und tel2) -> Endgültig gescheitert, Notfall alarmieren
+        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen (tel1 & tel2).');
         notifyEmergencyContacts($db, $clientId, "Klient war nach allen automatischen Anrufversuchen (2 Zyklen auf tel1 und tel2) nicht erreichbar.");
         error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen endgültig nicht erreicht. Notfallkontakte benachrichtigt.");
     }
