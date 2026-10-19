@@ -362,22 +362,41 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 
     if (!$client) return;
 
-    // Wenn tel1 fehlschlägt und tel2 vorhanden ist -> IMMER zu tel2 wechseln (egal ob Zyklus 1 oder 2)
-    if ($telType === 'tel1' && !empty($client['tel2'])) {
-        error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
-        executeCall($db, $clientId, 'tel2', $cycle, $callType);
+    // SCHRITT A: tel1 schlägt fehl -> Zu tel2 wechseln (Gilt für Zyklus 1 UND Zyklus 2)
+    if ($telType === 'tel1') {
+        if (!empty($client['tel2'])) {
+            error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
+            executeCall($db, $clientId, 'tel2', $cycle, $callType);
+        } else {
+            // Falls tel2 gar nicht existiert, direkt behandeln wie wenn tel2 fehlgeschlagen wäre
+            handleFailedCycle($db, $clientId, $cycle, $callType);
+        }
     }
-    // Wenn tel2 (oder tel1, falls tel2 leer ist) ebenfalls fehlgeschlagen ist:
-    elseif ($cycle === 1) {
-        // Zyklus 1 komplett durch -> 15 Minuten Retry für Zyklus 2 ansetzen
+    // SCHRITT B: tel2 schlägt fehl
+    elseif ($telType === 'tel2') {
+        handleFailedCycle($db, $clientId, $cycle, $callType);
+    }
+}
+
+function handleFailedCycle($db, $clientId, $cycle, $callType)
+{
+    if ($cycle === 1) {
+        // Zyklus 1 beendet -> 15 Min Retry planen (Zyklus 2 vorbereiten)
         $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ?");
         $stmt->execute([$clientId]);
         error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2 in 15 Min) vorgemerkt.");
     } else {
-        // Zyklus 2 komplett durch (nach tel1 und tel2) -> Endgültig gescheitert, Notfall alarmieren
-        updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen (tel1 & tel2).');
-        notifyEmergencyContacts($db, $clientId, "Klient war nach allen automatischen Anrufversuchen (2 Zyklen auf tel1 und tel2) nicht erreichbar.");
-        error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen endgültig nicht erreicht. Notfallkontakte benachrichtigt.");
+        // Erst wenn Zyklus 2 auf tel2 ENDGÜLTIG scheitert -> Status 'failed' & Notfallkontakte informieren
+        $stmt = $db->prepare("SELECT status FROM call_status WHERE client_id = ?");
+        $stmt->execute([$clientId]);
+        $currentStatus = $stmt->fetchColumn();
+
+        // Verhindert mehrfaches Versenden von Notfall-Benachrichtigungen
+        if ($currentStatus !== 'failed' && $currentStatus !== 'incident_reported') {
+            updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen (tel1 & tel2).');
+            notifyEmergencyContacts($db, $clientId, "Klient war nach allen automatischen Anrufversuchen (2 Zyklen auf tel1 und tel2) nicht erreichbar.");
+            error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen endgültig nicht erreicht. Notfallkontakte EINMALIG benachrichtigt.");
+        }
     }
 }
 

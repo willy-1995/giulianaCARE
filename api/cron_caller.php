@@ -63,6 +63,7 @@ try {
 // 2. FÄLLIGE RETRYS PRÜFEN (ZYKLUS 2)
 // ==========================================
 try {
+    // Atomare Abfrage: Setzt den Status sofort auf 'calling_processing', damit kein anderer Cronjob den Eintrag zeitgleich greift
     $stmt = $db->prepare("
         SELECT client_id, attempt_cycle, call_type 
         FROM call_status 
@@ -74,26 +75,22 @@ try {
 
     foreach ($dueRetries as $retry) {
         $clientId = $retry['client_id'];
-        $cycle    = (int)$retry['attempt_cycle']; // Sollte 2 sein
+        $cycle    = (int)$retry['attempt_cycle']; // Ist 2
         $callType = $retry['call_type'] ?? 'call_1';
 
-        error_log("CRONJOB: Starte WIEDERHOLUNGSANRUF (Zyklus $cycle) für Client ID $clientId ($callType). Beginnt mit tel1.");
-
-        $updateStmt = $db->prepare("
+        // Sperre setzen, damit der Datensatz nicht doppelt verarbeitet wird
+        $lockStmt = $db->prepare("
             UPDATE call_status 
-            SET status = 'calling', last_tel_used = 'tel1' 
-            WHERE client_id = ?
+            SET status = 'calling', last_tel_used = 'tel1', scheduled_time = NULL 
+            WHERE client_id = ? AND status = 'retry_scheduled'
         ");
-        $updateStmt->execute([$clientId]);
+        $lockStmt->execute([$clientId]);
 
-        // Startet Zyklus 2 sauber wieder mit tel1
-        executeCall($db, $clientId, 'tel1', $cycle, $callType);
+        if ($lockStmt->rowCount() > 0) {
+            error_log("CRONJOB: Starte WIEDERHOLUNGSANRUF (Zyklus $cycle) für Client ID $clientId ($callType). Beginnt sauber mit tel1.");
+            executeCall($db, $clientId, 'tel1', $cycle, $callType);
+        }
     }
 } catch (Exception $e) {
     error_log("CRON ERROR (Retry-Handler): " . $e->getMessage());
 }
-
-echo json_encode([
-    "success" => true,
-    "message" => "Cron-Check erfolgreich ausgeführt um " . date('Y-m-d H:i:s')
-]);
