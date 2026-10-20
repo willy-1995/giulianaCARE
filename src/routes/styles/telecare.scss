@@ -1,6 +1,9 @@
 /* ========================================================================== 
    1. HERO & TELECARE INTRO SECTION (#telecare-intro) 
    ========================================================================== */
+.telecare-section {
+  font-size: 1.3rem;
+}
 
 #telecare-intro {
   // 1.1 TEXT SLIDER (OBEN)
@@ -49,17 +52,21 @@
   // 1.2 MAIN INTRO CONTAINER (TEXT & BILDER)
   .intro-div {
     display: flex;
-    width: 100%;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
     margin: 0 auto;
-    background:
-      linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, white 90%),
+    background-color: var(--accent-color);
+
+    /*background:
+      //linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, white 90%),
       linear-gradient(
-        to right,
-        var(--accent-color) 0%,
-        var(--accent-color) 60%,
-        white 90%
-      );
-    padding: 10px;
+      to right,
+      var(--accent-color) 0%,
+      var(--accent-color) 60%,
+      white 90%
+    );*/
+    padding: 40px 10px;
 
     // Angepasst: greift jetzt von 0px bis 1200px für das Spalten-Layout
     @media (max-width: 1200px) {
@@ -89,9 +96,13 @@
     // 1.3 TEXT INHALTE & BUTTONS
     // 1.3 TEXT INHALTE & BUTTONS
     .text-area {
-      width: 60%;
+      width: 40%;
       text-align: center;
       font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
 
       @media (max-width: 1200px) {
         width: 100%;
@@ -103,8 +114,10 @@
       }
 
       h2 {
-        margin: 0 auto 20px auto;
+        margin: 0 auto 40px auto;
         width: 90%;
+        color: white;
+        font-size: 3rem;
       }
 
       ul {
@@ -129,160 +142,43 @@
         gap: 20px;
 
         button {
-          width: 100%;
+          width: 400px;
           font-size: 1.5rem;
         }
       }
     }
-    // 1.4 BILDER-CONTAINER DESKTOP
-    .intro-img-div {
-      width: 70%;
-      border-radius: 15px;
-      position: relative;
+  }
+}
 
-      @media (max-width: 1200px) {
-        display: none; // Vollständig ausblenden auf mobilen/kleinen Screens
-      }
+// 1.6 MOBILE INTRO TEXT & TESTCALL
+.intro-text-mobile {
+  display: none;
 
-      .img-container {
-        width: 300px;
-        height: 300px;
-        border-radius: 50%;
-        overflow: hidden;
-        border: 5px solid var(--accent-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+  // Nur im Bereich von 801px bis 1200px anzeigen
+  @media (min-width: 801px) and (max-width: 1200px) {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-top: 20px;
 
-        .intro-img {
-          max-width: 100%;
-          scale: 1.9;
-        }
-      }
-
-      // Einzellayouts der 3 Bilder im Collagen-Look
-      #img-1 {
-        width: 290px;
-        height: 290px;
-        position: absolute;
-        left: 60px;
-
-        @media (max-width: 1350px) {
-          left: 30px;
-        }
-        @media (max-width: 1300px) {
-          left: 30px;
-          width: 270px;
-          height: 270px;
-        }
-      }
-
-      #img-2 {
-        width: 360px;
-        height: 360px;
-        position: absolute;
-        left: 330px;
-        top: 150px;
-
-        @media (max-width: 1350px) {
-          left: 300px;
-          top: 170px;
-        }
-        @media (max-width: 1300px) {
-          left: 280px;
-          top: 170px;
-          width: 330px;
-          height: 330px;
-        }
-      }
-
-      #img-3 {
-        width: 250px;
-        height: 250px;
-        position: absolute;
-        left: 100px;
-        top: 400px;
-
-        @media (max-width: 1350px) {
-          left: 60px;
-          top: 480px;
-        }
-        @media (max-width: 1300px) {
-          left: 100px;
-          top: 480px;
-          width: 220px;
-          height: 220px;
-        }
-      }
+    .intro-text {
+      width: 90%;
+      margin: 0 auto;
+      font-size: 1.5rem;
     }
 
-    // 1.5 BILDER-CONTAINER MOBILE SLIDESHOW
-    .intro-img-div-mobile {
-      display: none;
+    .intro-button-div {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      width: 90%;
+      margin: 40px auto;
+      gap: 20px;
 
-      @media (max-width: 1200px) {
-        display: block;
+      button {
         width: 100%;
-        margin-top: 2rem;
-
-        .img-container {
-          position: relative;
-          width: 300px;
-          height: 300px;
-          margin: 0 auto;
-          overflow: hidden;
-          border-radius: 50%;
-          border: 5px solid var(--accent-color);
-
-          .intro-img {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
-
-            &.active {
-              opacity: 1;
-            }
-          }
-        }
-      }
-    }
-
-    // 1.6 MOBILE INTRO TEXT & TESTCALL
-    .intro-text-mobile {
-      display: none;
-
-      // Nur im Bereich von 801px bis 1200px anzeigen
-      @media (min-width: 801px) and (max-width: 1200px) {
-        display: block;
-        width: 100%;
-        text-align: center;
-        margin-top: 20px;
-
-        .intro-text {
-          width: 90%;
-          margin: 0 auto;
-          font-size: 1.5rem;
-        }
-
-        .intro-button-div {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-direction: column;
-          width: 90%;
-          margin: 40px auto;
-          gap: 20px;
-
-          button {
-            width: 100%;
-            font-size: 1.5rem;
-          }
-        }
+        font-size: 1.5rem;
       }
     }
   }
@@ -673,6 +569,157 @@ Q&A SECTION
       text-align: left;
       padding: 10px;
       padding-left: 20px;
+    }
+  }
+}
+
+//SCENARIO SECTION
+// SCENARIO SECTION
+//SCENARIO SECTION
+.scenario-section {
+  margin-top: 50px;
+
+  #scenario-card-right {
+    display: flex;
+    justify-content: flex-end;
+
+    @media (max-width: 700px) {
+      flex-direction: column-reverse;
+    }
+  }
+
+  .scenario-card {
+    display: flex;
+    gap: 300px;
+    width: 80%;
+    margin: 0 auto;
+    margin-bottom: 20px;
+    border-bottom: 3px solid var(--accent-color);
+    padding-bottom: 5px;
+
+    @media (max-width: 1100px) {
+      gap: 100px;
+    }
+
+    @media (max-width: 700px) {
+      width: 90%;
+      margin: 0 auto;
+      margin-bottom: 20px;
+      justify-content: space-between;
+      gap: 10px;
+      flex-direction: column;
+    }
+
+    .scenario-img {
+      width: 300px;
+      height: 400px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      @media (max-width: 700px) {
+        width: 100%;
+        height: 300px;
+      }
+
+      img {
+        max-height: 100%;
+
+        @media (max-width: 700px) {
+          max-width: 100%;
+        }
+      }
+    }
+    p {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      font-weight: 600;
+      font-size: 2rem;
+      width: 30%;
+
+      @media (max-width: 700px) {
+        width: 100%;
+        font-size: 1.2rem;
+        text-align: center;
+      }
+    }
+  }
+}
+
+//Slide SHOWS
+//MOBILE
+.intro-img-div-mobile {
+  display: block;
+  width: 100%;
+  margin-top: 2rem;
+
+  @media (min-width: 1200px) {
+    display: none;
+  }
+
+  .img-container {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 50%;
+    border: 5px solid var(--accent-color);
+
+    .intro-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+
+      &.active {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+//DESKTOP
+.intro-img-div-desktop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40%;
+
+  @media (max-width: 1200px) {
+    display: none;
+  }
+
+  .img-container {
+    position: relative;
+    width: 550px;
+    height: 550px;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 50%;
+    //border: 5px solid var(--accent-color);
+    box-shadow: 0 0 10px gray;
+
+    .intro-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+
+      &.active {
+        opacity: 1;
+      }
     }
   }
 }

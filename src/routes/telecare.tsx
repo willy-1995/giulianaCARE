@@ -64,7 +64,6 @@ function TeleCare() {
   const slidesData = [
     "Tägliche Betreuungsanrufe, Medikamenten- und Terminerinnerungen. 365 Tage",
     "Keine Extra-Geräte. Keine Installation. Die betreute Person muss nur den Hörer abnehmen!",
-    "Zuschuss von 27 Euro durch die Pflegekasse ab Pflegestufe 1",
     "Sorgen Sie präventiv für die Eigenständigkeit ihres Senioren",
     "Hohe Datenschutzvorkehrungen und Serverstandort in Deutschland",
   ];
@@ -206,13 +205,8 @@ function TeleCare() {
                 <li>
                   <FontAwesomeIcon icon={faCheck} /> Wirkt präventiv. Jeden Tag.
                 </li>
-                <li>
-                  <FontAwesomeIcon icon={faCheck} /> Kostenübernahme durch die
-                  Pflegekasse.
-                </li>
               </ul>
             </b>
-
             {/* MOBILE BILDER-SLIDESHOW (Wird unter 1200px genau hier eingeblendet) */}
             <div className="intro-img-div-mobile">
               <div className="img-container">
@@ -228,14 +222,16 @@ function TeleCare() {
                 ))}
               </div>
             </div>
-
-            <p className="intro-text">
+            {/*
+                 <p className="intro-text">
               giulianaCare ist die <b>tägliche Telefonbetreuung</b> für
               alleinstehende Seniorinnen und Senioren. Im Gegensatz zum
               Hausnotruf wirkt giulianaCare <b>präventiv</b>. Bis zu drei
               tägliche, freundliche SicherheitsAnrufe. Geht keiner ran oder dein
               Senior äußert Unwohlsein, wirst du sofort kontaktiert.
             </p>
+                
+                */}
 
             <div className="intro-button-div">
               <button onClick={toRegist}>
@@ -246,32 +242,18 @@ function TeleCare() {
               </button>
             </div>
           </div>
-
-          {/* IMG Desktop-Ansicht */}
-          <div className="intro-img-div">
-            <div className="img-container" id="img-1">
-              <img
-                src={getAssetUrl("media/grandma_tel.png")}
-                alt=""
-                id="img-grandma"
-                className="intro-img"
-              />
-            </div>
-            <div className="img-container" id="img-2">
-              <img
-                src={getAssetUrl("media/team.png")}
-                alt=""
-                id="img-womanThink"
-                className="intro-img"
-              />
-            </div>
-            <div className="img-container" id="img-3">
-              <img
-                src={getAssetUrl("media/woman.jpg")}
-                alt=""
-                id="img-womanThink"
-                className="intro-img"
-              />
+          <div className="intro-img-div-desktop">
+            <div className="img-container">
+              {mobileImages.map((src, index) => (
+                <img
+                  key={index}
+                  src={src}
+                  alt={`Slide ${index + 1}`}
+                  className={`intro-img ${
+                    index === currentImageIndex ? "active" : ""
+                  }`}
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -286,6 +268,45 @@ function TeleCare() {
         </h2>
       </div>
       {/*____________________________ */}
+      {/*SCENARIO SECTION*/}
+      <div className="telecare-section scenario-section" id="scenario-section">
+        <div className="scenario-card">
+          <div className="scenario-img">
+            <img src={getAssetUrl("media/scenario_think.jpg")} />
+          </div>
+          <p>
+            <i>
+              "Hat Oma ihre Medikamente genommen? Dank {corpName}{" "}
+              Telefonbetreuung weiß ich es. Neben dem Uni-Stress eine Sorge
+              weniger!"
+            </i>
+          </p>
+        </div>
+        <div className="scenario-card" id="scenario-card-right">
+          <p>
+            <i>
+              "Dank der regelmäßigen Anrufe und Protokollierung weiß ich, wie es
+              meinem Vater geht, bevor eventuell etwas passiert."
+            </i>
+          </p>
+          <div className="scenario-img">
+            <img src={getAssetUrl("media/scenario_glad.jpg")} />
+          </div>
+        </div>
+        <div className="scenario-card">
+          <div className="scenario-img">
+            <img src={getAssetUrl("media/scenario_granny.jpg")} />
+          </div>
+          <p>
+            <i>
+              "Die {corpName} Telefonbetreuung unterstützt mich bei einem
+              eigenständigen Leben in meinem Zuhause, in welchem ich schon seit
+              Jahrzehnten lebe!"
+            </i>
+          </p>
+        </div>
+      </div>
+      {/*_____________________________ */}
       <div className="telecare-section section" id="working">
         <h2>
           So einfach ist der automatische Betreuungsservice von giulianaCare
@@ -355,7 +376,7 @@ function TeleCare() {
           </div>
           <div className="explain-div">
             <h3>
-              Selbstständigkeit für Angehörige
+              Selbstständigkeit für die Liebsten
               <FontAwesomeIcon icon={faHandHoldingHeart} />
             </h3>
             <p>
