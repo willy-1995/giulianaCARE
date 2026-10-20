@@ -157,6 +157,7 @@ function Login() {
               <h2>Passwort zurücksetzen</h2>
               <input
                 type="email"
+                id="pw-forgot-input"
                 placeholder="Bitte E-Mail-Adresse eingeben"
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
