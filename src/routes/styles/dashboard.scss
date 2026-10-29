@@ -4,12 +4,14 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 10000;
+  background-color: white;
 
-  border: 5px solid gray;
+  border: 2px solid gray;
   border-radius: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 10px;
 }
 
 .toSetting-button {
