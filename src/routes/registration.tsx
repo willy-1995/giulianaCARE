@@ -7,6 +7,7 @@ import { API_BASE } from "../assets/base_url";
 import Navbar from "./components/navbar";
 import Footer from "./components/footer";
 import "./styles/registration.scss";
+import { price1, price2, price3, corpName } from "../assets/constants";
 
 function Registration() {
   const navigate = useNavigate();
@@ -118,12 +119,14 @@ function Registration() {
             <option value="" disabled hidden>
               Betreuungspaket wählen
             </option>
-            <option value="sicherheit">Sicherheit 19€ - 1 Anruf pro Tag</option>
+            <option value="sicherheit">
+              Sicherheit {price1}€ - 1 Anruf pro Tag
+            </option>
             <option value="gutBetreut">
-              Gut bretreut 26€ - 2 Anrufe pro Tag
+              Gut bretreut {price2}€ - 2 Anrufe pro Tag
             </option>
             <option value="rundumSorglos">
-              Rundum Sorglos 32€ - 3 Anrufe pro Tag
+              Rundum Sorglos {price3}€ - 3 Anrufe pro Tag
             </option>
           </select>
 

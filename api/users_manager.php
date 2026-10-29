@@ -16,6 +16,54 @@ try {
         // ==========================================
         // CREATE (REGISTRIERUNG)
         // ==========================================
+        // ==========================================
+        // CREATE (REGISTRIERUNG)
+        // ==========================================
+        case 'POST':
+            if (empty($input['email']) || empty($input['password']) || empty($input['country']) || empty($input['price']) || !isset($input['agb_accepted'])) {
+                http_response_code(400);
+                echo json_encode(["success" => false, "message" => "Bitte alle Felder ausfüllen."]);
+                exit;
+            }
+
+            // Prüfen, ob E-Mail schon existiert
+            $existingUser = $userManager->getUserByEmail($input['email']);
+
+            if ($existingUser) {
+                // 1. Fall: Nutzer ist bereits aktiv (bereits bezahlt)
+                if (isset($existingUser['subscription_status']) && $existingUser['subscription_status'] === 'active') {
+                    http_response_code(409);
+                    echo json_encode(["success" => false, "message" => "Diese E-Mail-Adresse ist bereits registriert und aktiv. Bitte logge dich ein."]);
+                    exit;
+                }
+
+                // 2. Fall: Nutzer existiert, hat aber noch nicht bezahlt ('unpaid')
+                // Wir prüfen zur Sicherheit das Passwort, damit niemand fremde Accounts kapern kann
+                if (!password_verify($input['password'], $existingUser['password'])) {
+                    http_response_code(401);
+                    echo json_encode(["success" => false, "message" => "E-Mail bereits registriert. Das eingegebene Passwort ist jedoch falsch."]);
+                    exit;
+                }
+
+                // Passwort stimmt -> Bestehende ID weiterverwenden und neuen Token ausstellen
+                $userId = $existingUser['id'];
+                $token = createJWT((int)$userId, $input['email'], $input['price']);
+            } else {
+                // 3. Fall: Ganz normaler neuer Account
+                $userId = $userManager->createUser($input);
+                $token = createJWT((int)$userId, $input['email'], $input['price']);
+            }
+
+            http_response_code(201);
+            echo json_encode([
+                "success" => true,
+                "message" => "Registrierung erfolgreich!",
+                "token" => $token,
+                "userId" => $userId,
+                "subscription_status" => "unpaid"
+            ]);
+            break;
+        /*
         case 'POST':
             if (empty($input['email']) || empty($input['password']) || empty($input['country']) || empty($input['price']) || !isset($input['agb_accepted'])) {
                 http_response_code(400);
@@ -37,7 +85,7 @@ try {
                 "subscription_status" => "unpaid" // [NEU]: Status explizit für Frontend mitgeben
             ]);
             break;
-
+*/
         // ==========================================
         // READ (USER-DATEN LADEN)
         // ==========================================

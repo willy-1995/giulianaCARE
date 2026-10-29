@@ -70,6 +70,17 @@ class UserManager
     }
 
     // ==========================================
+    // READ: Nutzer per E-Mail laden (für Registrierungs-Check)
+    // ==========================================
+    public function getUserByEmail($email)
+    {
+        $sql = "SELECT * FROM users WHERE email = :email LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':email' => $email]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // ==========================================
     // LOGIN: Authentifizierung
     // (Unverändert - `SELECT *` liefert bereits alle Spalten inkl. Stripe zurück)
     // ==========================================
