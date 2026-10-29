@@ -1,13 +1,21 @@
+.salespartner-div {
+  height: 100vh;
+
+  @media (max-width: 800px) {
+    height: auto;
+  }
+}
+
 .salespartner-content {
   width: 90%;
-
   margin: 0 auto;
+  margin-bottom: 100px;
   display: flex;
   gap: 20px;
 
   @media (max-width: 800px) {
     flex-direction: column;
-    height: 100vh;
+    height: auto;
   }
 
   .sales-heading {
@@ -78,7 +86,7 @@
 
     @media (max-width: 800px) {
       padding-top: 20px;
-      padding-bottom: 40px;
+
       width: auto;
     }
 
