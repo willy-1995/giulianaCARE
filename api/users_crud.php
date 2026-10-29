@@ -255,25 +255,45 @@ class UserManager
     // ==========================================
     public function deleteUser($id)
     {
-        // Benutzerdaten vor dem Löschen auslesen, um an die E-Mail-Adresse zu kommen
+        // 1. User-Daten vor dem Löschen laden (für E-Mail und created_at)
         $user = $this->getUser($id);
+        if (!$user) return false;
 
-        $sql = "DELETE FROM users WHERE id = :id";
-        $result = $this->conn->prepare($sql)->execute([':id' => $id]);
+        try {
+            $this->conn->beginTransaction();
 
-        // E-Mail nach erfolgreichem Löschen versenden
-        if ($result && $user && !empty($user['email'])) {
-            $subject = "Account gelöscht - Giuliana Care";
-            $content = "
-                <h2>Account-Löschung</h2>
-                <p>Hallo,</p>
-                <p>dein Account und alle zugehörigen Daten wurden erfolgreich gelöscht. Dein Abonnement für die giulianaCARE Telefonbetreuung wird zum nächstmöglichen Zeitpunkt beendet.</br></br></p>
-                <p>Herzliche Grüße<br><br>giulianaCARE</p>
+            // 2. Metrik für die durchschnittliche Laufzeit speichern (falls created_at existiert)
+            if (!empty($user['created_at'])) {
+                $stmtMetric = $this->conn->prepare("INSERT INTO subscription_metrics (created_at, deleted_at) VALUES (?, NOW())");
+                $stmtMetric->execute([$user['created_at']]);
+            }
+
+            // 3. User physisch löschen (wie gewohnt)
+            $sql = "DELETE FROM users WHERE id = :id";
+            $stmtDel = $this->conn->prepare($sql);
+            $stmtDel->execute([':id' => $id]);
+
+            $this->conn->commit();
+
+            // 4. E-Mail nach erfolgreichem Löschen versenden
+            if (!empty($user['email'])) {
+                $subject = "Account gelöscht - giulianaCARE";
+                $content = "
+                <h2>Account-Löschung</br></br></h2>
+                <p>Hallo,</br></br></p>
+                <p>dein Account und alle zugehörigen Daten wurden erfolgreich gelöscht.</br></p>
+                <p>Wir bedauern es sehr, dich als Kunden zu verlieren. Alles Gute für deine Zukunft!</br></br></p>
+                <p>Herzliche Grüße<br></br>dein Team von giulianaCARE/p>
             ";
-            sendMail($user['email'], $subject, $content);
-        }
+                sendMail($user['email'], $subject, $content);
+            }
 
-        return $result;
+            return true;
+        } catch (Exception $e) {
+            if ($this->conn->inTransaction()) $this->conn->rollBack();
+            error_log("Error during user deletion for ID $id: " . $e->getMessage());
+            return false;
+        }
     }
 
 
