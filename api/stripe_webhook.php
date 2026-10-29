@@ -38,6 +38,7 @@ $userManager = new UserManager();
 switch ($event->type) {
 
     // A) Erstmaliger Checkout erfolgreich abgeschlossen
+    // A) Erstmaliger Checkout erfolgreich abgeschlossen
     case 'checkout.session.completed':
         $session = $event->data->object;
 
@@ -49,6 +50,12 @@ switch ($event->type) {
             // Status aus der Checkout-Session abfragen (kann 'active' oder 'trialing' sein)
             $status = $session->payment_status === 'paid' || $session->status === 'complete' ? 'active' : 'trialing';
             $userManager->updateStripeSubscription($userId, $customerId, $subscriptionId, $status);
+
+            // [NEU] Benutzerdaten laden, um die E-Mail-Adresse für die Willkommensmail zu bekommen
+            $user = $userManager->getUser($userId);
+            if ($user && !empty($user['email'])) {
+                $userManager->sendRegistrationEmail($user['email']);
+            }
         }
         break;
 

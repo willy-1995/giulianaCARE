@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import SubNavbar from "./components/navbar_sub";
 import Footer from "./components/footer";
-import { deleteUser } from "../assets/deleter";
 import { updateUser } from "../assets/updater";
 import "./styles/settings.scss";
 import "./styles/main.scss";
@@ -120,7 +119,6 @@ export default function Settings() {
       return;
     }
 
-    // Kombiniert Profildaten mit den Passwortdaten an den Updater schicken
     const payload = {
       ...formData,
       current_password: passwordData.current_password,
@@ -141,11 +139,11 @@ export default function Settings() {
     }
   };
 
-  // Abonnement kündigen
+  // Abonnement kündigen (Gemäß AGB §6)
   const handleCancelSubscription = async () => {
     const confirmed = window.confirm(
-      "Möchtest du dein Abonnement zum nächstmöglichen Zeitpunkt kündigen?\n\n" +
-        "Du kannst alle Funktionen von giuliana-care.de bis zum Ende deines aktuellen Abrechnungszeitraums (bzw. deiner 14-tägigen Testphase) uneingeschränkt weiter nutzen. Es werden keine weiteren Beiträge abgebucht.",
+      "Möchtest du dein Abonnement unter Einhaltung der Kündigungsfrist (14 Tage zum Monatsende) kündigen?\n\n" +
+        "Dein Account und alle automatischen Anrufe bleiben bis zum Ablauf der Frist vollumfänglich aktiv.",
     );
 
     if (!confirmed) return;
@@ -169,7 +167,7 @@ export default function Settings() {
       if (data.success) {
         setSubscriptionStatus("cancel_pending");
         setCancelMessage(
-          "Dein Abonnement ist gekündigt und läuft zum Ende der Periode aus.",
+          `Dein Abo ist gekündigt und läuft zum ${data.effective_date} aus.`,
         );
         alert(data.message);
       } else {
@@ -179,29 +177,6 @@ export default function Settings() {
       alert("Netzwerkfehler beim Kündigen des Abonnements.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Account endgültig löschen
-  const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      "Achtung: Möchtest du deinen Account und alle zugehörigen Daten unwiderruflich löschen?\n\n" +
-        "Dein Abonnement wird dabei sofort beendet und du verlierst augenblicklich den Zugriff auf giuliana-care.de.",
-    );
-
-    if (confirmed) {
-      const result = await deleteUser(setLoading);
-
-      if (result.success) {
-        localStorage.removeItem("token");
-        navigate("/registration", {
-          state: {
-            message: "Dein Account wurde gelöscht und das Abonnement beendet.",
-          },
-        });
-      } else {
-        alert(result.message || "Fehler beim Löschen des Accounts");
-      }
     }
   };
 
@@ -242,7 +217,7 @@ export default function Settings() {
           {subscriptionStatus === "cancel_pending" ? (
             <p className="status-info warning">
               Dein Abo ist gekündigt. Du kannst den Service noch bis zum Ende
-              der aktuellen Laufzeit nutzen.
+              der Kündigungsfrist vollumfänglich nutzen.
             </p>
           ) : subscriptionStatus === "canceled" ? (
             <p className="status-info danger">
@@ -259,17 +234,6 @@ export default function Settings() {
           )}
 
           {cancelMessage && <p className="status-message">{cancelMessage}</p>}
-        </div>
-
-        {/* Gefahrenbereich: Account löschen */}
-        <div className="setting-section danger-zone">
-          <button
-            onClick={handleDeleteAccount}
-            className="deleteAccount setting-button"
-            disabled={loading}
-          >
-            Account sofort löschen
-          </button>
         </div>
       </div>
 

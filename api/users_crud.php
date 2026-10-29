@@ -1,5 +1,6 @@
 <?php
 require_once 'database.php';
+require_once 'mailer.php';
 
 class UserManager
 {
@@ -46,6 +47,21 @@ class UserManager
             if ($this->conn->inTransaction()) $this->conn->rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * E-Mail bei Registrierung senden (Nachdem Create & Stripe erfolgreich waren aufrufen)
+     */
+    public function sendRegistrationEmail($email)
+    {
+        $subject = "Willkommen bei Giuliana Care!";
+        $content = "
+            <h2>Herzlich willkommen!</br></br></h2>
+            <p>Deine Registrierung und dein Abonnement bei Giuliana Care wurden erfolgreich abgeschlossen.</p>
+            <p>Du kannst dich ab sofort unter <a href='https://giuliana-care.de/login'>giuliana-care.de/login</a> in deinem Dashboard einloggen.</br></br></p>
+            <p>Herzliche Grüße<br>Dein Giuliana Care Team</p>
+        ";
+        return sendMail($email, $subject, $content);
     }
 
     // ==========================================
@@ -109,20 +125,22 @@ class UserManager
         try {
             $this->conn->beginTransaction();
 
+            $passwordChanged = false;
+
             // 1. Wenn ein neues Passwort angegeben wurde, prüfen wir das aktuelle Passwort
             if (!empty($userData['new_password'])) {
                 if (empty($userData['current_password'])) {
                     throw new Exception("Bitte gib dein aktuelles Passwort ein.");
                 }
 
-                // Aktuellen Passwort-Hash aus der DB holen
-                $sqlPass = "SELECT password FROM users WHERE id = :id";
+                // Aktuellen Passwort-Hash & E-Mail aus der DB holen
+                $sqlPass = "SELECT email, password FROM users WHERE id = :id";
                 $stmtPass = $this->conn->prepare($sqlPass);
                 $stmtPass->execute([':id' => $id]);
-                $currentHash = $stmtPass->fetchColumn();
+                $currentUser = $stmtPass->fetch(PDO::FETCH_ASSOC);
 
                 // Altes Passwort abgleichen
-                if (!$currentHash || !password_verify($userData['current_password'], $currentHash)) {
+                if (!$currentUser || !password_verify($userData['current_password'], $currentUser['password'])) {
                     throw new Exception("Das aktuelle Passwort ist nicht korrekt.");
                 }
 
@@ -134,6 +152,8 @@ class UserManager
                     ':password' => $newHashedPassword,
                     ':id'       => $id
                 ]);
+
+                $passwordChanged = true;
             }
 
             // 2. Allgemeine Benutzerdaten aktualisieren
@@ -173,6 +193,20 @@ class UserManager
             }
 
             $this->conn->commit();
+
+            // E-Mail nach erfolgreichem Commit bei Passwortänderung senden
+            if ($passwordChanged && !empty($userData['email'])) {
+                $subject = "Dein Passwort wurde geändert - Giuliana Care";
+                $content = "
+                    <h2>Passwortänderung</h2>
+                    <p>Hallo,</p>
+                    <p>dein Passwort für dein Giuliana Care Konto wurde erfolgreich geändert.</p>
+                    <p>Falls du diese Änderung nicht vorgenommen hast, kontaktiere bitte umgehend unseren Support.</p>
+                    <p>Herzliche Grüße<br>Dein Giuliana Care Team</p>
+                ";
+                sendMail($userData['email'], $subject, $content);
+            }
+
             return true;
         } catch (Exception $e) {
             if ($this->conn->inTransaction()) $this->conn->rollBack();
@@ -221,9 +255,27 @@ class UserManager
     // ==========================================
     public function deleteUser($id)
     {
+        // Benutzerdaten vor dem Löschen auslesen, um an die E-Mail-Adresse zu kommen
+        $user = $this->getUser($id);
+
         $sql = "DELETE FROM users WHERE id = :id";
-        return $this->conn->prepare($sql)->execute([':id' => $id]);
+        $result = $this->conn->prepare($sql)->execute([':id' => $id]);
+
+        // E-Mail nach erfolgreichem Löschen versenden
+        if ($result && $user && !empty($user['email'])) {
+            $subject = "Account gelöscht - Giuliana Care";
+            $content = "
+                <h2>Account-Löschung</h2>
+                <p>Hallo,</p>
+                <p>dein Account und alle zugehörigen Daten wurden erfolgreich gelöscht. Dein Abonnement für die giulianaCARE Telefonbetreuung wird zum nächstmöglichen Zeitpunkt beendet.</br></br></p>
+                <p>Herzliche Grüße<br><br>giulianaCARE</p>
+            ";
+            sendMail($user['email'], $subject, $content);
+        }
+
+        return $result;
     }
+
 
     /**
      * Kündigt das Stripe-Abo zum Ende des aktuellen Abrechnungszeitraums (bzw. der Trial).
@@ -249,6 +301,34 @@ class UserManager
         ]);
 
         // Status in der lokalen Datenbank vermerken
+        $sql = "UPDATE users SET subscription_status = 'cancel_pending' WHERE id = :id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':id' => $userId]);
+
+        return $subscription;
+    }
+
+    /**
+     * Kündigt das Stripe-Abo zu einem spezifischen Zeitpunkt (z.B. gemäß AGB 14 Tage zum Monatsende).
+     * Der Service bleibt bis zu diesem Zeitpunkt voll nutzbar.
+     */
+    public function cancelSubscriptionAtTimestamp($userId, $cancelTimestamp)
+    {
+        $user = $this->getUser($userId);
+
+        if (!$user || empty($user['stripe_subscription_id'])) {
+            throw new Exception("Keine aktive Subscription für diesen Nutzer gefunden.");
+        }
+
+        $stripeSecretKey = $_ENV['STRIPE_SECRET_KEY'] ?? getenv('STRIPE_SECRET_KEY');
+        \Stripe\Stripe::setApiKey($stripeSecretKey);
+
+        // Stripe anweisen, das Abo genau zum berechneten Timestamp zu beenden
+        $subscription = \Stripe\Subscription::update($user['stripe_subscription_id'], [
+            'cancel_at' => $cancelTimestamp,
+        ]);
+
+        // Status in der lokalen Datenbank auf 'cancel_pending' setzen
         $sql = "UPDATE users SET subscription_status = 'cancel_pending' WHERE id = :id";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([':id' => $userId]);
