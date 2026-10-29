@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "./Metrics.scss";
+import "./styles/metrics.scss";
 
 interface MetricsData {
   total_users: number;

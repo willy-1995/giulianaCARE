@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./AdminRegistration.scss";
+//import "./AdminRegistration.scss";
 import { API_BASE } from "../assets/base_url";
 
 export default function AdminRegistration() {

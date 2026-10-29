@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./AdminLogin.scss"; // Optional für Styles
+//import "./AdminLogin.scss"; // Optional für Styles
 import { API_BASE } from "../assets/base_url";
 
 export default function AdminLogin() {
