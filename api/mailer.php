@@ -3,6 +3,7 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+require_once __DIR__ . '/envloader.php'; // Lädt die .env Datei
 require_once __DIR__ . '/vendor/autoload.php';
 
 function sendMail($toEmail, $subject, $contentHtml)
@@ -10,14 +11,14 @@ function sendMail($toEmail, $subject, $contentHtml)
     $mail = new PHPMailer(true);
 
     try {
-        // Servereinstellungen (Trage hier deine SMTP-Daten ein)
+        // Servereinstellungen direkt über das $_ENV Array (wie in deiner Database-Klasse)
         $mail->isSMTP();
-        $mail->Host       = 'dein-smtp-server.de';     // z.B. smtp.ionos.de oder smtp.gmail.com
+        $mail->Host       = $_ENV['SMTP_HOST'];
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'info@giuliana-care.de';   // Deine Absender-Adresse
-        $mail->Password   = 'DEIN_EMAIL_PASSWORT';     // Dein E-Mail-Passwort
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; // oder PHPMailer::ENCRYPTION_SMTPS für Port 465
-        $mail->Port       = 587;                       // Port (587 für TLS, 465 für SSL)
+        $mail->Username   = $_ENV['SMTP_USER'];
+        $mail->Password   = $_ENV['SMTP_PASS'];
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = (int)$_ENV['SMTP_PORT'];
 
         // Absender und Empfänger
         $mail->setFrom('info@giuliana-care.de', 'Giuliana Care');
@@ -33,7 +34,7 @@ function sendMail($toEmail, $subject, $contentHtml)
         $mail->send();
         return true;
     } catch (Exception $e) {
-        // Fehler loggen oder bei Bedarf werfen
+        // Fehler loggen, damit sensible Details nicht an den Endnutzer durchsickern
         error_log("E-Mail konnte nicht gesendet werden. Mailer Error: {$mail->ErrorInfo}");
         return false;
     }
