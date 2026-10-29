@@ -146,6 +146,15 @@ function Registration() {
           </select>
 
           <input
+            type="text"
+            placeholder="Postleitzahl"
+            name="area_code"
+            value={formData.area_code}
+            onChange={handleChange}
+            required
+          />
+
+          <input
             type="email"
             name="email"
             placeholder="E-Mail"
