@@ -598,18 +598,6 @@ export function Datasecurity() {
             keine gesetzlichen Aufbewahrungspflichten oder andere rechtlich
             zulässige Gründe für eine weitere Speicherung bestehen.
           </p>
-
-          <p>Die Speicherungsfristen betragen:</p>
-          <ul className="data-ul">
-            <li>Accountdaten</li>
-            <li>Daten der betreuten Personen</li>
-            <li>Gesundheitsdaten</li>
-            <li>Notfallkontakte</li>
-            <li>Anrufdaten</li>
-            <li>Gesprächszusammenfassungen</li>
-            <li>gespeicherte Notfallgründe</li>
-            <li>technische Protokolldaten</li>
-          </ul>
         </div>
 
         <div className="paragraph">
