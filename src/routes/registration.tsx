@@ -83,8 +83,10 @@ function Registration() {
         const stripeResult = await stripeResponse.json();
 
         if (stripeResult.success && stripeResult.url) {
+          setMessage("Registrierung erfolgreich! Leite zu Stripe weiter...");
           // 3. Zur Stripe Bezahlseite weiterleiten
           window.location.href = stripeResult.url;
+          setMessage("");
         } else {
           setMessage(
             stripeResult.message || "Fehler beim Erstellen der Bezahlseite.",
