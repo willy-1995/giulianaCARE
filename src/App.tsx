@@ -16,6 +16,8 @@ import { Imprint } from "./routes/imprint";
 import { Salespartnership } from "./routes/salespartnership";
 import ResetPassword from "./routes/resetPassword";
 import Metrics from "./routes/metrics";
+import AdminLogin from "./routes/admin_login";
+import AdminRegistration from "./routes/admin_registration";
 import "./routes/styles/main.scss";
 import { useEffect } from "react";
 //Test
@@ -51,8 +53,8 @@ function App() {
           <Route path="/datasecurity" element={<Datasecurity />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/salespartnership" element={<Salespartnership />} />
-          {/*TEST */}
-          <Route path="/TEST_SEARCH_CLIENT" element={<ClientSearch />} />
+          <Route path="/admin_login" element={<AdminLogin />} />
+          <Route path="/admin_registration" element={<AdminRegistration />} />
           {/*protected sites */}
           <Route
             path="/dashboard"
