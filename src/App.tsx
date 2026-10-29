@@ -15,6 +15,7 @@ import { Datasecurity } from "./routes/datasecurity";
 import { Imprint } from "./routes/imprint";
 import { Salespartnership } from "./routes/salespartnership";
 import ResetPassword from "./routes/resetPassword";
+import Metrics from "./routes/metrics";
 import "./routes/styles/main.scss";
 import { useEffect } from "react";
 //Test
@@ -66,6 +67,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/metrics"
+            element={
+              <ProtectedRoute>
+                <Metrics />
               </ProtectedRoute>
             }
           />
