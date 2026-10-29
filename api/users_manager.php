@@ -150,10 +150,19 @@ try {
             break;
     }
 } catch (PDOException $e) {
+    // Fehler intern ins Server-Log schreiben, statt an den Client zu senden
+    error_log("Database Error: " . $e->getMessage());
+
     http_response_code(409);
-    $msg = str_contains($e->getMessage(), 'Duplicate entry') ? "Email bereits vergeben." : "DB-Fehler.";
-    echo json_encode(["success" => false, "message" => $msg, "debug" => $e->getMessage()]);
+    $msg = str_contains($e->getMessage(), 'Duplicate entry') ? "Diese E-Mail-Adresse ist bereits vergeben." : "Ein Datenbankfehler ist aufgetreten.";
+
+    // KEIN 'debug'-Feld mehr an den User schicken!
+    echo json_encode(["success" => false, "message" => $msg]);
 } catch (Exception $e) {
+    // Fehler intern loggen
+    error_log("Server Error: " . $e->getMessage());
+
     http_response_code(500);
-    echo json_encode(["success" => false, "message" => "Serverfehler: " . $e->getMessage()]);
+    // Dem Nutzer nur eine sichere, generische Meldung anzeigen
+    echo json_encode(["success" => false, "message" => "Ein unerwarteter Serverfehler ist aufgetreten."]);
 }

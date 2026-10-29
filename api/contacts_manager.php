@@ -169,9 +169,26 @@ try {
             break;
     }
 } catch (PDOException $e) {
+    // Internen Fehler auf dem Server protokollieren
+    error_log("Database Error (Contacts): " . $e->getMessage());
+
     http_response_code(500);
-    echo json_encode(["success" => false, "message" => "Datenbankfehler.", "debug" => $e->getMessage()]);
+    // Dem Client nur eine sichere, generische Meldung anzeigen (KEIN "debug"-Feld!)
+    echo json_encode([
+        "success" => false,
+        "message" => "Ein Datenbankfehler ist aufgetreten."
+    ]);
 } catch (Exception $e) {
-    http_response_code(401);
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    // Internen Fehler auf dem Server protokollieren
+    error_log("Server Error (Contacts): " . $e->getMessage());
+
+    // Wenn es ein Authentifizierungsfehler ist (z.B. JWT ungültig), 401 senden, sonst 500 oder 400
+    $statusCode = str_contains($e->getMessage(), 'Token') || str_contains($e->getMessage(), 'Authentifizierung') ? 401 : 400;
+
+    http_response_code($statusCode);
+    // Generische Nachricht ausgeben, es sei denn es ist eine bewusst geworfene Exception
+    echo json_encode([
+        "success" => false,
+        "message" => $statusCode === 401 ? $e->getMessage() : "Ein unerwarteter Fehler ist aufgetreten."
+    ]);
 }

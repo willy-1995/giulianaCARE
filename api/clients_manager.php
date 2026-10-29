@@ -156,10 +156,30 @@ try {
             break;
     }
 } catch (PDOException $e) {
+    // Internen Fehler sicher auf dem Server protokollieren
+    error_log("Database Error (Clients): " . $e->getMessage());
+
     http_response_code(500);
-    echo json_encode(["success" => false, "message" => "Datenbankfehler.", "debug" => $e->getMessage()]);
+    // Dem Client nur eine sichere, generische Fehlermeldung ausgeben (KEIN "debug"-Feld!)
+    echo json_encode([
+        "success" => false,
+        "message" => "Ein Datenbankfehler ist aufgetreten."
+    ]);
 } catch (Exception $e) {
-    // Falls getUserIdFromToken fehlschlägt (Token ungültig/abgelaufen)
-    http_response_code(401);
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    // Internen Fehler sicher auf dem Server protokollieren
+    error_log("Server Error (Clients): " . $e->getMessage());
+
+    // Prüfen, ob es ein Authentifizierungsfehler ist (z.B. ungültiger/fehlender Token)
+    $isAuthError = str_contains($e->getMessage(), 'Token') ||
+        str_contains($e->getMessage(), 'Authorization') ||
+        str_contains($e->getMessage(), 'JWT');
+
+    $statusCode = $isAuthError ? 401 : 400;
+
+    http_response_code($statusCode);
+    // Bei Auth-Fehlern darf die JWT-Meldung (z.B. "Token abgelaufen") ausgegeben werden, sonst generisch
+    echo json_encode([
+        "success" => false,
+        "message" => $isAuthError ? $e->getMessage() : "Ein unerwarteter Fehler ist aufgetreten."
+    ]);
 }
