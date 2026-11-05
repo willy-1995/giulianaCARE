@@ -20,8 +20,11 @@ import AdminLogin from "./routes/admin_login";
 import AdminRegistration from "./routes/admin_registration";
 import "./routes/styles/main.scss";
 import { useEffect } from "react";
+//import { scrollToTop } from "./assets/toStart";
+
 //Test
 import { ClientSearch } from "./routes/TEST_SEARCH_CLIENT";
+import { ScrollToTop } from "./routes/toTop";
 
 function App() {
   // Hier definieren wir die Zustände für Token und ID
@@ -39,6 +42,7 @@ function App() {
   return (
     <div>
       <Router>
+        <ScrollToTop />
         {/*for protected sites! */}
         <Routes>
           <Route path="/" element={<TeleCare />} />
