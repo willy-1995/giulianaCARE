@@ -47,7 +47,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         // Email headers
         $headers = array(
-            'From' => $email,
+            'From' => 'info@giuliana-care.de',
             'Reply-To' => $email,
             'X-Mailer' => 'PHP/' . phpversion(),
             'Content-Type' => 'text/plain; charset=UTF-8'

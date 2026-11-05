@@ -6,7 +6,7 @@ import "./styles/main.scss";
 //BASE URL
 import { API_BASE } from "../assets/base_url";
 
-const MAX_LENGTH = 500;
+const MAX_LENGTH = 600;
 
 export default function Request() {
   //STATES
@@ -37,9 +37,9 @@ export default function Request() {
     try {
       // Daten als FormData aufbereiten, damit PHP sie über $_POST lesen kann
       const body = new FormData();
-      body.append("betreff", formData.reference);
+      body.append("reference", formData.reference);
       body.append("email", formData.email);
-      body.append("telefon", formData.tel);
+      body.append("tel", formData.tel);
       body.append("content", formData.content);
 
       // Pfad zu deinem PHP-Skript anpassen (z. B. "/api/kontakt.php")
@@ -135,7 +135,7 @@ export default function Request() {
               id="content"
               value={formData.content}
               onChange={handleChange}
-              maxLength={600}
+              maxLength={MAX_LENGTH}
               required
             />
             <small
