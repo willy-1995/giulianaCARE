@@ -19,9 +19,9 @@ $error_message = "";
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     // Retrieve and sanitize inputs
-    $reference = isset($_POST['reference']) ? trim($_POST['betreff']) : '';
+    $reference = isset($_POST['reference']) ? trim($_POST['reference']) : '';
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $tel = isset($_POST['tel']) ? trim($_POST['telefon']) : '';
+    $tel = isset($_POST['tel']) ? trim($_POST['tel']) : '';
     $content = isset($_POST['content']) ? trim($_POST['content']) : '';
 
     // Prevent Header Injection
