@@ -4,7 +4,7 @@
 // ======================================================
 // LOGGING
 // ======================================================
-
+require_once __DIR__ . "/cors.php";
 ini_set('log_errors', '1');
 ini_set('display_errors', '0');
 
@@ -57,9 +57,7 @@ requestLog(
 // DATEIEN EINBINDEN
 // ======================================================
 
-requestLog($requestLogId, "INCLUDE", "Lade cors.php");
-require_once "cors.php";
-requestLog($requestLogId, "INCLUDE", "cors.php geladen");
+
 
 requestLog($requestLogId, "INCLUDE", "Lade rate_limiter.php");
 require_once "rate_limiter.php";
