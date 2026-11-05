@@ -1,8 +1,9 @@
 <?php
 require_once "cors.php";
-require_once "rate_limiter.php"; // <-- Datei einbinden
+require_once "rate_limiter.php";
+require_once "mailer.php";
 
-// Rate Limiter ausführen (baut DB-Verbindung selbst auf)
+// Rate Limiter
 checkRateLimit('contact_request', 5, 600);
 
 // Respond immediately to preflight requests
@@ -11,21 +12,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-$recipient_email = "beispiel@beispiel.de";
-$max_length = 500;
+$recipient_email = "info@giuliana-care.de";
+$max_length = 600;
 $error_message = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     // Retrieve and sanitize inputs
-    $reference = isset($_POST['reference']) ? trim($_POST['subject']) : '';
-    $email   = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $tel   = isset($_POST['tel']) ? trim($_POST['phone']) : '';
+    $reference = isset($_POST['reference']) ? trim($_POST['betreff']) : '';
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $tel = isset($_POST['tel']) ? trim($_POST['telefon']) : '';
     $content = isset($_POST['content']) ? trim($_POST['content']) : '';
 
-    // Prevent Header Injection (remove line breaks from single-line fields)
+    // Prevent Header Injection
     $subject = str_replace(array("\r", "\n"), '', $reference);
-    $email   = str_replace(array("\r", "\n"), '', $email);
+    $email = str_replace(array("\r", "\n"), '', $email);
 
     // Validation
     if (empty($subject) || empty($email) || empty($content)) {
@@ -35,26 +36,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif (mb_strlen($content, 'UTF-8') > $max_length) {
         $error_message = "Your message exceeds the limit of " . $max_length . " characters.";
     } else {
-        // Build email body
+
+        // Build email subject
         $mail_subject = "Contact Request: " . $reference;
 
-        $mail_body  = "New message received via contact form:\n\n";
-        $mail_body .= "Subject: " . $reference . "\n";
-        $mail_body .= "Email: " . $email . "\n";
-        $mail_body .= "Phone: " . ($tel ? $tel : 'Not provided') . "\n";
-        $mail_body .= "--------------------------------------------------\n\n";
-        $mail_body .= $content;
+        // HTML-E-Mail erstellen
+        $mail_body = "
+            <h2>Neue Kontaktanfrage</h2>
+            <p><strong>Betreff:</strong> " . htmlspecialchars($reference, ENT_QUOTES, 'UTF-8') . "</p>
+            <p><strong>E-Mail:</strong> " . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . "</p>
+            <p><strong>Telefon:</strong> " . htmlspecialchars($tel ?: 'Not provided', ENT_QUOTES, 'UTF-8') . "</p>
+            <hr>
+            <p><strong>Nachricht:</strong></p>
+            <p>" . nl2br(htmlspecialchars($content, ENT_QUOTES, 'UTF-8')) . "</p>
+        ";
 
-        // Email headers
-        $headers = array(
-            'From' => 'info@giuliana-care.de',
-            'Reply-To' => $email,
-            'X-Mailer' => 'PHP/' . phpversion(),
-            'Content-Type' => 'text/plain; charset=UTF-8'
-        );
-
-        // Send email
-        if (mail($recipient_email, $mail_subject, $mail_body, $headers)) {
+        // E-Mail über PHPMailer versenden
+        if (sendMail($recipient_email, $mail_subject, $mail_body, $email)) {
             http_response_code(200);
             echo "Thank you! Your message has been sent successfully.";
             exit();
