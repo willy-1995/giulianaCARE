@@ -32,11 +32,13 @@ function Footer() {
               <FontAwesomeIcon icon={faEnvelope} /> E-Mail
             </h3>
           </Link>
+          {/*
           <Link to={"/salespartnership"}>
             <h3>
               <FontAwesomeIcon icon={faHandshake} /> Vertriebspartner werden
             </h3>
           </Link>
+          */}
         </div>
         <footer>
           <Link to={"/imprint"} className="legal-link">

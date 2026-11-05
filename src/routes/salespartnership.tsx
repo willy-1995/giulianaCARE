@@ -2,6 +2,7 @@ import {
   useState,
   useEffect,
   useRef,
+  useMemo,
   type ChangeEvent,
   type FormEvent,
 } from "react";
@@ -22,6 +23,13 @@ const PHONE_COUNTRY_CODES = [
   { code: "+43", label: "🇦🇹 Österreich (+43)" },
   { code: "+41", label: "🇨🇭 Schweiz (+41)" },
 ];
+
+// Hilfsfunktion zur Normalisierung (Groß-/Kleinschreibung & Umlaute)
+function normalize(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("de-DE");
+}
 
 export function Salespartnership() {
   // --- Modal State ---
@@ -45,10 +53,12 @@ export function Salespartnership() {
   // Multiselect-Array für die gewählten PLZs / Vorwahlen
   const [selectedSalesAreas, setSelectedSalesAreas] = useState<string[]>([]);
 
-  // --- States für die PLZ-Suche ---
+  // --- States für die PLZ-Suche (nach ClientSearch-Muster) ---
+  const [areas, setAreas] = useState<AreaSuggestion[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [suggestions, setSuggestions] = useState<AreaSuggestion[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
   const searchContainerRef = useRef<HTMLLabelElement>(null);
 
   // --- Slideshow State & Daten ---
@@ -71,7 +81,7 @@ export function Salespartnership() {
 
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
 
-  // Timer für den automatischen Bildwechsel alle 6 Sekunden
+  // Timer für den automatischen Bildwechsel alle 7 Sekunden
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentImageIndex((prevIndex) =>
@@ -105,6 +115,94 @@ export function Salespartnership() {
     };
   }, [isModalOpen]);
 
+  // --- PLZ / Vertriebsgebiete vom Backend laden (sobald das Land gewählt ist) ---
+  useEffect(() => {
+    if (!formData.country) {
+      setAreas([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function loadAreas() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          `${API_BASE}/api/search_area.php?country=${encodeURIComponent(
+            formData.country,
+          )}`,
+          {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+            signal: controller.signal,
+          },
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.message || "Vertriebsgebiete konnten nicht geladen werden.",
+          );
+        }
+
+        // Unterstützt sowohl direkte Arrays als auch verschachtelte Datenstrukturen
+        const dataList = Array.isArray(result) ? result : result.data;
+        setAreas(Array.isArray(dataList) ? dataList : []);
+      } catch (err: unknown) {
+        if ((err as Error).name !== "AbortError") {
+          setError(
+            (err as Error).message || "Verbindungsfehler bei der PLZ-Suche.",
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadAreas();
+
+    return () => controller.abort();
+  }, [formData.country]);
+
+  // Gefilterte Vorschläge basierend auf der Eingabe (nach ClientSearch-Muster)
+  const filteredAreas = useMemo(() => {
+    const query = normalize(searchQuery);
+
+    if (!query) return [];
+
+    return areas
+      .filter((item) => {
+        const code = String(item.area_code ?? "");
+        // Beginnt mit der Eingabe oder enthält sie
+        return normalize(code).startsWith(query);
+      })
+      .slice(0, 10); // Max. 10 Vorschläge anzeigen
+  }, [areas, searchQuery]);
+
+  // Dropdown schließen, wenn außerhalb geklickt wird
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
   // --- Handlers für Formularfelder ---
   const handleInputChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -113,10 +211,10 @@ export function Salespartnership() {
 
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Wenn das Land geändert wird, Suche & Tags zurücksetzen
+    // Wenn das Land gewechselt wird, Suche und gewählte Gebiete zurücksetzen
     if (name === "country") {
       setSearchQuery("");
-      setSuggestions([]);
+      setAreas([]);
       setIsDropdownOpen(false);
       setSelectedSalesAreas([]);
     }
@@ -127,66 +225,12 @@ export function Salespartnership() {
     const newCode = e.target.value;
     setSelectedPhoneCountry(newCode);
 
-    // Ersetzt eine bestehende Vorwahl (+...) am Anfang oder setzt die neue davor
     const currentDigitsOnly = formData.tel.replace(/^\+\d+\s*/, "");
     setFormData((prev) => ({
       ...prev,
       tel: `${newCode} ${currentDigitsOnly}`.trim(),
     }));
   };
-
-  // --- PLZ-Suche per Fetch API (mit Debounce) ---
-  useEffect(() => {
-    if (!formData.country || searchQuery.trim() === "") {
-      setSuggestions([]);
-      setIsDropdownOpen(false);
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const fetchSuggestions = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE}/api/search_area.php?country=${encodeURIComponent(
-            formData.country,
-          )}&q=${encodeURIComponent(searchQuery)}`,
-          { signal: controller.signal },
-        );
-
-        if (response.ok) {
-          const data: AreaSuggestion[] = await response.json();
-          setSuggestions(data);
-          setIsDropdownOpen(data.length > 0);
-        }
-      } catch (err: unknown) {
-        if ((err as Error).name !== "AbortError") {
-          console.error("Fehler bei der PLZ-Suche:", err);
-        }
-      }
-    };
-
-    const timeoutId = setTimeout(fetchSuggestions, 150);
-
-    return () => {
-      clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [searchQuery, formData.country]);
-
-  // Schließen des Such-Dropdowns bei Klick außerhalb
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // --- Hinzufügen / Entfernen von Vertriebsgebieten ---
   const handleAddSalesArea = (areaCode: string) => {
@@ -243,7 +287,6 @@ export function Salespartnership() {
             </li>
             {/* Button zum Öffnen des Modals */}
             <div className="modal-salesbutton-div">
-              {" "}
               <button
                 type="button"
                 className="open-modal-btn"
@@ -272,7 +315,7 @@ export function Salespartnership() {
               ))}
             </div>
 
-            {/* BILD-CONTAINER (UNVERÄNDERT) */}
+            {/* BILD-CONTAINER */}
             <div className="img-div">
               {slideshowImages.map((img, index) => (
                 <img
@@ -298,79 +341,7 @@ export function Salespartnership() {
             onClick={(e) => e.stopPropagation()} // Verhindert Schließen beim Klick ins Modal
           >
             <form onSubmit={handleSubmit} className="salespartner-form">
-              <h3>1. Vertriebsgebiet wählen</h3>
-
               {/* Land auswählen */}
-              <label>
-                Land *
-                <select
-                  name="country"
-                  value={formData.country}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">-- Bitte Land wählen --</option>
-                  <option value="Deutschland">Deutschland</option>
-                  <option value="Österreich">Österreich</option>
-                  <option value="Schweiz">Schweiz</option>
-                </select>
-              </label>
-
-              {/* PLZ / Vorwahl Suche */}
-              <label className="search-container" ref={searchContainerRef}>
-                PLZ / Vorwahl suchen *
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  disabled={!formData.country}
-                  placeholder={
-                    formData.country
-                      ? "Tippen zum Suchen (z.B. 53...)"
-                      : "Erst Land auswählen..."
-                  }
-                  autoComplete="off"
-                />
-                {/* Dropdown Vorschläge */}
-                {isDropdownOpen && (
-                  <ul className="suggestions-dropdown">
-                    {suggestions.map((item) => (
-                      <li
-                        key={item.id}
-                        onClick={() => handleAddSalesArea(item.area_code)}
-                      >
-                        {item.area_code}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </label>
-
-              {/* Liste der ausgewählten Postleitzahlen */}
-              {selectedSalesAreas.length > 0 && (
-                <div className="selected-areas-container">
-                  <h4>
-                    Ausgewählte Postleitzahlen ({selectedSalesAreas.length}):
-                  </h4>
-                  <ul className="selected-areas-list">
-                    {selectedSalesAreas.map((code) => (
-                      <li key={code} className="selected-area-item">
-                        <span>
-                          PLZ / Bereich: <strong>{code}</strong>
-                        </span>
-                        <button
-                          type="button"
-                          className="remove-area-btn"
-                          onClick={() => handleRemoveSalesArea(code)}
-                          title="Entfernen"
-                        >
-                          Entfernen &times;
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
 
               <h3 className="second-h3">2. Persönliche Daten</h3>
 
@@ -407,41 +378,23 @@ export function Salespartnership() {
                 />
               </label>
 
-              {/* Ländervorwahl für Telefonnummer */}
               <label>
-                Ländervorwahl Telefon *
+                Land *
                 <select
-                  value={selectedPhoneCountry}
-                  onChange={handlePhoneCountryChange}
+                  name="country"
+                  value={formData.country}
+                  onChange={handleInputChange}
                   required
                 >
-                  <option value="" disabled hidden>
-                    Bitte Ländervorwahl wählen...
-                  </option>
-                  {PHONE_COUNTRY_CODES.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.label}
-                    </option>
-                  ))}
+                  <option value="">-- Bitte Land wählen --</option>
+                  <option value="Deutschland">Deutschland</option>
+                  <option value="Österreich">Österreich</option>
+                  <option value="Schweiz">Schweiz</option>
                 </select>
               </label>
 
-              {/* Telefonnummer Input */}
               <label>
-                Telefonnummer *
-                <input
-                  type="tel"
-                  name="tel"
-                  value={formData.tel}
-                  onChange={handleInputChange}
-                  placeholder="+49 170 1234567"
-                  disabled={!selectedPhoneCountry}
-                  required
-                />
-              </label>
-
-              <label>
-                Straße & Hausnummer *
+                Adresse (Straße, Nummer, PLZ, Stadt)
                 <input
                   type="text"
                   name="street"
@@ -472,6 +425,7 @@ export function Salespartnership() {
                   required
                 />
               </label>
+
               <div className="form-button-div">
                 <button type="submit" className="submit-btn">
                   Als Vertriebspartner registrieren

@@ -309,14 +309,15 @@ function TeleCare() {
       {/*_____________________________ */}
       <div className="telecare-section section" id="working">
         <h2>
-          So einfach ist der automatische Betreuungsservice von giulianaCare
+          So einfach ist der automatische Betreuungsservice von {corpName}{" "}
+          Telefonbetreuung
         </h2>
         <div className="working-grid">
           <div className="working-card card">
             <h2>1. Anmelden</h2>
             <p>
-              Registrieren Sie sich bei giulianaCare und wählen Sie bis zu 3
-              Anrufzeiten aus. Diese können jederzeit später werden!
+              Registriere dich bei {corpName} und wähle bis zu 3 Anrufzeiten
+              aus. Diese können jederzeit später geändert werden!
             </p>
           </div>
           <div className="working-card card">
@@ -330,14 +331,14 @@ function TeleCare() {
           <div className="working-card card">
             <h2>3. Kontaktiert Angehörige</h2>
             <p>
-              Geht niemand ran? Sie erhalten sofort eine Nachricht per SMS und
-              E-Mail.
+              Wird Unwohlsein geäußert oder es geht niemand ran? Du erhältst
+              sofort eine Nachricht per SMS und E-Mail.
             </p>
           </div>
         </div>
         <div className="service-info-div">
           <h2>
-            Im Gegensatz zum klassischen Hausnotruf beugst Du mit giulianaCare
+            Im Gegensatz zum klassischen Hausnotruf beugst Du mit {corpName}
             Telebetreuung Ernstfällen bequem vor und kannst diese frühzeitig
             erkennen.
           </h2>
@@ -383,7 +384,7 @@ function TeleCare() {
               Die Kriegs- und Nachkriegsgeneration legt besonders viel Wert auf
               Eigenständigkeit und Unabhängigkeit. Hilfsmittel als Wearables
               oder Zusatzhardware lehnt diese Generation oft ab oder hat
-              Schwierigkeiten im Umgang. Die Telefonassistenz von giulianaCARE
+              Schwierigkeiten im Umgang. Die Telefonassistenz von {corpName}
               unterstützt ein selbstständiges Leben dort, wo es am schönsten
               ist: <b>Zuhause</b>!
             </p>
@@ -393,8 +394,8 @@ function TeleCare() {
             <p>
               "Oh nein, ich wollte doch noch nach Oma hören!". "Hat Opa heute
               seine Medikamente genommen?". Diese Fragen gehen im Alltag neben
-              Arbeit, Haushalt und Terminen schnell unter. Die Telefonassistenz
-              von giulianaCARE unterstützt dich bei der Betreuung von
+              Arbeit, Haushalt und Terminen schnell unter. {corpName}{" "}
+              Telefonbetreuung unterstützt dich bei der Betreuung von
               Angehörigen und hält dir den Rücken frei.
             </p>
             <h3>
@@ -402,19 +403,19 @@ function TeleCare() {
             </h3>
             <p>
               Unsere Server befinden sich ausschließlich in Deutschland und
-              unsere Plattform ist DSGVO-konform. Wir verzichten auf die
-              Tracking, Cookies oder sonstige zwielichtige Weitergabe deiner
-              Daten. Transparenz ist uns eine Herzensangelegenheit.
+              unsere Plattform ist DSGVO-konform. Wir verzichten auf Tracking,
+              Cookies oder sonstige Weitergabe deiner Daten. Transparenz ist uns
+              eine Herzensangelegenheit.
             </p>
             <h3>
               Verantwortungsbewusster Einsatz von KI
               <FontAwesomeIcon icon={faRobot} />
             </h3>
             <p>
-              giulianaCARE setzt sich für den verantwortungsbewussten Einsatz
-              von KI ein! Wir vertreten die Meinung, dass KI echte Chancen
-              bietet, gewisse Lebensbereiche zu vereinfachen. Daran knüpfen wir
-              mit unserem Service an.
+              {corpName} setzt sich für den verantwortungsbewussten Einsatz von
+              KI ein! Wir vertreten die Meinung, dass KI echte Chancen bietet,
+              gewisse Lebensbereiche zu vereinfachen. Daran knüpfen wir mit
+              unserem Service an.
             </p>
           </div>
         </div>
@@ -516,7 +517,7 @@ function TeleCare() {
             Was passiert mit meinen Daten?
           </summary>
           <p>
-            Ihre Daten bleiben in Deutschland, dank inländischer
+            Deine Daten bleiben in Deutschland, dank inländischer
             Server-Standorte. giulianaCARE verzichtet auf Tracking, Cookies und
             die unerlaubte Weitergabe ihrer Daten an Dritte.
           </p>
