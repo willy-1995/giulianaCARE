@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'request') {
         // ==========================================
         // RESET-LINK ERSTELLEN
         // ==========================================
-        $resetLink = "https://www.giuliana-care.de/reset-password?token="
+        $resetLink = "https://www.giuliana-care.de/resetPassword?token="
             . urlencode($token);
 
         $subject = "Passwort zurücksetzen - Giuliana Care";
