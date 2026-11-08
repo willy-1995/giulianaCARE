@@ -1,7 +1,7 @@
 <?php
-require_once "../../cors.php";
-require_once "../../database.php";
-require_once "../../envloader.php";
+require_once "../cors.php";
+require_once "../database.php";
+require_once "../envloader.php";
 
 
 
