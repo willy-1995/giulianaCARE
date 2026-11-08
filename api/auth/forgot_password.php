@@ -1,9 +1,27 @@
 
 <?php
-require_once "../cors.php";
-require_once "../database.php";
-require_once "../envloader.php";
-require_once "../mailer.php";
+
+// Fehler protokollieren, aber nicht im Browser anzeigen
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
+// Eigene Logdatei im API-Verzeichnis
+ini_set(
+    'error_log',
+    __DIR__ . '/../forgot_password_errors.log'
+);
+
+// Prüfen, ob PHP überhaupt gestartet wurde
+error_log("RESET DEBUG: forgot_password.php gestartet");
+
+
+require_once __DIR__ . "/../cors.php";
+require_once __DIR__ . "/../database.php";
+require_once __DIR__ . "/../envloader.php";
+require_once __DIR__ . "/../mailer.php";
+
+error_log("RESET DEBUG: Alle Dateien erfolgreich geladen");
 
 header("Content-Type: application/json; charset=UTF-8");
 
