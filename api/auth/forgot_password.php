@@ -1,9 +1,9 @@
 
 <?php
-require_once __DIR__ . "/../cors.php";
-require_once __DIR__ . "/../database.php";
-require_once __DIR__ . "/../envloader.php";
-require_once __DIR__ . "/../mailer.php";
+require_once "../cors.php";
+require_once "../database.php";
+require_once "../envloader.php";
+require_once "../mailer.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
