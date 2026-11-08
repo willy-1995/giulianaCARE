@@ -51,7 +51,7 @@ export default function Request() {
       if (response.ok) {
         setStatus({
           type: "success",
-          message: "Vielen Dank! Ihre Nachricht wurde erfolgreich gesendet.",
+          message: "Vielen Dank! Deine Nachricht wurde erfolgreich gesendet.",
         });
         // Formular zurücksetzen
         setFormData({ reference: "", email: "", tel: "", content: "" });
