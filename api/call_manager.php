@@ -1,1218 +1,4 @@
 <?php
-
-
-// 1. Output-Buffering aktivieren
-ob_start();
-
-// Fehler-Logging konfigurieren
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/my_php_errors.log');
-
-header("Content-Type: application/json; charset=UTF-8");
-
-try {
-    require_once __DIR__ . "/config.php";
-    require_once __DIR__ . "/database.php";
-
-    // --- 1. WEBHOOK-JSON SOFORT AUSLESEN ---
-    $rawInput = file_get_contents('php://input');
-
-    if (!empty($rawInput)) {
-        file_put_contents(
-            __DIR__ . '/vapi_webhook_debug.log',
-            date('Y-m-d H:i:s') . " - " . $rawInput . "\n\n",
-            FILE_APPEND
-        );
-    }
-
-    $input = json_decode($rawInput, true);
-
-    if (!is_array($input)) {
-        $input = [];
-    }
-
-    // --- 2. VAPI WEBHOOKS DIREKT ABFANGEN ---
-    $messageType = $input['message']['type'] ?? '';
-
-    if (
-        $messageType === 'tool-calls' ||
-        isset($input['message']['toolCalls']) ||
-        isset($input['toolCalls'])
-    ) {
-        $dbInstance = new Database();
-        $db = $dbInstance->getConnection();
-
-        handleVapiToolCall($db, $input);
-        exit;
-    }
-
-    // Nur den vollständigen Abschlussbericht auswerten
-    if ($messageType === 'end-of-call-report') {
-        $dbInstance = new Database();
-        $db = $dbInstance->getConnection();
-
-        handleVapiWebhook($db, $input);
-
-        echo json_encode(["success" => true]);
-        exit;
-    }
-
-    // --- 3. STANDARD FORMULAR- & API-ANFRAGEN ---
-    if (
-        $_SERVER['REQUEST_METHOD'] === 'POST' &&
-        isset($_POST['action'])
-    ) {
-        require_once __DIR__ . "/cors.php";
-        require_once __DIR__ . "/envloader.php";
-        require_once __DIR__ . "/rate_limiter.php";
-
-        $action = $_POST['action'] ?? null;
-        $clientId = $_POST['clientId'] ??
-            $_POST['client_id'] ?? null;
-
-        $callType = $_POST['call_type'] ?? 'call_1';
-        $directPhoneNumber = $_POST['phone_number'] ?? null;
-
-        $dbInstance = new Database();
-        $db = $dbInstance->getConnection();
-
-        switch ($action) {
-            case 'start':
-                if ($clientId) {
-                    initializeCallStatus(
-                        $db,
-                        (int)$clientId,
-                        $callType
-                    );
-
-                    executeCall(
-                        $db,
-                        (int)$clientId,
-                        'tel1',
-                        1,
-                        $callType
-                    );
-
-                    echo json_encode([
-                        "success" => true,
-                        "message" => "Anruf gestartet."
-                    ]);
-                    exit;
-                } else {
-                    http_response_code(400);
-                    echo json_encode([
-                        "success" => false,
-                        "message" => "Keine Client ID übergeben."
-                    ]);
-                    exit;
-                }
-
-            case 'test_call':
-                checkRateLimit(
-                    'landingpage_test_call',
-                    2,
-                    3600
-                );
-
-                if ($directPhoneNumber) {
-                    executeDirectTestCall($directPhoneNumber);
-
-                    echo json_encode([
-                        "success" => true,
-                        "message" => "Testanruf gestartet."
-                    ]);
-                    exit;
-                } else {
-                    http_response_code(400);
-                    echo json_encode([
-                        "success" => false,
-                        "message" => "Keine Telefonnummer übergeben."
-                    ]);
-                    exit;
-                }
-
-            default:
-                http_response_code(400);
-                echo json_encode([
-                    "success" => false,
-                    "message" => "Aktion nicht erkannt."
-                ]);
-                exit;
-        }
-    }
-} catch (PDOException $e) {
-    error_log(
-        "Database Error (Vapi Webhook): " .
-            $e->getMessage()
-    );
-
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-
-    http_response_code(500);
-
-    echo json_encode([
-        "success" => false,
-        "message" => "Ein interner Datenbankfehler ist aufgetreten."
-    ]);
-    exit;
-} catch (Exception $e) {
-    error_log(
-        "Server Error (Vapi Webhook): " .
-            $e->getMessage()
-    );
-
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-
-    http_response_code(500);
-
-    echo json_encode([
-        "success" => false,
-        "message" => "Ein unerwarteter Serverfehler ist aufgetreten."
-    ]);
-    exit;
-}
-
-// ==========================================
-// FUNKTIONEN
-// ==========================================
-
-// ==========================================
-// 1. VAPI TOOL-CALLS VERARBEITEN
-// ==========================================
-function handleVapiToolCall($db, $data)
-{
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-
-    $toolCalls = $data['message']['toolCalls']
-        ?? $data['message']['toolCallList']
-        ?? [];
-
-    $metadata = $data['message']['call']['metadata']
-        ?? $data['message']['metadata']
-        ?? [];
-
-    $metadata = array_merge(
-        $data['message']['call']['assistantOverrides']['variableValues']
-            ?? [],
-        $metadata
-    );
-
-    $clientId = isset($metadata['clientId'])
-        ? (int)$metadata['clientId']
-        : null;
-
-    $results = [];
-    $reason = 'Unwohlsein / Notfall geäußert';
-    $notifyEmergency = false;
-
-    foreach ($toolCalls as $toolCall) {
-        $toolCallId = $toolCall['id'] ?? null;
-
-        $functionName = $toolCall['function']['name']
-            ?? $toolCall['name']
-            ?? '';
-
-        // ----------------------------------
-        // ENTwARNUNG: ALLES IST IN ORDNUNG
-        // ----------------------------------
-        if ($functionName === 'confirmWellbeing') {
-            $updated = false;
-
-            if ($clientId && $clientId > 0) {
-                $stmt = $db->prepare("
-                    UPDATE call_status
-                    SET status = 'completed',
-                        summary = 'Klient bestätigt, dass alles gut ist.'
-                    WHERE client_id = ?
-                      AND status = 'calling'
-                ");
-
-                $stmt->execute([$clientId]);
-                $updated = $stmt->rowCount() > 0;
-            }
-
-            $results[] = [
-                'toolCallId' => $toolCallId,
-                'result' => $updated
-                    ? 'Entwarnung gespeichert. Gespräch höflich beenden.'
-                    : 'Entwarnung konnte nicht gespeichert werden; keine Bestätigung über den Status geben.'
-            ];
-        }
-
-        // ----------------------------------
-        // NOTFALL: KONTAKTE INFORMIEREN
-        // ----------------------------------
-        if ($functionName === 'triggerEmergencyCall') {
-            $rawArgs = $toolCall['function']['arguments']
-                ?? $toolCall['arguments']
-                ?? '{}';
-
-            $args = is_array($rawArgs)
-                ? $rawArgs
-                : json_decode($rawArgs, true);
-
-            $reason = $args['reason'] ?? $reason;
-
-            if ($clientId && $clientId > 0) {
-                try {
-                    $stmt = $db->prepare("
-                        UPDATE call_status
-                        SET status = 'incident_reported',
-                            summary = ?
-                        WHERE client_id = ?
-                          AND status = 'calling'
-                    ");
-
-                    $stmt->execute([
-                        "Klient meldet Unwohlsein: " . $reason,
-                        $clientId
-                    ]);
-
-                    if ($stmt->rowCount() > 0) {
-                        logClientIncident(
-                            $db,
-                            $clientId,
-                            $reason
-                        );
-
-                        $notifyEmergency = true;
-                    }
-                } catch (Exception $e) {
-                    error_log(
-                        "DB ERROR: " . $e->getMessage()
-                    );
-                }
-            }
-
-            $results[] = [
-                'toolCallId' => $toolCallId,
-                'result' => $notifyEmergency
-                    ? 'Notfall wurde erfasst. Benachrichtigung wird ausgelöst.'
-                    : 'Notfall konnte nicht neu erfasst werden; bitte keine erfolgte Benachrichtigung behaupten.'
-            ];
-        }
-    }
-
-    http_response_code(200);
-    header('Content-Type: application/json; charset=utf-8');
-
-    $jsonResponse = json_encode([
-        'results' => $results
-    ]);
-
-    if (function_exists('fastcgi_finish_request')) {
-        echo $jsonResponse;
-        session_write_close();
-        fastcgi_finish_request();
-    } else {
-        header(
-            "Content-Length: " . strlen($jsonResponse)
-        );
-        header("Connection: close");
-
-        echo $jsonResponse;
-        flush();
-    }
-
-    if ($notifyEmergency && $clientId && $clientId > 0) {
-        try {
-            notifyEmergencyContacts(
-                $db,
-                $clientId,
-                $reason
-            );
-
-            error_log(
-                "SUCCESS: Emergency contacts notified in background for client $clientId"
-            );
-        } catch (Exception $e) {
-            error_log(
-                "NOTIFICATION ERROR: " . $e->getMessage()
-            );
-        }
-    }
-
-    exit;
-}
-
-// ==========================================
-// 2. ANRUF STARTEN
-// ==========================================
-function executeCall(
-    $db,
-    $clientId,
-    $telType,
-    $cycle,
-    $callType = 'call_1'
-) {
-    error_log(
-        "CALL START [Versuch $cycle]: Client ID $clientId | Typ: $callType | Nummerntyp: $telType"
-    );
-
-    $stmt = $db->prepare("
-        SELECT
-            title,
-            firstname,
-            lastname,
-            tel1,
-            tel2,
-            call_1,
-            call_2,
-            call_3,
-            medication_1,
-            medication_2,
-            medication_3
-        FROM clients
-        WHERE id = ?
-          AND status = 'active'
-    ");
-
-    $stmt->execute([$clientId]);
-    $client = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$client) {
-        error_log(
-            "VAPI ERROR: Client ID $clientId nicht in Datenbank gefunden oder inaktiv."
-        );
-        return;
-    }
-
-    $phone = ($telType === 'tel1')
-        ? ($client['tel1'] ?? '')
-        : ($client['tel2'] ?? '');
-
-    if (empty($phone)) {
-        error_log(
-            "VAPI ERROR: Keine Telefonnummer ($telType) für Client ID $clientId vorhanden."
-        );
-
-        if ($telType === 'tel1') {
-            escalateCall(
-                $db,
-                $clientId,
-                $cycle,
-                'tel1',
-                $callType
-            );
-        }
-
-        return;
-    }
-
-    $phone = preg_replace('/[^0-9+]/', '', $phone);
-
-    if (strpos($phone, '0') === 0) {
-        $phone = '+49' . substr($phone, 1);
-    }
-
-    $titlePrefix = !empty($client['title'])
-        ? trim($client['title']) . ' '
-        : '';
-
-    $fullName = trim(
-        ($client['firstname'] ?? '') . ' ' .
-            ($client['lastname'] ?? '')
-    );
-
-    $currentMedication = '';
-
-    switch ($callType) {
-        case 'call_2':
-            $currentMedication = trim(
-                $client['medication_2'] ?? ''
-            );
-            break;
-
-        case 'call_3':
-            $currentMedication = trim(
-                $client['medication_3'] ?? ''
-            );
-            break;
-
-        case 'call_1':
-        default:
-            $currentMedication = trim(
-                $client['medication_1'] ?? ''
-            );
-            break;
-    }
-
-    $medicationPromptSection = !empty($currentMedication)
-        ? "MEDIKATION HINWEIS:\nDer Klient muss zu dieser Zeit folgende Medikamente einnehmen: \"$currentMedication\". Erkundige dich höflich, ob die Einnahme geklappt hat bzw. erinnere freundlich daran."
-        : "MEDIKATION HINWEIS:\nFür diesen Anruf ist keine spezifische Medikamenteneinnahme hinterlegt.";
-
-    $systemPrompt = <<<PROMPT
-Du bist ein empathischer, aufmerksamer Telefon-Assistent für die Seniorenbetreuung von Dschuliana Kär.
-ZIEL DES ANRUFS:
-Kurz erfragen, wie es dem Klienten geht, immer an die Medikamente erinnern bzw. diese abfragen und sicherstellen, dass alles in Ordnung ist.
-$medicationPromptSection
-VERHALTENSREGELN UND REAKTIONEN:
-1. Grundhaltung: Antworte immer extrem kurz (max. 1-2 Sätze pro Gesprächsschritt), verständlich und einfühlsam.
-2. Den Klienten immer sietzen
-3. Begrüße mit "Guten Tag..." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
-4. WICHTIGE PFLICHTABFRAGE (Gilt IMMER): Bevor nach Notfallkontakten gefragt wird oder das Gespräch beendet wird, MUSS IMMER zuerst die Medikamenteneinnahme abgefragt bzw. daran erinnert werden.
-5. Wenn der Klient sagt, dass alles gut ist: Rufe ZUERST das Tool confirmWellbeing auf. Verabschiede dich danach höflich mit "Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!" und sprich absolut nichts mehr.
-6. Wenn es dem Klienten schlecht geht: Frage nach Beschwerden, biete Notfallkontakt-Benachrichtigung an und handle entsprechend.
-7. Wenn der Klient ausdrücklich bestätigt, dass alles gut ist, MUSST du vor der Verabschiedung das Tool confirmWellbeing aufrufen. Das gilt in jedem Anrufzyklus.
-8. Wenn der Klient sagt, dass es ihm nicht gut geht ODER ausdrücklich die Benachrichtigung seiner Notfallkontakte wünscht, MUSST du das Tool triggerEmergencyCall aufrufen. Rufe in diesem Fall NICHT confirmWellbeing auf.
-PROMPT;
-
-    $payload = [
-        'assistantId' => VAPI_ASSISTANT_ID,
-        'phoneNumberId' => VAPI_PHONE_ID,
-
-        'assistantOverrides' => [
-            'firstMessage' =>
-            "Guten Tag " .
-                $titlePrefix .
-                $fullName .
-                ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
-
-            'endCallPhrases' => [
-                "Auf Wiederhören!",
-                "Einen schönen Tag.",
-                "Einen schönen Abend."
-            ],
-
-            'endCallFunctionEnabled' => false,
-
-            'model' => [
-                'provider' => 'azure-openai',
-                'model' => 'gpt-5.4-mini',
-
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => $systemPrompt
-                    ]
-                ],
-
-                'tools' => [
-                    [
-                        'type' => 'function',
-                        'function' => [
-                            'name' => 'confirmWellbeing',
-                            'description' =>
-                            'Nur aufrufen, wenn der Klient ausdrücklich bestätigt hat, dass alles gut ist und keine Hilfe benötigt wird.',
-                            'parameters' => [
-                                'type' => 'object',
-                                'properties' => new stdClass()
-                            ]
-                        ],
-                        'async' => false
-                    ],
-
-                    [
-                        'type' => 'function',
-                        'function' => [
-                            'name' => 'triggerEmergencyCall',
-                            'description' =>
-                            'Aktiviert den Notfallalarm, benachrichtigt die Notfallkontakte und speichert die Beschwerden.',
-                            'parameters' => [
-                                'type' => 'object',
-                                'properties' => [
-                                    'reason' => [
-                                        'type' => 'string',
-                                        'description' =>
-                                        'Die konkreten Beschwerden oder Gründe.'
-                                    ]
-                                ],
-                                'required' => ['reason']
-                            ]
-                        ],
-                        'async' => false
-                    ]
-                ]
-            ],
-
-            'variableValues' => [
-                'clientId' => (string)$clientId,
-                'cycle' => (string)$cycle,
-                'telType' => $telType,
-                'callType' => $callType
-            ]
-        ],
-
-        'customer' => [
-            'number' => $phone
-        ],
-
-        'metadata' => [
-            'clientId' => (string)$clientId,
-            'cycle' => (string)$cycle,
-            'telType' => $telType,
-            'callType' => $callType
-        ]
-    ];
-
-    $ch = curl_init('https://api.vapi.ai/call/phone');
-
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt(
-        $ch,
-        CURLOPT_POSTFIELDS,
-        json_encode($payload)
-    );
-
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . VAPI_PRIVATE_KEY,
-        'Content-Type: application/json'
-    ]);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo(
-        $ch,
-        CURLINFO_HTTP_CODE
-    );
-    $curlError = curl_error($ch);
-
-    curl_close($ch);
-
-    if ($httpCode === 201) {
-        $updateStmt = $db->prepare("
-            UPDATE call_status
-            SET last_tel_used = ?,
-                attempt_cycle = ?,
-                status = 'calling'
-            WHERE client_id = ?
-              AND status = 'calling'
-        ");
-
-        $updateStmt->execute([
-            $telType,
-            $cycle,
-            $clientId
-        ]);
-    } else {
-        $maskedPhone = substr($phone, 0, 5)
-            . '******'
-            . substr($phone, -2);
-
-        error_log(
-            "VAPI CRITICAL ERROR [Client ID: $clientId | Tel: $maskedPhone]: HTTP $httpCode | cURL Err: $curlError | Response: $response"
-        );
-
-        escalateCall(
-            $db,
-            $clientId,
-            $cycle,
-            $telType,
-            $callType
-        );
-    }
-}
-
-// ==========================================
-// 3. VORFALL PROTOKOLLIEREN
-// ==========================================
-function logClientIncident(
-    PDO $db,
-    int $clientId,
-    string $reason
-): void {
-    $stmt = $db->prepare("
-        INSERT INTO client_incidents
-            (client_id, reason, created_at)
-        VALUES (?, ?, NOW())
-    ");
-
-    $stmt->execute([
-        $clientId,
-        $reason
-    ]);
-}
-
-// ==========================================
-// 4. VAPI ABSCHLUSS-WEBHOOK
-// ==========================================
-function handleVapiWebhook($db, $data)
-{
-    $message = $data['message'] ?? [];
-
-    $endedReason = $message['endedReason']
-        ?? $message['call']['endedReason']
-        ?? '';
-
-    $summary = $message['analysis']['summary'] ?? '';
-    $transcript = $message['transcript'] ?? '';
-
-    $metadata = $message['call']['metadata']
-        ?? $message['metadata']
-        ?? $data['metadata']
-        ?? [];
-
-    $metadata = array_merge(
-        $message['call']['assistantOverrides']['variableValues']
-            ?? [],
-        $metadata
-    );
-
-    $clientId = isset($metadata['clientId'])
-        ? (int)$metadata['clientId']
-        : null;
-
-    $cycle = isset($metadata['cycle'])
-        ? (int)$metadata['cycle']
-        : 1;
-
-    $telType = $metadata['telType'] ?? 'tel1';
-    $callType = $metadata['callType'] ?? 'call_1';
-
-    if (!$clientId) {
-        error_log(
-            "VAPI WEBHOOK ERROR: Konnte Client ID nicht auslesen!"
-        );
-        return;
-    }
-
-    // Nur den aktuell laufenden Versuch verarbeiten.
-    $stmt = $db->prepare("
-        SELECT
-            status,
-            attempt_cycle,
-            last_tel_used,
-            call_type
-        FROM call_status
-        WHERE client_id = ?
-    ");
-
-    $stmt->execute([$clientId]);
-    $state = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (
-        !$state ||
-        $state['status'] !== 'calling' ||
-        (int)$state['attempt_cycle'] !== $cycle ||
-        $state['last_tel_used'] !== $telType ||
-        $state['call_type'] !== $callType
-    ) {
-        error_log(
-            "VAPI WEBHOOK IGNORIERT: Client $clientId, Zyklus $cycle, $telType, Status/Versuch nicht mehr aktuell."
-        );
-        return;
-    }
-
-    $failedReasons = [
-        'customer-did-not-answer',
-        'voicemail',
-        'phone-call-provider-closed-call',
-        'pipeline-error-twilio-execution-failed'
-    ];
-
-    // Nur spezifische Mailbox-Merkmale verwenden.
-    $isVoicemail = false;
-
-    $voicemailKeywords = [
-        'voicemail',
-        'anrufbeantworter',
-        'sprachbox',
-        'piepton'
-    ];
-
-    foreach ($voicemailKeywords as $keyword) {
-        if (
-            stripos($summary, $keyword) !== false ||
-            stripos($transcript, $keyword) !== false
-        ) {
-            $isVoicemail = true;
-            break;
-        }
-    }
-
-    // Kein Gespräch zustande gekommen
-    if (
-        in_array($endedReason, $failedReasons, true) ||
-        $isVoicemail
-    ) {
-        error_log(
-            "VAPI INFO: Anruf nicht erreicht ($endedReason). Eskalation für Client ID $clientId ($telType, Cycle $cycle)..."
-        );
-
-        escalateCall(
-            $db,
-            $clientId,
-            $cycle,
-            $telType,
-            $callType
-        );
-
-        return;
-    }
-
-    // Entwarnung erfolgt nur über confirmWellbeing.
-    // Bei unklarem Gesprächsausgang keine falsche
-    // Nichterreichbarkeitswarnung erzeugen.
-    error_log(
-        "VAPI UNKLARES GESPRÄCHSERGEBNIS: Client $clientId, endedReason=$endedReason."
-    );
-
-    $stmt = $db->prepare("
-        UPDATE call_status
-        SET status = 'review_required',
-            summary = ?
-        WHERE client_id = ?
-          AND status = 'calling'
-          AND attempt_cycle = ?
-          AND last_tel_used = ?
-          AND call_type = ?
-    ");
-
-    $stmt->execute([
-        "Gesprächsausgang unklar: " . $summary,
-        $clientId,
-        $cycle,
-        $telType,
-        $callType
-    ]);
-}
-
-// ==========================================
-// 5. ESKALATION
-// ==========================================
-function escalateCall(
-    $db,
-    $clientId,
-    $cycle,
-    $telType,
-    $callType = 'call_1'
-) {
-    error_log(
-        "ESKALATION AUFGERUFEN: Client=$clientId | Cycle=$cycle | TelType=$telType | CallType=$callType"
-    );
-
-    $stmt = $db->prepare("
-        SELECT
-            status,
-            attempt_cycle,
-            last_tel_used,
-            call_type
-        FROM call_status
-        WHERE client_id = ?
-    ");
-
-    $stmt->execute([$clientId]);
-    $state = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (
-        !$state ||
-        $state['status'] !== 'calling' ||
-        (int)$state['attempt_cycle'] !== (int)$cycle ||
-        $state['last_tel_used'] !== $telType ||
-        $state['call_type'] !== $callType
-    ) {
-        error_log(
-            "ESKALATION ABGEBROCHEN: Vorgang nicht mehr aktuell für Client $clientId."
-        );
-        return;
-    }
-
-    $stmt = $db->prepare("
-        SELECT
-            title,
-            firstname,
-            lastname,
-            tel1,
-            tel2
-        FROM clients
-        WHERE id = ?
-    ");
-
-    $stmt->execute([$clientId]);
-    $client = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$client) {
-        return;
-    }
-
-    // tel1 fehlgeschlagen -> tel2 versuchen
-    if ($telType === 'tel1') {
-        if (!empty($client['tel2'])) {
-            $lockStmt = $db->prepare("
-                UPDATE call_status
-                SET last_tel_used = 'tel2'
-                WHERE client_id = ?
-                  AND status = 'calling'
-                  AND attempt_cycle = ?
-                  AND last_tel_used = 'tel1'
-                  AND call_type = ?
-            ");
-
-            $lockStmt->execute([
-                $clientId,
-                $cycle,
-                $callType
-            ]);
-
-            if ($lockStmt->rowCount() === 1) {
-                error_log(
-                    "ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)"
-                );
-
-                executeCall(
-                    $db,
-                    $clientId,
-                    'tel2',
-                    $cycle,
-                    $callType
-                );
-            }
-        } else {
-            // Keine zweite Nummer vorhanden
-            handleFailedCycle(
-                $db,
-                $clientId,
-                $cycle,
-                $callType
-            );
-        }
-    }
-
-    // tel2 fehlgeschlagen
-    elseif ($telType === 'tel2') {
-        handleFailedCycle(
-            $db,
-            $clientId,
-            $cycle,
-            $callType
-        );
-    }
-}
-
-// ==========================================
-// 6. FEHLGESCHLAGENEN ZYKLUS VERARBEITEN
-// ==========================================
-function handleFailedCycle(
-    $db,
-    $clientId,
-    $cycle,
-    $callType
-) {
-    if ((int)$cycle === 1) {
-        // Erster Zyklus erfolglos.
-        // Zweiten Zyklus nach 15 Minuten planen.
-        $stmt = $db->prepare("
-            UPDATE call_status
-            SET status = 'retry_scheduled',
-                attempt_cycle = 2,
-                scheduled_time = DATE_ADD(
-                    NOW(),
-                    INTERVAL 15 MINUTE
-                )
-            WHERE client_id = ?
-              AND status = 'calling'
-              AND attempt_cycle = 1
-              AND call_type = ?
-        ");
-
-        $stmt->execute([
-            $clientId,
-            $callType
-        ]);
-
-        if ($stmt->rowCount() === 1) {
-            error_log(
-                "RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2 in 15 Min) vorgemerkt."
-            );
-        }
-    } else {
-        // Erst nach erfolglosem Zyklus 2
-        // endgültig als nicht erreichbar markieren.
-        $stmt = $db->prepare("
-            UPDATE call_status
-            SET status = 'failed',
-                summary = ?
-            WHERE client_id = ?
-              AND status = 'calling'
-              AND attempt_cycle = 2
-              AND call_type = ?
-        ");
-
-        $stmt->execute([
-            'Niemand erreicht nach 2 Zyklen (tel1 & tel2).',
-            $clientId,
-            $callType
-        ]);
-
-        // Benachrichtigung nur beim ersten
-        // erfolgreichen Statuswechsel auf failed.
-        if ($stmt->rowCount() === 1) {
-            notifyEmergencyContacts(
-                $db,
-                $clientId,
-                null
-            );
-
-            error_log(
-                "CALL FAILED: Klient ID $clientId nach 2 Zyklen endgültig nicht erreicht. Notfallkontakte EINMALIG benachrichtigt."
-            );
-        }
-    }
-}
-
-// ==========================================
-// 7. NOTFALLKONTAKTE BENACHRICHTIGEN
-// ==========================================
-function notifyEmergencyContacts(
-    PDO $db,
-    int $clientId,
-    ?string $customReason = null
-): void {
-    if ($clientId <= 0) {
-        return;
-    }
-
-    $stmt = $db->prepare("
-        SELECT
-            lastname,
-            firstname,
-            title,
-            sms_status
-        FROM clients
-        WHERE id = ?
-    ");
-
-    $stmt->execute([$clientId]);
-    $client = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$client) {
-        return;
-    }
-
-    $clientName = trim(
-        ($client['title'] ?? '') . ' ' .
-            $client['firstname'] . ' ' .
-            $client['lastname']
-    );
-
-    $smsEnabled = !empty($client['sms_status']);
-
-    $stmtContacts = $db->prepare("
-        SELECT
-            lastname,
-            firstname,
-            email,
-            tel1
-        FROM contacts
-        WHERE client_id = ?
-    ");
-
-    $stmtContacts->execute([$clientId]);
-    $contacts = $stmtContacts->fetchAll(
-        PDO::FETCH_ASSOC
-    );
-
-    if (empty($contacts)) {
-        return;
-    }
-
-    $subject = "NOTFALL-ALARM: $clientName benötigt Hilfe!";
-
-    $messageText = $customReason
-        ? "giulianaCARE Warnung: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $customReason\n\nBitte werden Sie umgehend aktiv!"
-        : "giulianaCARE Warnung: $clientName konnte nach allen automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
-
-    foreach ($contacts as $contact) {
-        if (!empty($contact['email'])) {
-            $headers = [
-                'From' => 'info@giuliana-care.de',
-                'Reply-To' => 'info@giuliana-care.de',
-                'Content-Type' => 'text/plain; charset=UTF-8',
-                'X-Mailer' => 'PHP/' . phpversion()
-            ];
-
-            mail(
-                $contact['email'],
-                $subject,
-                $messageText,
-                $headers
-            );
-        }
-
-        if (
-            $smsEnabled &&
-            !empty($contact['tel1'])
-        ) {
-            sendSmsNotification(
-                $contact['tel1'],
-                $messageText
-            );
-        }
-    }
-}
-
-// ==========================================
-// 8. SMS VERSENDEN
-// ==========================================
-function sendSmsNotification(
-    string $phoneNumber,
-    string $message
-): void {
-    if (
-        !defined('TWILIO_ACCOUNT_SID') ||
-        !defined('TWILIO_AUTH_TOKEN') ||
-        !defined('TWILIO_PHONE_NUMBER')
-    ) {
-        return;
-    }
-
-    $url = "https://api.twilio.com/2010-04-01/Accounts/"
-        . TWILIO_ACCOUNT_SID
-        . "/Messages.json";
-
-    $postData = [
-        'From' => TWILIO_PHONE_NUMBER,
-        'To' => $phoneNumber,
-        'Body' => $message
-    ];
-
-    $ch = curl_init($url);
-
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt(
-        $ch,
-        CURLOPT_POSTFIELDS,
-        http_build_query($postData)
-    );
-
-    curl_setopt(
-        $ch,
-        CURLOPT_USERPWD,
-        TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN
-    );
-
-    curl_exec($ch);
-    curl_close($ch);
-}
-
-// ==========================================
-// 9. ANRUFSTATUS INITIALISIEREN
-// ==========================================
-function initializeCallStatus(
-    $db,
-    $clientId,
-    $callType = 'call_1'
-) {
-    $stmt = $db->prepare("
-        INSERT INTO call_status (
-            client_id,
-            attempt_cycle,
-            last_tel_used,
-            call_type,
-            status,
-            scheduled_time
-        )
-        VALUES (
-            ?,
-            1,
-            'tel1',
-            ?,
-            'calling',
-            NOW()
-        )
-        ON DUPLICATE KEY UPDATE
-            status = 'calling',
-            attempt_cycle = 1,
-            last_tel_used = 'tel1',
-            call_type = ?,
-            scheduled_time = NOW()
-    ");
-
-    $stmt->execute([
-        $clientId,
-        $callType,
-        $callType
-    ]);
-}
-
-// ==========================================
-// 10. ANRUFSTATUS AKTUALISIEREN
-// ==========================================
-function updateCallStatus(
-    $db,
-    $clientId,
-    $status,
-    $summary
-) {
-    $stmt = $db->prepare("
-        UPDATE call_status
-        SET status = ?,
-            summary = ?
-        WHERE client_id = ?
-    ");
-
-    $stmt->execute([
-        $status,
-        $summary,
-        $clientId
-    ]);
-}
-
-// ==========================================
-// 11. DIREKTEN TESTANRUF STARTEN
-// ==========================================
-function executeDirectTestCall($phone)
-{
-    $systemPrompt = "Du bist ein freundlicher Test-Assistent. Verabschiede dich höflich.";
-
-    $payload = [
-        'assistantId' => VAPI_ASSISTANT_ID,
-        'phoneNumberId' => VAPI_PHONE_ID,
-
-        'assistantOverrides' => [
-            'firstMessage' =>
-            "Guten Tag! Dies ist ein Testanruf.",
-
-            'model' => [
-                'provider' => 'azure-openai',
-                'model' => 'gpt-5.4-mini',
-
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => $systemPrompt
-                    ]
-                ]
-            ]
-        ],
-
-        'customer' => [
-            'number' => $phone
-        ]
-    ];
-
-    $ch = curl_init(
-        'https://api.vapi.ai/call/phone'
-    );
-
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-
-    curl_setopt(
-        $ch,
-        CURLOPT_POSTFIELDS,
-        json_encode($payload)
-    );
-
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . VAPI_PRIVATE_KEY,
-        'Content-Type: application/json'
-    ]);
-
-    curl_exec($ch);
-    curl_close($ch);
-}
-
-
-/*
 // 1. Output-Buffering aktivieren (schützt vor kaputten JSON-Responses)
 ob_start();
 
@@ -1251,7 +37,7 @@ try {
 
     $callStatus = $input['message']['status'] ?? '';
 
-    if ($messageType === 'end-of-call-report' || ($messageType === 'status-update' && $callStatus === 'ended')) {
+    if ($messageType === 'end-of-call-report') { // Nur den vollständigen Abschlussbericht auswerten
         $dbInstance = new Database();
         $db = $dbInstance->getConnection();
         handleVapiWebhook($db, $input);
@@ -1336,14 +122,40 @@ function handleVapiToolCall($db, $data)
 
     $toolCalls = $data['message']['toolCalls'] ?? $data['message']['toolCallList'] ?? [];
     $metadata = $data['message']['call']['metadata'] ?? $data['message']['metadata'] ?? [];
+    $metadata = array_merge($data['message']['call']['assistantOverrides']['variableValues'] ?? [], $metadata);
 
     $clientId = isset($metadata['clientId']) ? (int)$metadata['clientId'] : null;
     $results = [];
     $reason = 'Unwohlsein / Notfall geäußert';
 
+    $notifyEmergency = false;
     foreach ($toolCalls as $toolCall) {
         $toolCallId = $toolCall['id'] ?? null;
         $functionName = $toolCall['function']['name'] ?? $toolCall['name'] ?? '';
+
+        // Medikamentenabfrage nach Antwort des Klienten protokollieren.
+        if ($functionName === 'confirmMedication') {
+            $rawArgs = $toolCall['function']['arguments'] ?? $toolCall['arguments'] ?? '{}';
+            $args = is_array($rawArgs) ? $rawArgs : json_decode($rawArgs, true);
+            $answer = is_array($args) ? trim((string)($args['response'] ?? '')) : '';
+            $saved = false;
+            if ($clientId > 0 && $answer !== '') {
+                $stmt = $db->prepare("UPDATE call_status SET medication_checked = 1, medication_response = ? WHERE client_id = ? AND status = 'calling' AND medication_required = 1 AND attempt_cycle = ? AND last_tel_used = ? AND call_type = ?");
+                $stmt->execute([$answer, $clientId, (int)($metadata['cycle'] ?? 0), $metadata['telType'] ?? '', $metadata['callType'] ?? '']);
+                $saved = $stmt->rowCount() === 1;
+            }
+            $results[] = ['toolCallId' => $toolCallId, 'result' => $saved ? 'Medikamentenabfrage dokumentiert. Wenn das Wohlbefinden bestätigt ist, confirmWellbeing aufrufen.' : 'Medikamentenabfrage nicht gespeichert. Bitte die Medikamente und die Antwort prüfen.'];
+        }
+
+        if ($functionName === 'confirmWellbeing') {
+            $updated = false;
+            if ($clientId > 0) {
+                $stmt = $db->prepare("UPDATE call_status SET status = 'completed', summary = 'Wohlbefinden bestätigt; Medikamentenabfrage abgeschlossen oder nicht erforderlich.' WHERE client_id = ? AND status = 'calling' AND (medication_required = 0 OR medication_checked = 1) AND attempt_cycle = ? AND last_tel_used = ? AND call_type = ?");
+                $stmt->execute([$clientId, (int)($metadata['cycle'] ?? 0), $metadata['telType'] ?? '', $metadata['callType'] ?? '']);
+                $updated = $stmt->rowCount() === 1;
+            }
+            $results[] = ['toolCallId' => $toolCallId, 'result' => $updated ? 'Entwarnung gespeichert. Gespräch höflich beenden.' : 'Entwarnung abgelehnt: Medikamentenabfrage noch nicht dokumentiert oder Anruf nicht mehr aktuell. Nicht beenden; zuerst die Medikation abfragen, sofern kein Notfall vorliegt.'];
+        }
 
         if ($functionName === 'triggerEmergencyCall') {
             $rawArgs = $toolCall['function']['arguments'] ?? $toolCall['arguments'] ?? '{}';
@@ -1352,8 +164,12 @@ function handleVapiToolCall($db, $data)
 
             if ($clientId && $clientId > 0) {
                 try {
-                    logClientIncident($db, $clientId, $reason);
-                    updateCallStatus($db, $clientId, 'incident_reported', "Klient meldet Unwohlsein: " . $reason);
+                    $stmt = $db->prepare("UPDATE call_status SET status = 'incident_reported', summary = ? WHERE client_id = ? AND status = 'calling' AND attempt_cycle = ? AND last_tel_used = ? AND call_type = ?");
+                    $stmt->execute(["Klient meldet Unwohlsein: " . $reason, $clientId, (int)($metadata['cycle'] ?? 0), $metadata['telType'] ?? '', $metadata['callType'] ?? '']);
+                    if ($stmt->rowCount() > 0) {
+                        logClientIncident($db, $clientId, $reason);
+                        $notifyEmergency = true;
+                    }
                 } catch (Exception $e) {
                     error_log("DB ERROR: " . $e->getMessage());
                 }
@@ -1361,7 +177,7 @@ function handleVapiToolCall($db, $data)
 
             $results[] = [
                 'toolCallId' => $toolCallId,
-                'result'     => 'Notfallkontakte wurden erfolgreich informiert und der Vorfall wurde im System protokolliert.'
+                'result' => $notifyEmergency ? 'Notfall wurde erfasst. Benachrichtigung wird ausgelöst.' : 'Notfall konnte nicht neu erfasst werden; bitte keine erfolgte Benachrichtigung behaupten.'
             ];
         }
     }
@@ -1381,7 +197,7 @@ function handleVapiToolCall($db, $data)
         flush();
     }
 
-    if ($clientId && $clientId > 0) {
+    if ($notifyEmergency && $clientId && $clientId > 0) {
         try {
             notifyEmergencyContacts($db, $clientId, $reason);
             error_log("SUCCESS: Emergency contacts notified in background for client $clientId");
@@ -1444,17 +260,18 @@ function executeCall($db, $clientId, $telType, $cycle, $callType = 'call_1')
         : "MEDIKATION HINWEIS:\nFür diesen Anruf ist keine spezifische Medikamenteneinnahme hinterlegt.";
 
     $systemPrompt = <<<PROMPT
-Du bist ein empathischer, aufmerksamer Telefon-Assistent für die Seniorenbetreuung von Dschuliana Kär.
-ZIEL DES ANRUFS:
-Kurz erfragen, wie es dem Klienten geht, immer an die Medikamente erinnern bzw. diese abfragen und sicherstellen, dass alles in Ordnung ist. 
+Du bist ein empathischer Telefon-Assistent für die Seniorenbetreuung von Dschuliana Kär.
+ZIEL: Wohlbefinden erfragen und die für diesen Anruf hinterlegte Medikation verbindlich ansprechen.
 $medicationPromptSection
-VERHALTENSREGELN UND REAKTIONEN:
-1. Grundhaltung: Antworte immer extrem kurz (max. 1-2 Sätze pro Gesprächsschritt), verständlich und einfühlsam.
-2. Den Klienten immer sietzen
-3. Begrüße mit "Guten Tag..." vor 18 Uhr und "Guten Abend..." ab 18 Uhr.
-4. WICHTIGE PFLICHTABFRAGE (Gilt IMMER): Bevor nach Notfallkontakten gefragt wird oder das Gespräch beendet wird, MUSS IMMER zuerst die Medikamenteneinnahme abgefragt bzw. daran erinnert werden.
-5. Wenn der Klient sagt, dass alles gut ist: Verabschiede dich höflich mit "Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!" und sprich absolut nichts mehr.
-6. Wenn es dem Klienten schlecht geht: Frage nach Beschwerden, biete Notfallkontakt-Benachrichtigung an und handle entsprechend.
+REGELN:
+1. Sieze den Klienten. Sprich kurz, klar und freundlich (maximal 1-2 Sätze je Gesprächsschritt).
+2. Frage zuerst nach dem Wohlbefinden. Die Aussage "Mir geht es gut" beendet das Gespräch NICHT.
+3. Falls eine Medikation hinterlegt ist, nenne diese ausdrücklich, frage, ob sie eingenommen wurde, und WARTE auf eine Antwort. Falls mehrere Medikamente genannt sind, sprich alle an. Erfinde keine Dosierungen oder Einnahmeempfehlungen.
+4. Rufe nach der Antwort auf die Medikamentenfrage das Tool confirmMedication mit der tatsächlichen Antwort auf. Wenn keine Medikation hinterlegt ist, rufe confirmMedication NICHT auf.
+5. Nur wenn das Wohlbefinden bestätigt ist und die Medikamentenabfrage erledigt wurde (oder keine Medikation hinterlegt ist), rufe confirmWellbeing auf. Wenn das Tool den Abschluss ablehnt, frage nach der fehlenden Medikation statt dich zu verabschieden.
+6. Verabschiede dich erst nach erfolgreicher Antwort von confirmWellbeing freundlich mit "Schön zu hören! Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!".
+7. Bei akuter Notlage oder ausdrücklich gewünschter Benachrichtigung der Notfallkontakte rufe SOFORT triggerEmergencyCall auf. Warte in diesem Fall NICHT auf die Medikamentenabfrage. Rufe NICHT confirmWellbeing auf.
+8. Falls der Klient nicht antworten kann oder die Medikamentenabfrage ablehnt, erfinde keine Antwort und rufe confirmMedication nicht auf. Beende das Gespräch gegebenenfalls ohne Entwarnung; der Vorgang wird zur Prüfung markiert.
 PROMPT;
 
     $payload = [
@@ -1462,7 +279,7 @@ PROMPT;
         'phoneNumberId' => VAPI_PHONE_ID,
         'assistantOverrides' => [
             'firstMessage' => "Guten Tag " . $titlePrefix . $fullName . ", hier spricht die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
-            'endCallPhrases' => ["Auf Wiederhören!", "Einen schönen Tag.", "Einen schönen Abend."],
+            'endCallPhrases' => [],
             'endCallFunctionEnabled' => false,
 
             'model' => [
@@ -1470,6 +287,28 @@ PROMPT;
                 'model'    => 'gpt-5.4-mini',
                 'messages' => [['role' => 'system', 'content' => $systemPrompt]],
                 'tools' => [
+                    [
+                        'type' => 'function',
+                        'function' => [
+                            'name' => 'confirmMedication',
+                            'description' => 'Erst nach ausdrücklicher Frage nach allen hinterlegten Medikamenten und einer tatsächlichen Antwort des Klienten aufrufen.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => ['response' => ['type' => 'string', 'description' => 'Wörtliche oder sinngemäße tatsächliche Antwort des Klienten.']],
+                                'required' => ['response']
+                            ]
+                        ],
+                        'async' => false
+                    ],
+                    [
+                        'type' => 'function',
+                        'function' => [
+                            'name' => 'confirmWellbeing',
+                            'description' => 'Nur aufrufen, nachdem der Klient sein Wohlbefinden bestätigt hat UND die hinterlegte Medikation mit einer Antwort abgefragt und über confirmMedication dokumentiert wurde; ohne hinterlegte Medikation genügt die Wohlbefindensbestätigung.',
+                            'parameters' => ['type' => 'object', 'properties' => new stdClass()]
+                        ],
+                        'async' => false
+                    ],
                     [
                         'type' => 'function',
                         'function' => [
@@ -1517,7 +356,7 @@ PROMPT;
 
     // PRODUKTIONS-SICHERUNG: Status nur bei Erfolg (HTTP 201) setzen, sonst Eskalation triggern
     if ($httpCode === 201) {
-        $updateStmt = $db->prepare("UPDATE call_status SET last_tel_used = ?, attempt_cycle = ?, status = 'calling' WHERE client_id = ?");
+        $updateStmt = $db->prepare("UPDATE call_status SET last_tel_used = ?, attempt_cycle = ?, status = 'calling' WHERE client_id = ? AND status = 'calling'");
         $updateStmt->execute([$telType, $cycle, $clientId]);
     } else {
         $maskedPhone = substr($phone, 0, 5) . '******' . substr($phone, -2);
@@ -1540,22 +379,32 @@ function handleVapiWebhook($db, $data)
     $transcript = $message['transcript'] ?? '';
 
     $metadata = $message['call']['metadata'] ?? $message['metadata'] ?? $data['metadata'] ?? [];
+    $metadata = array_merge($message['call']['assistantOverrides']['variableValues'] ?? [], $metadata);
 
     $clientId = isset($metadata['clientId']) ? (int)$metadata['clientId'] : null;
     $cycle    = isset($metadata['cycle']) ? (int)$metadata['cycle'] : 1;
     $telType  = $metadata['telType'] ?? 'tel1';
     $callType = $metadata['callType'] ?? 'call_1';
 
-    if (!$clientId && isset($message['call']['assistantOverrides']['variableValues']['clientId'])) {
-        $clientId = (int)$message['call']['assistantOverrides']['variableValues']['clientId'];
-    }
-
     if (!$clientId) {
         error_log("VAPI WEBHOOK ERROR: Konnte Client ID nicht auslesen!");
         return;
     }
 
-    // LISTE ALLER GRÜNDE FÜR NICHT-ERREICHEN (inkl. customer-did-not-answer)
+    // Späte oder doppelte Berichte dürfen keinen abgeschlossenen Vorgang verändern.
+    $stmt = $db->prepare("SELECT status, attempt_cycle, last_tel_used, call_type FROM call_status WHERE client_id = ?");
+    $stmt->execute([$clientId]);
+    $state = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (
+        !$state || $state['status'] !== 'calling'
+        || (int)$state['attempt_cycle'] !== $cycle
+        || $state['last_tel_used'] !== $telType
+        || $state['call_type'] !== $callType
+    ) {
+        error_log("VAPI WEBHOOK IGNORIERT: Client $clientId, Zyklus $cycle, $telType, Status/Versuch nicht mehr aktuell.");
+        return;
+    }
+
     $failedReasons = [
         'customer-did-not-answer',
         'voicemail',
@@ -1563,9 +412,9 @@ function handleVapiWebhook($db, $data)
         'pipeline-error-twilio-execution-failed'
     ];
 
-    // Prüfen auf Voicemail-Keywords im Text/Summary
+    // Nur eindeutige Mailbox-Merkmale verwenden.
     $isVoicemail = false;
-    $voicemailKeywords = ['voicemail', 'anrufbeantworter', 'nachricht', 'nicht erreichbar', 'sprachbox', 'piepton', 'ton'];
+    $voicemailKeywords = ['voicemail', 'anrufbeantworter', 'sprachbox', 'piepton'];
     foreach ($voicemailKeywords as $keyword) {
         if (stripos($summary, $keyword) !== false || stripos($transcript, $keyword) !== false) {
             $isVoicemail = true;
@@ -1573,32 +422,34 @@ function handleVapiWebhook($db, $data)
         }
     }
 
-    // Wenn der Anruf NICHT angenommen wurde oder eine Mailbox war:
-    if (in_array($endedReason, $failedReasons) || $isVoicemail) {
-        error_log("VAPI INFO: Anruf nicht erreicht ($endedReason). Starte Eskalation für Client ID $clientId ($telType, Cycle $cycle)...");
+    if (in_array($endedReason, $failedReasons, true) || $isVoicemail) {
+        error_log("VAPI INFO: Anruf nicht erreicht ($endedReason). Eskalation für Client ID $clientId ($telType, Cycle $cycle)...");
         escalateCall($db, $clientId, $cycle, $telType, $callType);
         return;
     }
 
-    // NUR wenn ein echtes Gespräch stattfand (Kunde hat abgehoben und aufgelegt)
-    if ($endedReason === 'customer-ended-call' || $endedReason === 'assistant-ended-call') {
-        $stmt = $db->prepare("SELECT status FROM call_status WHERE client_id = ?");
-        $stmt->execute([$clientId]);
-        $currentStatus = $stmt->fetchColumn();
-
-        if ($currentStatus !== 'incident_reported') {
-            updateCallStatus($db, $clientId, 'completed', $summary);
-            error_log("CALL COMPLETED: Anruf für Client ID $clientId erfolgreich beendet.");
-        }
-    } else {
-        // Sicherheitshalber alle anderen Gründe ebenfalls als Fehlversuch behandeln
-        escalateCall($db, $clientId, $cycle, $telType, $callType);
-    }
+    // Die Entwarnung wird ausschließlich durch das Tool confirmWellbeing gespeichert.
+    // Ein bloß beendetes Gespräch ist kein Beweis für eine Entwarnung.
+    // Bei unklarem Ergebnis keine falsche Nichterreichbarkeitswarnung erzeugen.
+    error_log("VAPI UNKLARES GESPRÄCHSERGEBNIS: Client $clientId, endedReason=$endedReason. Keine automatische Nichterreichbarkeitseskalation.");
+    $stmt = $db->prepare("UPDATE call_status SET status = 'review_required', summary = ? WHERE client_id = ? AND status = 'calling' AND attempt_cycle = ? AND last_tel_used = ? AND call_type = ?");
+    $stmt->execute(["Gesprächsausgang unklar: " . $summary, $clientId, $cycle, $telType, $callType]);
 }
 
 function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 {
     error_log("ESKALATION AUFGERUFEN: Client=$clientId | Cycle=$cycle | TelType=$telType | CallType=$callType");
+
+    $stmt = $db->prepare("SELECT status, attempt_cycle, last_tel_used, call_type FROM call_status WHERE client_id = ?");
+    $stmt->execute([$clientId]);
+    $state = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (
+        !$state || $state['status'] !== 'calling' || (int)$state['attempt_cycle'] !== (int)$cycle
+        || $state['last_tel_used'] !== $telType || $state['call_type'] !== $callType
+    ) {
+        error_log("ESKALATION ABGEBROCHEN: Vorgang nicht mehr aktuell für Client $clientId.");
+        return;
+    }
 
     $stmt = $db->prepare("SELECT title, firstname, lastname, tel1, tel2 FROM clients WHERE id = ?");
     $stmt->execute([$clientId]);
@@ -1609,8 +460,13 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
     // SCHRITT A: tel1 schlägt fehl -> Zu tel2 wechseln (Gilt für Zyklus 1 UND Zyklus 2)
     if ($telType === 'tel1') {
         if (!empty($client['tel2'])) {
-            error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
-            executeCall($db, $clientId, 'tel2', $cycle, $callType);
+            // Wechsel atomar reservieren, damit doppelte Webhooks nicht zweimal tel2 starten.
+            $lockStmt = $db->prepare("UPDATE call_status SET last_tel_used = 'tel2' WHERE client_id = ? AND status = 'calling' AND attempt_cycle = ? AND last_tel_used = 'tel1' AND call_type = ?");
+            $lockStmt->execute([$clientId, $cycle, $callType]);
+            if ($lockStmt->rowCount() === 1) {
+                error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
+                executeCall($db, $clientId, 'tel2', $cycle, $callType);
+            }
         } else {
             // Falls tel2 gar nicht existiert, direkt behandeln wie wenn tel2 fehlgeschlagen wäre
             handleFailedCycle($db, $clientId, $cycle, $callType);
@@ -1624,21 +480,19 @@ function escalateCall($db, $clientId, $cycle, $telType, $callType = 'call_1')
 
 function handleFailedCycle($db, $clientId, $cycle, $callType)
 {
-    if ($cycle === 1) {
-        // Zyklus 1 beendet -> 15 Min Retry planen (Zyklus 2 vorbereiten)
-        $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ?");
-        $stmt->execute([$clientId]);
-        error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2 in 15 Min) vorgemerkt.");
+    if ((int)$cycle === 1) {
+        // Zyklus 1 beendet -> 15 Min Retry planen; nur solange der Vorgang noch läuft.
+        $stmt = $db->prepare("UPDATE call_status SET status = 'retry_scheduled', attempt_cycle = 2, scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE client_id = ? AND status = 'calling' AND attempt_cycle = 1 AND call_type = ?");
+        $stmt->execute([$clientId, $callType]);
+        if ($stmt->rowCount() === 1) {
+            error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2 in 15 Min) vorgemerkt.");
+        }
     } else {
-        // Erst wenn Zyklus 2 auf tel2 ENDGÜLTIG scheitert -> Status 'failed' & Notfallkontakte informieren
-        $stmt = $db->prepare("SELECT status FROM call_status WHERE client_id = ?");
-        $stmt->execute([$clientId]);
-        $currentStatus = $stmt->fetchColumn();
-
-        // Verhindert mehrfaches Versenden von Notfall-Benachrichtigungen
-        if (!in_array($currentStatus, ['failed', 'incident_reported', 'completed'], true)) {
-            updateCallStatus($db, $clientId, 'failed', 'Niemand erreicht nach 2 Zyklen (tel1 & tel2).');
-            notifyEmergencyContacts($db, $clientId, "Klient war nach allen automatischen Anrufversuchen (2 Zyklen auf tel1 und tel2) nicht erreichbar.");
+        // Nur der laufende zweite Zyklus darf endgültig scheitern.
+        $stmt = $db->prepare("UPDATE call_status SET status = 'failed', summary = ? WHERE client_id = ? AND status = 'calling' AND attempt_cycle = 2 AND call_type = ?");
+        $stmt->execute(['Niemand erreicht nach 2 Zyklen (tel1 & tel2).', $clientId, $callType]);
+        if ($stmt->rowCount() === 1) {
+            notifyEmergencyContacts($db, $clientId, null);
             error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen endgültig nicht erreicht. Notfallkontakte EINMALIG benachrichtigt.");
         }
     }
@@ -1703,10 +557,16 @@ function sendSmsNotification(string $phoneNumber, string $message): void
 
 function initializeCallStatus($db, $clientId, $callType = 'call_1')
 {
-    $stmt = $db->prepare("INSERT INTO call_status (client_id, attempt_cycle, last_tel_used, call_type, status, scheduled_time) 
-                          VALUES (?, 1, 'tel1', ?, 'calling', NOW()) 
-                          ON DUPLICATE KEY UPDATE status = 'calling', attempt_cycle = 1, last_tel_used = 'tel1', call_type = ?, scheduled_time = NOW()");
-    $stmt->execute([$clientId, $callType, $callType]);
+    // Bei jedem NEUEN regulären Anruf zurücksetzen, nicht bei tel2 oder Retry.
+    $column = ['call_1' => 'medication_1', 'call_2' => 'medication_2', 'call_3' => 'medication_3'][$callType] ?? 'medication_1';
+    $stmt = $db->prepare("SELECT $column FROM clients WHERE id = ?");
+    $stmt->execute([$clientId]);
+    $medicationRequired = trim((string)$stmt->fetchColumn()) !== '' ? 1 : 0;
+
+    $stmt = $db->prepare("INSERT INTO call_status (client_id, attempt_cycle, last_tel_used, call_type, status, scheduled_time, medication_required, medication_checked, medication_response)
+        VALUES (?, 1, 'tel1', ?, 'calling', NOW(), ?, 0, NULL)
+        ON DUPLICATE KEY UPDATE status = 'calling', attempt_cycle = 1, last_tel_used = 'tel1', call_type = ?, scheduled_time = NOW(), medication_required = ?, medication_checked = 0, medication_response = NULL");
+    $stmt->execute([$clientId, $callType, $medicationRequired, $callType, $medicationRequired]);
 }
 
 function updateCallStatus($db, $clientId, $status, $summary)
@@ -1736,4 +596,3 @@ function executeDirectTestCall($phone)
     curl_exec($ch);
     curl_close($ch);
 }
-*/
