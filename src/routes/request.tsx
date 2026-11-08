@@ -72,7 +72,7 @@ export default function Request() {
     <div className="body-div contact-content">
       <Navbar />
       <div className="contact-form-div">
-        <h2>Kontaktieren Sie uns</h2>
+        <h2>Kontaktiere uns</h2>
 
         {status.message && (
           <p
