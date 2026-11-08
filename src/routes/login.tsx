@@ -83,6 +83,7 @@ function Login() {
   };
 
   //Password Reset Handler
+  /*
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -101,6 +102,52 @@ function Login() {
     } catch (err) {
       setMessage(
         "Fehler beim Beim Password-Reset. Bitte versuche es später erneut.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  */
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const url = "/api/auth/forgot_password.php?action=request";
+
+      console.log("Frontend-Origin:", window.location.origin);
+      console.log("API-Anfrage:", url);
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: forgotEmail,
+        }),
+      });
+
+      console.log("HTTP-Status:", res.status);
+      console.log("Antwort-URL:", res.url);
+      console.log(
+        "Access-Control-Allow-Origin:",
+        res.headers.get("Access-Control-Allow-Origin"),
+      );
+
+      const rawData = await res.text();
+
+      console.log("Serverantwort:", rawData);
+
+      const data = JSON.parse(rawData);
+
+      setMessage(data.message);
+    } catch (err) {
+      console.error("Passwort-Reset Fehler:", err);
+
+      setMessage(
+        "Fehler beim Passwort-Reset. Bitte versuche es später erneut.",
       );
     } finally {
       setIsLoading(false);
