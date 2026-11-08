@@ -15,6 +15,7 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | React.JSX.Element>("");
+
   const [isloading, setIsLoading] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const navigate = useNavigate();
@@ -155,6 +156,7 @@ function Login() {
           <div className="modal">
             <form className="pw-reset-form" onSubmit={handleForgotSubmit}>
               <h2>Passwort zurücksetzen</h2>
+              {message}
               <input
                 type="email"
                 id="pw-forgot-input"
