@@ -83,7 +83,7 @@ function Login() {
   };
 
   //Password Reset Handler
-  /*
+
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -107,8 +107,8 @@ function Login() {
       setIsLoading(false);
     }
   };
-  */
 
+  /*
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -153,6 +153,7 @@ function Login() {
       setIsLoading(false);
     }
   };
+  */
 
   //CLOSE PASSWORD RESET MODAL
   const closePasswordReset = () => {
