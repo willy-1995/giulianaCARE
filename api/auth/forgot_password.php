@@ -28,6 +28,8 @@ header("Content-Type: application/json; charset=UTF-8");
 $database = new Database();
 $conn = $database->getConnection();
 
+error_log("RESET DEBUG: Datenbankverbindung hergestellt");
+
 $input = json_decode(file_get_contents("php://input"), true) ?? [];
 $action = $_GET['action'] ?? 'request';
 
@@ -131,7 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'request') {
         // ==========================================
         // E-MAIL ÜBER MAILER.PHP VERSENDEN
         // ==========================================
+        error_log("RESET DEBUG: Starte Mailversand");
         $mailSent = sendMail($email, $subject, $message);
+
 
         if (!$mailSent) {
             error_log(
