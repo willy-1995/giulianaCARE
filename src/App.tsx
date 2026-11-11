@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Landing from "./routes/landing";
 import TeleCare from "./routes/telecare";
 import Registration from "./routes/registration";
@@ -19,15 +18,20 @@ import Metrics from "./routes/metrics";
 import AdminLogin from "./routes/admin_login";
 import AdminRegistration from "./routes/admin_registration";
 import "./routes/styles/main.scss";
-import { useEffect } from "react";
-//import { scrollToTop } from "./assets/toStart";
-
-//Test
-import { ClientSearch } from "./routes/TEST_SEARCH_CLIENT";
 import { ScrollToTop } from "./routes/toTop";
 
+// ==========================================
+// CAREMATCH KOMPONENTEN
+// ==========================================
+import CareMatchLanding from "./routes/carematch";
+import CarematchRegistration from "./routes/carematch_registration";
+import CarematchLogin from "./routes/carematch_login";
+import CarematchDashboard from "./routes/carematch_dashboard";
+import CarematchProfileView from "./routes/carematch_profileView";
+import CarematchOwnProfile from "./routes/carematch_ownprofile";
+import CarematchEditProfile from "./routes/carematch_editprofile";
+
 function App() {
-  // Hier definieren wir die Zustände für Token und ID
   const [token, setToken] = useState<string | null>(
     localStorage.getItem("token"),
   );
@@ -43,8 +47,8 @@ function App() {
     <div>
       <Router>
         <ScrollToTop />
-        {/*for protected sites! */}
         <Routes>
+          {/* Bestehende öffentliche Routen */}
           <Route path="/" element={<TeleCare />} />
           <Route path="/landing" element={<Landing />} />
           <Route path="/telecare" element={<TeleCare />} />
@@ -59,7 +63,55 @@ function App() {
           <Route path="/salespartnership" element={<Salespartnership />} />
           <Route path="/admin_login" element={<AdminLogin />} />
           <Route path="/admin_registration" element={<AdminRegistration />} />
-          {/*protected sites */}
+
+          {/* ========================================== */}
+          {/* CAREMATCH ROUTEN                            */}
+          {/* ========================================== */}
+
+          <Route path="/carematch_login" element={<CarematchLogin />} />
+          <Route
+            path="/carematch_registration"
+            element={<CarematchRegistration />}
+          />
+          <Route path="/carematch" element={<CareMatchLanding />} />
+
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <CarematchDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/carematch_profile/:id"
+            element={
+              <ProtectedRoute>
+                <CarematchProfileView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/carematch_profile"
+            element={
+              <ProtectedRoute>
+                <CarematchOwnProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/carematch_profile/edit"
+            element={
+              <ProtectedRoute>
+                <CarematchEditProfile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ========================================== */}
+          {/* TELECARE ROUTEN                         */}
+          {/* ========================================== */}
+          {/* Bestehende geschützte Routen */}
           <Route
             path="/dashboard"
             element={
