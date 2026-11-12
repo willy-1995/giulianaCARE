@@ -163,7 +163,7 @@ try {
 
 
 // ==================================================
-// VAPI TOOL CALLS (OPTIMIERT AUF SCHNELLIGKEIT & LOGIK)
+// VAPI TOOL CALLS
 // ==================================================
 
 function handleVapiToolCall($db, $data)
@@ -189,7 +189,7 @@ function handleVapiToolCall($db, $data)
     $callType = $metadata['callType'] ?? 'call_1';
 
     $results = [];
-    $reason = 'Unwohlsein / Notfall geäußert';
+    $reason = 'Unwohlsein / Vorfall geäußert';
     $notifyEmergency = false;
 
     foreach ($toolCalls as $toolCall) {
@@ -202,7 +202,107 @@ function handleVapiToolCall($db, $data)
         $args = is_array($rawArgs) ? $rawArgs : (json_decode($rawArgs, true) ?: []);
 
         // --------------------------------------------------
-        // 1. MEDIKATION DOKUMENTIEREN & DIREKT ABSCHLIESSEN
+        // 1. BESCHWERDE SOFORT PROTOKOLLIEREN (BEVOR GEFRAGT WIRD!)
+        // --------------------------------------------------
+        if ($functionName === 'reportIncident') {
+            $reason = trim((string)($args['reason'] ?? 'Unwohlsein geäußert'));
+            $severity = strtolower(trim((string)($args['severity'] ?? 'mild')));
+            $isSevere = ($severity === 'severe');
+
+            if ($clientId > 0) {
+                try {
+                    $statusLabel = $isSevere
+                        ? "Schwerer Vorfall: $reason (Notfallkontakte automatisch informiert)"
+                        : "Leichte Beschwerde: $reason (Rückfrage an Klient läuft)";
+
+                    $stmt = $db->prepare("
+                        UPDATE call_status
+                        SET status = 'incident_reported',
+                            summary = ?
+                        WHERE client_id = ?
+                          AND call_type = ?
+                          AND status IN ('calling', 'incident_reported')
+                        ORDER BY id DESC
+                        LIMIT 1
+                    ");
+                    $stmt->execute([
+                        $statusLabel,
+                        $clientId,
+                        $callType
+                    ]);
+
+                    logClientIncident($db, $clientId, "[$severity] $reason");
+
+                    if ($isSevere) {
+                        $notifyEmergency = true;
+                    }
+                } catch (Exception $e) {
+                    error_log("DB ERROR (reportIncident): " . $e->getMessage());
+                }
+            }
+
+            if ($isSevere) {
+                $msg = 'Schwerer Vorfall gespeichert und Notfallkontakte werden SOFORT informiert. Sage ruhig: "Ich informiere jetzt umgehend Ihre Notfallkontakte. Bitte wählen Sie bei akuten medizinischen Notfällen selbst den Notruf 112. Ich beende nun das Gespräch, damit Ihre Leitung frei ist. Auf Wiederhören!" und rufe sofort endCall auf.';
+            } else {
+                $msg = 'Beschwerde in Datenbank gespeichert! Frage den Klienten JETZT SOFORT wörtlich: "Das tut mir leid zu hören. Möchten Sie, dass ich Ihre Notfallkontakte darüber informiere?" und warte auf seine Antwort.';
+            }
+
+            $results[] = [
+                'toolCallId' => $toolCallId,
+                'result' => $msg
+            ];
+        }
+
+        // --------------------------------------------------
+        // 2. ANTWORT AUF DIE NOTFALLKONTAKT-RÜCKFRAGE VERARBEITEN
+        // --------------------------------------------------
+        if ($functionName === 'confirmNotifyContacts') {
+            $wantsNotification = !empty($args['notify']);
+            $reason = trim((string)($args['reason'] ?? 'Beschwerden im Telefonat'));
+
+            if ($clientId > 0) {
+                try {
+                    $infoText = $wantsNotification
+                        ? "Beschwerde: $reason | Notfallkontakte auf Wunsch informiert."
+                        : "Beschwerde: $reason | Keine Benachrichtigung vom Klienten gewünscht.";
+
+                    $stmt = $db->prepare("
+                        UPDATE call_status
+                        SET status = 'incident_reported',
+                            summary = ?
+                        WHERE client_id = ?
+                          AND call_type = ?
+                        ORDER BY id DESC
+                        LIMIT 1
+                    ");
+                    $stmt->execute([
+                        $infoText,
+                        $clientId,
+                        $callType
+                    ]);
+
+                    if ($wantsNotification) {
+                        $notifyEmergency = true;
+                    }
+                } catch (Exception $e) {
+                    error_log("DB ERROR (confirmNotifyContacts): " . $e->getMessage());
+                }
+            }
+
+            if ($wantsNotification) {
+                $msg = 'Notfallkontakte werden jetzt informiert. Sage: "Ich informiere jetzt Ihre Notfallkontakte. Gute Besserung und auf Wiederhören!" und rufe sofort endCall auf.';
+            } else {
+                $msg = 'Vermerkt, keine Benachrichtigung ausgelöst. Falls noch Medikation hinterlegt ist, frage danach – sonst verabschiede dich mit "Gute Besserung und auf Wiederhören!" und rufe sofort endCall auf.';
+            }
+
+            $results[] = [
+                'toolCallId' => $toolCallId,
+                'result' => $msg
+            ];
+        }
+
+        // --------------------------------------------------
+        // 3. MEDIKATION DOKUMENTIEREN (JEDE ANTWORT GILT)
         // --------------------------------------------------
         if ($functionName === 'confirmMedication') {
             $answer = trim((string)($args['response'] ?? ''));
@@ -218,17 +318,16 @@ function handleVapiToolCall($db, $data)
                         UPDATE call_status
                         SET medication_checked = 1,
                             medication_response = ?,
-                            status = 'completed',
-                            summary = ?
+                            status = CASE WHEN status = 'incident_reported' THEN 'incident_reported' ELSE 'completed' END,
+                            summary = CONCAT(COALESCE(summary, ''), ' | Medikation: ', ?)
                         WHERE client_id = ?
                           AND call_type = ?
-                          AND status = 'calling'
                         ORDER BY id DESC
                         LIMIT 1
                     ");
                     $stmt->execute([
                         $answer,
-                        "Wohlbefinden bestätigt; Medikation abgefragt ($answer).",
+                        $answer,
                         $clientId,
                         $callType
                     ]);
@@ -239,7 +338,6 @@ function handleVapiToolCall($db, $data)
                             medication_response = ?
                         WHERE client_id = ?
                           AND call_type = ?
-                          AND status = 'calling'
                         ORDER BY id DESC
                         LIMIT 1
                     ");
@@ -254,13 +352,13 @@ function handleVapiToolCall($db, $data)
             $results[] = [
                 'toolCallId' => $toolCallId,
                 'result' => $wellbeingOk
-                    ? 'Medikation und Wohlbefinden gespeichert. Verabschiede dich jetzt kurz und freundlich und beende das Gespräch.'
-                    : 'Medikation gespeichert. Falls Wohlbefinden bestätigt, rufe jetzt confirmWellbeing auf.'
+                    ? 'Gespeichert. Verabschiede dich kurz mit "Vielen Dank, ich wünsche Ihnen noch einen schönen Tag. Auf Wiederhören!" und rufe sofort endCall auf.'
+                    : 'Medikation gespeichert. Nicht erneut fragen.'
             ];
         }
 
         // --------------------------------------------------
-        // 2. WOHLBEFINDEN & ABSCHLUSS
+        // 4. WOHLBEFINDEN & ABSCHLUSS (HARTE BACKEND-SPERRE)
         // --------------------------------------------------
         if ($functionName === 'confirmWellbeing') {
             $blockedByMedication = false;
@@ -298,57 +396,13 @@ function handleVapiToolCall($db, $data)
             $results[] = [
                 'toolCallId' => $toolCallId,
                 'result' => $blockedByMedication
-                    ? 'STOPP: Die hinterlegte Medikation wurde noch nicht abgefragt! Frage den Klienten jetzt freundlich danach.'
-                    : 'Abgeschlossen. Verabschiede dich jetzt freundlich und beende das Gespräch.'
-            ];
-        }
-
-        // --------------------------------------------------
-        // 3. VORFALL / UNWOHLSEIN MELDEN (NUR PRIVATE KONTAKTE)
-        // --------------------------------------------------
-        if ($functionName === 'triggerEmergencyCall') {
-            $reason = trim((string)($args['reason'] ?? $reason));
-            $isSevere = isset($args['is_severe']) ? (bool)$args['is_severe'] : true;
-            $clientRequested = isset($args['client_requested']) ? (bool)$args['client_requested'] : false;
-
-            if ($clientId > 0) {
-                try {
-                    $stmt = $db->prepare("
-                        UPDATE call_status
-                        SET status = 'incident_reported',
-                            summary = ?
-                        WHERE client_id = ?
-                          AND call_type = ?
-                          AND status = 'calling'
-                        ORDER BY id DESC
-                        LIMIT 1
-                    ");
-                    $stmt->execute([
-                        "Klient meldet Vorfall/Unwohlsein: " . $reason,
-                        $clientId,
-                        $callType
-                    ]);
-
-                    logClientIncident($db, $clientId, $reason);
-
-                    if ($isSevere || $clientRequested) {
-                        $notifyEmergency = true;
-                    }
-                } catch (Exception $e) {
-                    error_log("DB ERROR (triggerEmergencyCall): " . $e->getMessage());
-                }
-            }
-
-            $results[] = [
-                'toolCallId' => $toolCallId,
-                'result' => $notifyEmergency
-                    ? 'Ihre privaten Notfallkontakte werden jetzt informiert. Beende das Gespräch sofort freundlich.'
-                    : 'Vorfall protokolliert, keine Benachrichtigung gewünscht. Verabschiede dich kurz und beende das Gespräch.'
+                    ? 'STOPP: Die hinterlegte Medikation/Zusatzinformation wurde noch nicht abgefragt! Frage den Klienten jetzt danach.'
+                    : 'Gespeichert. Verabschiede dich kurz mit "Vielen Dank, ich wünsche Ihnen noch einen schönen Tag. Auf Wiederhören!" und rufe sofort endCall auf.'
             ];
         }
     }
 
-    // Antwort sofort an Vapi senden
+    // Antwort SOFORT an Vapi senden
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
 
@@ -457,41 +511,41 @@ function executeCall(
     $hasMedication = !empty($currentMedication);
 
     $medicationBlock = $hasMedication
-        ? "HINTERLEGTE MEDIKATION / ZUSATZINFO: \"$currentMedication\"\n"
-        . "- Frage nach Schritt 1 freundlich nach dieser Medikation (z. B. \"Haben Sie Ihre Medikamente, $currentMedication, schon eingenommen?\").\n"
-        . "- Sobald der Klient antwortet (egal ob Ja oder Nein), rufe `confirmMedication` auf und frage NIEMALS ein zweites danach."
-        : "HINTERLEGTE MEDIKATION / ZUSATZINFO: Keine.\n"
-        . "- Rufe `confirmMedication` nicht auf. Wenn es dem Klienten gut geht, rufe direkt `confirmWellbeing` auf.";
+        ? "MEDIKATION / ZUSATZINFORMATION (PFLICHT):\n"
+        . "Hinterlegt ist: \"$currentMedication\".\n"
+        . "- Frage nach der Klärung des Befindens freundlich nach diesem Punkt (z. B. \"Haben Sie an Ihre Medikamente, $currentMedication, gedacht?\").\n"
+        . "- Sobald der Klient antwortet (egal ob Ja, Nein oder sonstiges), rufe EINMALIG `confirmMedication` auf und frage NIE ein zweites Mal."
+        : "MEDIKATION / ZUSATZINFORMATION:\n"
+        . "Keine hinterlegt. Rufe `confirmMedication` nicht auf.";
 
     $systemPrompt = <<<PROMPT
 Du bist die telefonische Assistenz der Seniorenbetreuung von Dschuliana Kär.
-Sprich natürlich, herzlich, ruhig und kurz (maximal 1–2 Sätze pro Antwort).
+Sprich natürlich, herzlich, ruhig und kurz (maximal 1–2 Sätze).
 
 STRENGE REGELN:
 1. IMMER SIEZEN: Verwende ausnahmslos "Sie" und "Ihnen".
 2. KEINE FÜLLWÖRTER: Sage NIEMALS "Warte mal kurz", "Moment mal" oder Ähnliches.
 3. KEIN ANRUFBEANTWORTZER: Bei Mailbox/Anrufbeantworter sofort stumm auflegen.
-4. NICHT IN DER LEITUNG HALTEN: Sage niemals, der Klient solle am Telefon bleiben. Beende das Gespräch zügig, sobald alles besprochen ist.
-5. KEINE NOTRUF-VERWECHSLUNG: Du bist KEIN Notruf und bietest NIEMALS an, den Notruf (112) zu wählen. Du informierst ausschließlich die hinterlegten **privaten Notfallkontakte** (Angehörige/Betreuer).
+4. NIE IN DER LEITUNG HALTEN: Weise den Klienten niemals an, am Telefon zu bleiben.
+5. KEINE NOTRUF-VERWECHSLUNG: Du bietest NIEMALS an, den Notruf (112) zu rufen. Es geht ausschließlich um die **privaten Notfallkontakte**.
+6. SOFORT AUFLEGEN: Sobald du dich mit "Auf Wiederhören" verabschiedest, rufe sofort das `endCall`-Tool auf!
 
-ABLAUF (SCHRITT FÜR SCHRITT):
+GESPRÄCHSABLAUF:
 
-SCHRITT 1 – WOHLBEFINDEN & BESCHWERDEN:
-- Die Begrüßung fragte bereits nach dem Befinden.
-- Wenn der Klient sagt, es geht ihm SCHLECHT, er hat Schmerzen, Schwindel oder Unwohlsein:
-  * Frage ihn IMMER sofort und natürlich: "Möchten Sie, dass ich Ihre Notfallkontakte darüber informiere?"
-  * Sagt er JA: Rufe `triggerEmergencyCall` (`is_severe: false`, `client_requested: true`) auf. Sage: "Ich benachrichtige jetzt Ihre Notfallkontakte. Alles Gute, auf Wiederhören." und beende das Gespräch.
-  * Sagt er NEIN: Rufe `triggerEmergencyCall` (`is_severe: false`, `client_requested: false`) auf und fahre mit Schritt 2 fort.
-- Wenn er einen SCHWEREN Notfall schildert (Sturz, Atemnot, absolute Hilflosigkeit): 
-  * Rufe SOFORT `triggerEmergencyCall` (`is_severe: true`) auf, sage: "Ich benachrichtige sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Beschwerden selbst den Notruf 112. Ich beende jetzt das Gespräch, damit Ihre Leitung frei ist. Auf Wiederhören." und beende den Anruf.
-- Wenn er sagt, es geht ihm gut ("Mir geht es gut", "Alles bestens"): Fahre direkt mit Schritt 2 fort.
+REGEL A – WENN DER KLIENT IRGENDEINE BESCHWERDE NENNT (Kopfschmerzen, Schmerzen, Schwindel, Unwohlsein, Sturz, "nicht gut"):
+- Ignoriere das NIEMALS! Frage NICHT einfach "Ist sonst alles okay?".
+- Rufe SOFORT das Tool `reportIncident` mit der genannten Beschwerde auf!
+  * Setze `severity: "severe"` bei schweren Notfällen (Sturz, nicht aufstehen können, Atemnot, Brustschmerz, starke Schmerzen, Verwirrtheit). Das Tool löst dann sofort die Notfallkontakte aus.
+  * Setze `severity: "mild"` bei leichteren Beschwerden (z. B. Kopfschmerzen, leichte Müdigkeit, Unwohlsein). Das Tool speichert die Beschwerde sofort und sagt dir, dass du den Klienten fragen sollst: "Möchten Sie, dass ich Ihre Notfallkontakte darüber informiere?".
+- Nachdem der Klient auf diese Frage mit Ja oder Nein geantwortet hat, rufe SOFORT `confirmNotifyContacts` (`notify: true` oder `notify: false`) auf!
 
-SCHRITT 2 – MEDIKATION / ZUSATZINFO:
+REGEL B – MEDIKATION / ZUSATZINFO:
 $medicationBlock
 
-SCHRITT 3 – ABSCHLUSS:
-- Wenn Medikation da war: Rufe `confirmMedication` mit `wellbeing_confirmed: true` auf. Verabschiede dich: "Vielen Dank, das habe ich vermerkt. Ich wünsche Ihnen noch einen schönen Tag. Auf Wiederhören!"
-- Wenn keine Medikation da war: Rufe `confirmWellbeing` auf und verabschiede dich genauso.
+REGEL C – WENN ALLES IN ORDNUNG IST:
+- Wenn Medikation hinterlegt war: Rufe `confirmMedication` mit `wellbeing_confirmed: true` auf.
+- Wenn keine Medikation hinterlegt war: Rufe `confirmWellbeing` auf.
+- Verabschiede dich und rufe sofort `endCall` auf.
 PROMPT;
 
     $silentToolMessages = [
@@ -508,20 +562,46 @@ PROMPT;
             "Guten Tag " . $titlePrefix . $fullName
                 . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
 
-            'responseDelaySeconds' => 0.15,
-            'llmRequestDelaySeconds' => 0.05,
+            // --- SCHNELLE STIMME (ERSETZT LANGSAMES OPENAI TTS-1) ---
+            'voice' => [
+                'provider' => 'azure',
+                'voiceId' => 'de-DE-KatjaNeural',
+                'speed' => 1.05
+            ],
+
+            // --- MAXIMALE GESCHWINDIGKEIT & FLÜSSIGER DIALOG ---
+            'transcriber' => [
+                'provider' => 'deepgram',
+                'model' => 'nova-2',
+                'language' => 'de',
+                'endpointing' => 150
+            ],
+            'startSpeakingPlan' => [
+                'waitSeconds' => 0.1,
+                'smartEndpointingEnabled' => true
+            ],
+            'stopSpeakingPlan' => [
+                'numWords' => 2,
+                'voiceSeconds' => 0.15,
+                'backoffSeconds' => 0.5
+            ],
+            'responseDelaySeconds' => 0.1,
+            'llmRequestDelaySeconds' => 0.0,
             'numWordsToInterruptAssistant' => 2,
             'backchannelingEnabled' => false,
             'silenceTimeoutSeconds' => 25,
             'maxDurationSeconds' => 180,
 
+            // --- AUTOMATISCHES AUFLEGEN ---
             'endCallPhrases' => [
                 "Auf Wiederhören!",
                 "Auf Wiederhören.",
-                "Einen schönen Tag. Auf Wiederhören."
+                "Gute Besserung und auf Wiederhören!",
+                "Gute Besserung und auf Wiederhören."
             ],
             'endCallFunctionEnabled' => true,
 
+            // --- ANRUFBEANTWORTZER ERKENNEN & STUMM BEENDEN ---
             'voicemailDetection' => [
                 'provider' => 'vapi',
                 'backoffMode' => 'disabled',
@@ -538,7 +618,7 @@ PROMPT;
                 'provider' => 'azure-openai',
                 'model' => 'gpt-5.4-mini',
                 'temperature' => 0.1,
-                'maxTokens' => 100,
+                'maxTokens' => 250,
 
                 'messages' => [
                     [
@@ -549,21 +629,71 @@ PROMPT;
 
                 'tools' => [
                     [
+                        'type' => 'endCall'
+                    ],
+                    [
+                        'type' => 'function',
+                        'messages' => $silentToolMessages,
+                        'function' => [
+                            'name' => 'reportIncident',
+                            'description' => 'PFLICHT-TOOL: Sofort aufrufen, sobald der Klient Kopfschmerzen, Schmerzen, Schwindel, Unwohlsein oder einen Vorfall erwähnt!',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'reason' => [
+                                        'type' => 'string',
+                                        'description' => 'Die genaue Beschwerde des Klienten (z.B. "Kopfschmerzen").'
+                                    ],
+                                    'severity' => [
+                                        'type' => 'string',
+                                        'enum' => ['mild', 'severe'],
+                                        'description' => '"severe" bei schweren Notfällen (Sturz, Atemnot, starke Schmerzen -> sofort Kontakte informieren), "mild" bei leichteren Beschwerden (Kopfschmerzen, Unwohlsein -> danach Klient fragen).'
+                                    ]
+                                ],
+                                'required' => ['reason', 'severity']
+                            ]
+                        ],
+                        'async' => false
+                    ],
+                    [
+                        'type' => 'function',
+                        'messages' => $silentToolMessages,
+                        'function' => [
+                            'name' => 'confirmNotifyContacts',
+                            'description' => 'Aufrufen, nachdem der Klient beantwortet hat, ob seine Notfallkontakte informiert werden sollen.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'notify' => [
+                                        'type' => 'boolean',
+                                        'description' => 'true wenn der Klient Ja gesagt hat, false wenn Nein.'
+                                    ],
+                                    'reason' => [
+                                        'type' => 'string',
+                                        'description' => 'Die zuvor genannte Beschwerde.'
+                                    ]
+                                ],
+                                'required' => ['notify', 'reason']
+                            ]
+                        ],
+                        'async' => false
+                    ],
+                    [
                         'type' => 'function',
                         'messages' => $silentToolMessages,
                         'function' => [
                             'name' => 'confirmMedication',
-                            'description' => 'Einmalig aufrufen, sobald der Klient auf die Medikamentenfrage geantwortet hat.',
+                            'description' => 'Dokumentiert die Antwort zur Medikation/Zusatzinformation (auch bei Nein).',
                             'parameters' => [
                                 'type' => 'object',
                                 'properties' => [
                                     'response' => [
                                         'type' => 'string',
-                                        'description' => 'Die Antwort des Klienten zur Medikation.'
+                                        'description' => 'Antwort des Klienten.'
                                     ],
                                     'wellbeing_confirmed' => [
                                         'type' => 'boolean',
-                                        'description' => 'true, wenn das Wohlbefinden bereits bestätigt ist.'
+                                        'description' => 'true, wenn das Wohlbefinden bestätigt wurde.'
                                     ]
                                 ],
                                 'required' => ['response', 'wellbeing_confirmed']
@@ -576,37 +706,10 @@ PROMPT;
                         'messages' => $silentToolMessages,
                         'function' => [
                             'name' => 'confirmWellbeing',
-                            'description' => 'Aufrufen, wenn keine Medikation hinterlegt ist und Wohlbefinden bestätigt wurde.',
+                            'description' => 'Bestätigt das Wohlbefinden und schließt den Anruf ab (wird vom Server blockiert, falls Medikation noch fehlt).',
                             'parameters' => [
                                 'type' => 'object',
                                 'properties' => new stdClass()
-                            ]
-                        ],
-                        'async' => false
-                    ],
-                    [
-                        'type' => 'function',
-                        'messages' => $silentToolMessages,
-                        'function' => [
-                            'name' => 'triggerEmergencyCall',
-                            'description' => 'Protokolliert Unwohlsein und steuert die Benachrichtigung der privaten Notfallkontakte.',
-                            'parameters' => [
-                                'type' => 'object',
-                                'properties' => [
-                                    'reason' => [
-                                        'type' => 'string',
-                                        'description' => 'Konkrete Beschwerden oder Gründe.'
-                                    ],
-                                    'is_severe' => [
-                                        'type' => 'boolean',
-                                        'description' => 'true bei schweren Notfällen, false bei leichtem Unwohlsein.'
-                                    ],
-                                    'client_requested' => [
-                                        'type' => 'boolean',
-                                        'description' => 'true wenn der Klient bei leichtem Unwohlsein um Benachrichtigung gebeten hat.'
-                                    ]
-                                ],
-                                'required' => ['reason', 'is_severe']
                             ]
                         ],
                         'async' => false
@@ -1232,7 +1335,7 @@ function updateCallStatus(
 
 function executeDirectTestCall($phone)
 {
-    $systemPrompt = "Du bist ein freundlicher Test-Assistent. Sieze den Angerufenen und verabschiede dich höflich.";
+    $systemPrompt = "Du bist ein freundlicher Test-Assistent. Sieze den Angerufenen, verabschiede dich höflich mit 'Auf Wiederhören!' und rufe sofort endCall auf.";
 
     $payload = [
         'assistantId' => VAPI_ASSISTANT_ID,
@@ -1240,18 +1343,40 @@ function executeDirectTestCall($phone)
 
         'assistantOverrides' => [
             'firstMessage' => "Guten Tag! Dies ist ein Testanruf.",
-            'responseDelaySeconds' => 0.15,
+            'voice' => [
+                'provider' => 'azure',
+                'voiceId' => 'de-DE-KatjaNeural',
+                'speed' => 1.05
+            ],
+            'transcriber' => [
+                'provider' => 'deepgram',
+                'model' => 'nova-2',
+                'language' => 'de',
+                'endpointing' => 150
+            ],
+            'startSpeakingPlan' => [
+                'waitSeconds' => 0.1,
+                'smartEndpointingEnabled' => true
+            ],
+            'responseDelaySeconds' => 0.1,
             'backchannelingEnabled' => false,
+            'endCallPhrases' => ["Auf Wiederhören!", "Auf Wiederhören."],
+            'endCallFunctionEnabled' => true,
 
             'model' => [
                 'provider' => 'azure-openai',
                 'model' => 'gpt-5.4-mini',
-                'maxTokens' => 80,
+                'maxTokens' => 150,
 
                 'messages' => [
                     [
                         'role' => 'system',
                         'content' => $systemPrompt
+                    ]
+                ],
+                'tools' => [
+                    [
+                        'type' => 'endCall'
                     ]
                 ]
             ]
