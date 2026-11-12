@@ -106,7 +106,7 @@ try {
 
             // TEST-ANRUF BEGRÜSSUNG (Landingpage-Test)
             case 'test_welcome':
-                $welcomeText = "Guten Tag! Hier ist die Test-Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht?";
+                $welcomeText = "Guten Tag! Hier ist die Test-Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht und ob Sie Ihre 2 Gläser Wasser schon getrunken haben?";
                 echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=test_process\">\n";
                 echo "<Say voice=\"alice\" language=\"de-DE\">" . htmlspecialchars($welcomeText) . "</Say>\n";
                 echo "</Gather>\n";
@@ -120,63 +120,59 @@ try {
                     echo "</Gather>\n";
                     break;
                 }
-
-                $aiDecision = evaluateClientInputWithAI($userInput);
-
-                if ($aiDecision['type'] === 'incident') {
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Das tut mir leid zu hören. In einem echten Anruf würden jetzt Ihre Notfallkontakte informiert werden. Auf Wiederhören!</Say>\n";
-                } else {
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Das freut mich sehr zu hören! Vielen Dank für Ihren Test. Auf Wiederhören!</Say>\n";
-                }
+                echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank für Ihren Test. Auf Wiederhören!</Say>\n";
                 echo "<Hangup/>\n";
                 break;
 
-            // REGULÄRER ANRUF: BEGRÜSSUNG
+            // REGULÄRER ANRUF: BEGRÜSSUNG (Fragt direkt nach Befinden UND bindet Medikation/Zusatzinfo ein)
             case 'welcome':
                 $client = getClientData($db, $clientId);
                 $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
                 $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
+                $medication = getClientMedication($client, $callType);
 
-                $firstText = "Guten Tag " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?";
+                $medText = !empty($medication) ? " Haben Sie auch an Ihre Medikation bzw. Zusatzinfo gedacht: " . $medication . "?" : "";
+                $firstText = "Guten Tag " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist und ob Sie sich gut fühlen?" . $medText;
 
                 echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=process_answer&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
                 echo "<Say voice=\"alice\" language=\"de-DE\">" . htmlspecialchars($firstText) . "</Say>\n";
                 echo "</Gather>\n";
                 break;
 
-            // REGULÄRER ANRUF: ANTWORT ANALYSIEREN
+            // REGULÄRER ANRUF: ANTWORT ANALYSIEREN (Erfasst Befinden + Medikation im selben Zug)
             case 'process_answer':
                 if (empty($userInput)) {
                     echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=process_answer&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Entschuldigung, ich habe Sie akustisch nicht verstanden. Ist bei Ihnen alles in Ordnung?</Say>\n";
+                    echo "<Say voice=\"alice\" language=\"de-DE\">Entschuldigung, ich habe Sie akustisch nicht verstanden. Geht es Ihnen gut und haben Sie Ihre Medikation eingenommen?</Say>\n";
                     echo "</Gather>\n";
                     break;
                 }
 
-                $aiDecision = evaluateClientInputWithAI($userInput);
+                $client = getClientData($db, $clientId);
+                $medication = getClientMedication($client, $callType);
 
-                if ($aiDecision['type'] === 'incident') {
-                    $reason = $aiDecision['reason'];
+                // KI analysiert, ob Beschwerden VORLIEGEN und ob Medikation/Zusatzinfo eingenommen wurde
+                $aiDecision = evaluateClientInputWithAI($userInput, $medication);
 
-                    logClientIncident($db, $clientId, $reason);
-                    updateCallStatusSummary($db, $clientId, $callType, "Beschwerde erfasst: $reason");
+                $hasIncident = ($aiDecision['type'] === 'incident');
+                $incidentReason = $aiDecision['reason'] ?? '';
+                $medStatus = $aiDecision['medication_status'] ?? 'An Medikation/Zusatzinfo erinnert. Status unklar.';
 
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=ask_emergency&amp;clientId={$clientId}&amp;callType={$callType}&amp;reason=" . urlencode($reason) . "\">\n";
+                // Protokollierung in der Datenbank
+                if ($hasIncident) {
+                    $fullSummary = "Beschwerde: $incidentReason | $medStatus";
+                    logClientIncident($db, $clientId, $fullSummary);
+                    updateCallStatusSummary($db, $clientId, $callType, $fullSummary);
+
+                    // Da Beschwerden vorliegen, MUSS IMMER sofort gefragt werden, ob Notfallkontakte informiert werden sollen!
+                    echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=ask_emergency&amp;clientId={$clientId}&amp;callType={$callType}&amp;reason=" . urlencode($incidentReason) . "\">\n";
                     echo "<Say voice=\"alice\" language=\"de-DE\">Das tut mir leid zu hören. Möchten Sie, dass ich Ihre Notfallkontakte darüber informiere?</Say>\n";
                     echo "</Gather>\n";
                 } else {
-                    $client = getClientData($db, $clientId);
-                    $medication = getClientMedication($client, $callType);
-
-                    if (!empty($medication)) {
-                        echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=process_medication&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
-                        echo "<Say voice=\"alice\" language=\"de-DE\">Freut mich zu hören. Haben Sie Ihre Medikamente, " . htmlspecialchars($medication) . ", schon eingenommen?</Say>\n";
-                        echo "</Gather>\n";
-                    } else {
-                        markCallCompleted($db, $clientId, $callType, "Wohlbefinden bestätigt.");
-                        echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank. Auf Wiederhören!</Say>\n";
-                        echo "<Hangup/>\n";
-                    }
+                    // Keine Beschwerden, Medikation wurde geprüft
+                    markCallCompleted($db, $clientId, $callType, "Wohlbefinden bestätigt. $medStatus");
+                    echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank. Auf Wiederhören!</Say>\n";
+                    echo "<Hangup/>\n";
                 }
                 break;
 
@@ -195,13 +191,6 @@ try {
                 }
                 echo "<Hangup/>\n";
                 break;
-
-            // REGULÄRER ANRUF: MEDIKATION SPEICHERN & ABSCHLIESSEN
-            case 'process_medication':
-                markCallCompleted($db, $clientId, $callType, "Medikation bestätigt: $userInput");
-                echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank, das habe ich vermerkt. Auf Wiederhören!</Say>\n";
-                echo "<Hangup/>\n";
-                break;
         }
 
         echo "</Response>\n";
@@ -213,7 +202,7 @@ try {
         ob_end_clean();
     }
     http_response_code(500);
-    echo json_encode(["success" => false, "message" => "Datenbankfehler."]);
+    echo json_encode(["success = false", "message" => "Datenbankfehler."]);
     exit;
 } catch (Exception $e) {
     error_log("Server Error: " . $e->getMessage());
@@ -230,21 +219,25 @@ try {
 // HILFSFUNKTIONEN (DB & KI-LOGIK)
 // ==================================================
 
-function evaluateClientInputWithAI($userInput)
+function evaluateClientInputWithAI($userInput, $medicationInfo)
 {
     $apiKey = OPEN_AI_KEY;
     $url = 'https://api.openai.com/v1/chat/completions';
 
+    $systemPrompt = "Du bist die analytische KI eines medizinischen Care-Systems. 
+    Hinterhergelegte Medikation / Zusatzinfo für diesen Klienten lautet: '{$medicationInfo}'.
+    Analysiere die Antwort des Klienten auf zwei Dinge:
+    1. Liegt ein gesundheitliches Problem vor (Schmerzen, Kopfschmerzen, Schwindel, Unwohlsein, 'mir geht es nicht gut')? Wenn ja: type = 'incident', und beschreibe den Grund. Wenn nein: type = 'ok'.
+    2. Wurde die Medikation/Zusatzinfo eingenommen/durchgeführt? Erstelle einen klaren Protokollsatz für 'medication_status' (z. B. 'An Medikation/Zusatzinfo erinnert: Klient hat seine 2 Gläser Wasser bis dahin noch nicht getrunken' oder 'Medikation erfolgreich eingenommen').
+    
+    STRIKTE REGELN: Sage niemals, dass man sich wieder meldet oder am Hörer bleibt.
+    Antworte AUSSCHLIESSLICH im JSON-Format: 
+    {\"type\": \"incident\" oder \"ok\", \"reason\": \"genaue beschreibung der beschwerde falls vorhanden\", \"medication_status\": \"Protokollsatz zur Medikation und ob sie eingenommen wurde\"}";
+
     $data = [
         'model' => 'gpt-5.4-mini',
         'messages' => [
-            [
-                'role' => 'system',
-                'content' => 'Analysiere die Aussage eines Senioren im Gesundheits-Check. 
-                STRIKTE REGELN FÜR DIE KI: Sage NIEMALS, dass man sich wieder meldet, am Hörer bleiben oder warten soll. 
-                Antworte AUSSCHLIESSLICH im JSON-Format: {"type": "incident", "reason": "genaue beschreibung"} falls Schmerzen, Kopfschmerzen, Schwindel, Unwohlsein oder negative Zustände genannt werden. 
-                Antworte ansonsten mit {"type": "ok"}.'
-            ],
+            ['role' => 'system', 'content' => $systemPrompt],
             ['role' => 'user', 'content' => $userInput]
         ],
         'temperature' => 0.0,
@@ -263,7 +256,7 @@ function evaluateClientInputWithAI($userInput)
     curl_close($ch);
 
     $result = json_decode($response, true);
-    $content = json_decode($result['choices'][0]['message']['content'] ?? '{"type":"ok"}', true);
+    $content = json_decode($result['choices'][0]['message']['content'] ?? '{"type":"ok","reason":"","medication_status":"An Medikation/Zusatzinfo erinnert."}', true);
     return $content;
 }
 
@@ -355,6 +348,8 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $reason): void
 function escalateCallTwilio($db, $clientId, $cycle, $telType, $callType)
 {
     $client = getClientData($db, $clientId);
+    $phone = ($telType === 'tel1') ? ($client['tel1'] ?? '') : ($client['tel2'] ?? '');
+
     if ($telType === 'tel1' && !empty($client['tel2'])) {
         executeTwilioCall($db, $clientId, 'tel2', $cycle, $callType);
     } else {
