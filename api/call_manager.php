@@ -124,9 +124,9 @@ try {
                 $aiDecision = evaluateClientInputWithAI($userInput);
 
                 if ($aiDecision['type'] === 'incident') {
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Das tut mir leid zu hören. In einem echten Anruf würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!</Say>\n";
+                    echo "<Say voice=\"alice\" language=\"de-DE\">Das tut mir leid zu hören. In einem echten Anruf würden jetzt Ihre Notfallkontakte informiert werden. Auf Wiederhören!</Say>\n";
                 } else {
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Das freut mich sehr zu hören! Vielen Dank für Ihren Test unserer Telefon-KI. Ich wünsche Ihnen noch einen schönen Tag. Auf Wiederhören!</Say>\n";
+                    echo "<Say voice=\"alice\" language=\"de-DE\">Das freut mich sehr zu hören! Vielen Dank für Ihren Test. Auf Wiederhören!</Say>\n";
                 }
                 echo "<Hangup/>\n";
                 break;
@@ -174,7 +174,7 @@ try {
                         echo "</Gather>\n";
                     } else {
                         markCallCompleted($db, $clientId, $callType, "Wohlbefinden bestätigt.");
-                        echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank, ich wünsche Ihnen noch einen schönen Tag. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank. Auf Wiederhören!</Say>\n";
                         echo "<Hangup/>\n";
                     }
                 }
@@ -199,7 +199,7 @@ try {
             // REGULÄRER ANRUF: MEDIKATION SPEICHERN & ABSCHLIESSEN
             case 'process_medication':
                 markCallCompleted($db, $clientId, $callType, "Medikation bestätigt: $userInput");
-                echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank, das habe ich vermerkt. Ich wünsche Ihnen noch einen schönen Tag. Auf Wiederhören!</Say>\n";
+                echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank, das habe ich vermerkt. Auf Wiederhören!</Say>\n";
                 echo "<Hangup/>\n";
                 break;
         }
@@ -232,15 +232,16 @@ try {
 
 function evaluateClientInputWithAI($userInput)
 {
-    $apiKey = OPEN_AI_KEY; // Nutzt deine Konstante aus der config.php
+    $apiKey = OPEN_AI_KEY;
     $url = 'https://api.openai.com/v1/chat/completions';
 
     $data = [
-        'model' => 'gpt-5.4-mini', // Genutzt wird dein gewünschtes Modell
+        'model' => 'gpt-5.4-mini',
         'messages' => [
             [
                 'role' => 'system',
                 'content' => 'Analysiere die Aussage eines Senioren im Gesundheits-Check. 
+                STRIKTE REGELN FÜR DIE KI: Sage NIEMALS, dass man sich wieder meldet, am Hörer bleiben oder warten soll. 
                 Antworte AUSSCHLIESSLICH im JSON-Format: {"type": "incident", "reason": "genaue beschreibung"} falls Schmerzen, Kopfschmerzen, Schwindel, Unwohlsein oder negative Zustände genannt werden. 
                 Antworte ansonsten mit {"type": "ok"}.'
             ],
