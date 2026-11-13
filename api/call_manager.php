@@ -1,30 +1,57 @@
 <?php
 // ==================================================
-// TWILIO + PHP DIREKT-PIPELINE (OHNE VAPI)
+// TWILIO + PHP STRICT-STRUCTURE PIPELINE (OHNE VAPI)
 // ==================================================
 
-// Output-Buffering aktivieren
 ob_start();
-
-// Fehler-Logging konfigurieren
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/my_php_errors.log');
 
 try {
-    // Config, Database & CORS laden
     require_once __DIR__ . "/config.php";
     require_once __DIR__ . "/database.php";
     require_once __DIR__ . "/cors.php";
     require_once __DIR__ . "/envloader.php";
     require_once __DIR__ . "/rate_limiter.php";
 
+    // ==========================================
+    // BUZZWORDS-KONFIGURATION (HIER ERGÄNZEN!)
+    // ==========================================
+    $MILD_BUZZWORDS = [
+        "kopfschmerzen",
+        "schwindel",
+        "müde",
+        "schwach",
+        "leichtes unwohlsein",
+        "übel",
+        "druck im kopf",
+        "kratzen im hals"
+        // Hier beliebig weitere leichte Buzzwords mit Komma ergänzen
+    ];
+
+    $SEVERE_BUZZWORDS = [
+        "starke schmerzen",
+        "brustschmerzen",
+        "luftnot",
+        "atmen",
+        "sturz",
+        "hingefallen",
+        "blut",
+        "schwindelanfall",
+        "benommen",
+        "verwirrt",
+        "kann nicht mehr",
+        "notruf"
+        // Hier beliebig weitere ernste Buzzwords mit Komma ergänzen
+    ];
+
     $dbInstance = new Database();
     $db = $dbInstance->getConnection();
 
     $action = $_POST['action'] ?? $_GET['action'] ?? null;
 
-    // --- 1. TEST-ANRUF VON DER LANDINGPAGE (AUS REACT FORMULAR) ---
+    // --- 1. TEST-ANRUF VON DER LANDINGPAGE ---
     if ($action === 'test_call') {
         checkRateLimit('landingpage_test_call', 2, 3600);
 
@@ -37,13 +64,11 @@ try {
             exit;
         }
 
-        // Telefonnummer bereinigen und für Twilio formatieren
         $phone = preg_replace('/[^0-9+]/', '', $phoneNumber);
         if (strpos($phone, '0') === 0) {
             $phone = '+49' . substr($phone, 1);
         }
 
-        // Webhook-URL für Twilio (zeigt auf diese Datei im Schritt 'test_welcome')
         $webhookUrl = "https://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "/call_manager.php?step=test_welcome";
 
         $url = "https://api.twilio.com/2010-04-01/Accounts/" . TWILIO_ACCOUNT_SID . "/Calls.json";
@@ -71,7 +96,7 @@ try {
         exit;
     }
 
-    // --- 2. REGULÄRER ANRUF STARTEN (AUS CRM / INTERN) ---
+    // --- 2. REGULÄRER ANRUF STARTEN ---
     if ($action === 'start') {
         header("Content-Type: application/json; charset=UTF-8");
         $clientId = (int)($_POST['clientId'] ?? $_POST['client_id'] ?? 0);
@@ -90,7 +115,7 @@ try {
         exit;
     }
 
-    // --- 3. TWILIO VOICE WEBHOOKS (GESPRÄCHSSTEUERUNG) ---
+    // --- 3. TWILIO VOICE WEBHOOKS (STRUKTURIERTER WORKFLOW) ---
     $incomingStep = $_GET['step'] ?? null;
 
     if ($incomingStep) {
@@ -104,46 +129,36 @@ try {
 
         switch ($incomingStep) {
 
-            // TEST-ANRUF BEGRÜSSUNG (Landingpage-Test)
             case 'test_welcome':
-                $welcomeText = "Guten Tag! Hier ist die Test-Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht und ob Sie Ihre 2 Gläser Wasser schon getrunken haben?";
+                $welcomeText = "Guten Tag! Hier ist die Test-Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht?";
                 echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=test_process\">\n";
                 echo "<Say voice=\"alice\" language=\"de-DE\">" . htmlspecialchars($welcomeText) . "</Say>\n";
                 echo "</Gather>\n";
                 break;
 
-            // TEST-ANRUF ANTWORT AUSWERTEN
             case 'test_process':
-                if (empty($userInput)) {
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=test_process\">\n";
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Entschuldigung, ich habe Sie akustisch nicht verstanden. Wie geht es Ihnen heute?</Say>\n";
-                    echo "</Gather>\n";
-                    break;
-                }
                 echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank für Ihren Test. Auf Wiederhören!</Say>\n";
                 echo "<Hangup/>\n";
                 break;
 
-            // REGULÄRER ANRUF: BEGRÜSSUNG (Fragt direkt nach Befinden UND bindet Medikation/Zusatzinfo ein)
+            // SCHRITT A: BEGRÜSSUNG & FRAGE NACH DEM WOHLBEFINDEN
             case 'welcome':
                 $client = getClientData($db, $clientId);
                 $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
                 $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
-                $medication = getClientMedication($client, $callType);
 
-                $medText = !empty($medication) ? " Haben Sie auch an Ihre Medikation bzw. Zusatzinfo gedacht: " . $medication . "?" : "";
-                $firstText = "Guten Tag " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist und ob Sie sich gut fühlen?" . $medText;
+                $firstText = "Guten Tag " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht?";
 
-                echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=process_answer&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
+                echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=process_wellbeing&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
                 echo "<Say voice=\"alice\" language=\"de-DE\">" . htmlspecialchars($firstText) . "</Say>\n";
                 echo "</Gather>\n";
                 break;
 
-            // REGULÄRER ANRUF: ANTWORT ANALYSIEREN (Erfasst Befinden + Medikation im selben Zug)
-            case 'process_answer':
+            // SCHRITT B: AUSWERTUNG WOHLBEFINDEN (Struktur-Verzweigung)
+            case 'process_wellbeing':
                 if (empty($userInput)) {
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=process_answer&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Entschuldigung, ich habe Sie akustisch nicht verstanden. Geht es Ihnen gut und haben Sie Ihre Medikation eingenommen?</Say>\n";
+                    echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=process_wellbeing&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
+                    echo "<Say voice=\"alice\" language=\"de-DE\">Entschuldigung, ich habe Sie akustisch nicht verstanden. Wie geht es Ihnen heute?</Say>\n";
                     echo "</Gather>\n";
                     break;
                 }
@@ -151,88 +166,109 @@ try {
                 $client = getClientData($db, $clientId);
                 $medication = getClientMedication($client, $callType);
 
-                // KI analysiert, ob Beschwerden VORLIEGEN und ob Medikation/Zusatzinfo eingenommen wurde
-                $aiDecision = evaluateClientInputWithAI($userInput, $medication);
+                // Buzzwords an die KI-Analyse übergeben
+                $analysis = evaluateStrictStructureWithAI($userInput, $medication, $MILD_BUZZWORDS, $SEVERE_BUZZWORDS);
 
-                $hasIncident = ($aiDecision['type'] === 'incident');
-                $incidentReason = $aiDecision['reason'] ?? '';
-                $medStatus = $aiDecision['medication_status'] ?? 'An Medikation/Zusatzinfo erinnert. Status unklar.';
+                $statusType = $analysis['status_type']; // 'ok', 'mild_incident', 'severe_incident'
+                $reason = $analysis['reason'] ?? '';
+                $medStatus = $analysis['medication_status'] ?? '';
+                $behaviorLog = $analysis['behavior_log'] ?? 'Normale Sprachweise.';
 
-                // Protokollierung in der Datenbank
-                if ($hasIncident) {
-                    $fullSummary = "Beschwerde: $incidentReason | $medStatus";
-                    logClientIncident($db, $clientId, $fullSummary);
-                    updateCallStatusSummary($db, $clientId, $callType, $fullSummary);
-
-                    // Da Beschwerden vorliegen, MUSS IMMER sofort gefragt werden, ob Notfallkontakte informiert werden sollen!
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=ask_emergency&amp;clientId={$clientId}&amp;callType={$callType}&amp;reason=" . urlencode($incidentReason) . "\">\n";
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Das tut mir leid zu hören. Möchten Sie, dass ich Ihre Notfallkontakte darüber informiere?</Say>\n";
-                    echo "</Gather>\n";
-                } else {
-                    // Keine Beschwerden, Medikation wurde geprüft
-                    markCallCompleted($db, $clientId, $callType, "Wohlbefinden bestätigt. $medStatus");
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank. Auf Wiederhören!</Say>\n";
+                // 1. FALL: ES GEHT IHM GUT
+                if ($statusType === 'ok') {
+                    if ($analysis['medication_already_done']) {
+                        markCallCompleted($db, $clientId, $callType, "Wohlbefinden gut. Medikation bereits erledigt.");
+                        echo "<Say voice=\"alice\" language=\"de-DE\">Das freut mich. Dass Sie Ihre Medikation beziehungsweise Zusatzinfo bereits erledigt haben, ist wunderbar. Auf Wiederhören!</Say>\n";
+                    } else {
+                        markCallCompleted($db, $clientId, $callType, "Wohlbefinden gut. An Medikation erinnert.");
+                        echo "<Say voice=\"alice\" language=\"de-DE\">Das freut mich. Bitte denken Sie noch daran, Ihre Medikation beziehungsweise Zusatzinfo einzunehmen. Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!</Say>\n";
+                    }
                     echo "<Hangup/>\n";
                 }
-                break;
+                // 2. FALL: LEICHTE BESCHWERDEN
+                elseif ($statusType === 'mild_incident') {
+                    $fullLog = "Leichte Beschwerden: $reason | Verhalten/Tonalität: $behaviorLog | $medStatus";
+                    logClientIncident($db, $clientId, $fullLog);
+                    updateCallStatusSummary($db, $clientId, $callType, $fullLog);
 
-            // REGULÄRER ANRUF: NOTFALLKONTAKT-FRAGE AUSWERTEN
-            case 'ask_emergency':
-                $reason = $_GET['reason'] ?? 'Unwohlsein';
-                $wantsHelp = (stripos($userInput, 'ja') !== false || stripos($userInput, 'möchte') !== false || stripos($userInput, 'bitte') !== false);
+                    if ($analysis['medication_already_done']) {
+                        echo "<Say voice=\"alice\" language=\"de-DE\">Das tut mir leid zu hören. Ich habe registriert, dass Sie Ihre Medikation bereits erledigt hatten. Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+                    } else {
+                        echo "<Say voice=\"alice\" language=\"de-DE\">Das tut mir leid zu hören. Bitte denken Sie daran, Ihre Medikation beziehungsweise Zusatzinfo einzunehmen. Ich informiere jetzt umgehend Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+                    }
 
-                if ($wantsHelp) {
                     notifyEmergencyContacts($db, $clientId, $reason);
-                    updateCallStatusSummary($db, $clientId, $callType, "Beschwerde: $reason | Notfallkontakte informiert.");
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Ich informiere jetzt umgehend Ihre Notfallkontakte. Gute Besserung und auf Wiederhören!</Say>\n";
-                } else {
-                    updateCallStatusSummary($db, $clientId, $callType, "Beschwerde: $reason | Keine Benachrichtigung gewünscht.");
-                    echo "<Say voice=\"alice\" language=\"de-DE\">Verstanden, ich habe es notiert. Gute Besserung und auf Wiederhören!</Say>\n";
+                    echo "<Hangup/>\n";
                 }
-                echo "<Hangup/>\n";
+                // 3. FALL: ERNSTE BESCHWERDEN
+                elseif ($statusType === 'severe_incident') {
+                    $fullLog = "Ernster Vorfall: $reason | Verhalten/Tonalität: $behaviorLog | $medStatus";
+                    logClientIncident($db, $clientId, $fullLog);
+                    updateCallStatusSummary($db, $clientId, $callType, $fullLog);
+
+                    if ($analysis['medication_already_done']) {
+                        echo "<Say voice=\"alice\" language=\"de-DE\">Das ist ernst. Da Sie Ihre Medikation bereits erledigt hatten, informiere ich sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Schmerzen selbst den Notruf 112. Auf Wiederhören!</Say>\n";
+                    } else {
+                        echo "<Say voice=\"alice\" language=\"de-DE\">Das ist ernst. Bitte nehmen Sie sofort Ihre Medikation beziehungsweise Zusatzinfo ein und wählen Sie bei akuten Beschwerden selbst den Notruf 112. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
+                    }
+
+                    notifyEmergencyContacts($db, $clientId, $reason);
+                    echo "<Hangup/>\n";
+                }
                 break;
         }
 
         echo "</Response>\n";
         exit;
     }
-} catch (PDOException $e) {
-    error_log("Database Error: " . $e->getMessage());
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-    http_response_code(500);
-    echo json_encode(["success = false", "message" => "Datenbankfehler."]);
-    exit;
 } catch (Exception $e) {
-    error_log("Server Error: " . $e->getMessage());
+    error_log("Error: " . $e->getMessage());
     while (ob_get_level()) {
         ob_end_clean();
     }
     http_response_code(500);
-    echo json_encode(["success" => false, "message" => "Serverfehler."]);
     exit;
 }
 
 
 // ==================================================
-// HILFSFUNKTIONEN (DB & KI-LOGIK)
+// HILFSFUNKTIONEN (STRUKTURIERTE KI-ANALYSE)
 // ==================================================
 
-function evaluateClientInputWithAI($userInput, $medicationInfo)
+function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwords, $severeBuzzwords)
 {
     $apiKey = OPEN_AI_KEY;
     $url = 'https://api.openai.com/v1/chat/completions';
 
-    $systemPrompt = "Du bist die analytische KI eines medizinischen Care-Systems. 
-    Hinterhergelegte Medikation / Zusatzinfo für diesen Klienten lautet: '{$medicationInfo}'.
-    Analysiere die Antwort des Klienten auf zwei Dinge:
-    1. Liegt ein gesundheitliches Problem vor (Schmerzen, Kopfschmerzen, Schwindel, Unwohlsein, 'mir geht es nicht gut')? Wenn ja: type = 'incident', und beschreibe den Grund. Wenn nein: type = 'ok'.
-    2. Wurde die Medikation/Zusatzinfo eingenommen/durchgeführt? Erstelle einen klaren Protokollsatz für 'medication_status' (z. B. 'An Medikation/Zusatzinfo erinnert: Klient hat seine 2 Gläser Wasser bis dahin noch nicht getrunken' oder 'Medikation erfolgreich eingenommen').
+    $mildList = implode(', ', $mildBuzzwords);
+    $severeList = implode(', ', $severeBuzzwords);
+
+    $systemPrompt = "Du bist das strikte Analysegehirn eines medizinischen Care-Systems. 
+    Hinterlegte Medikation/Zusatzinfo für diesen Klienten: '{$medicationInfo}'.
     
-    STRIKTE REGELN: Sage niemals, dass man sich wieder meldet oder am Hörer bleibt.
+    Achte bei der Analyse besonders auf folgende Buzzwords:
+    - Ernste Beschwerden Buzzwords: [{$severeList}]
+    - Leichte Beschwerden Buzzwords: [{$mildList}]
+
+    Analysiere die Aussage des Klienten exakt nach folgenden Vorgaben:
+    1. status_type: 
+       - 'ok' (wenn es dem Klienten gut geht)
+       - 'mild_incident' (bei leichten Beschwerden oder Treffern in den leichten Buzzwords)
+       - 'severe_incident' (bei ernsten Beschwerden, starken Schmerzen oder Treffern in den ernsten Buzzwords)
+    2. reason: Genaue Beschreibung der Beschwerden oder des Zustands.
+    3. behavior_log: Achte auf Hinweise auf Tonalität, auffällig lange Pausen, zusammenhangslose Sätze in der Aussage. Protokolliere dies.
+    4. medication_already_done: true, falls der Klient angibt, die Medikation/Zusatzinfo bereits eingenommen/erledigt zu haben. false, wenn noch nicht.
+    5. medication_status: Ein passender Protokollsatz dazu.
+
+    STRIKTE REGELN: Keine Füllwörter, kein Am-Hörer-halten, kein Wieder-Melden-Versprechen.
     Antworte AUSSCHLIESSLICH im JSON-Format: 
-    {\"type\": \"incident\" oder \"ok\", \"reason\": \"genaue beschreibung der beschwerde falls vorhanden\", \"medication_status\": \"Protokollsatz zur Medikation und ob sie eingenommen wurde\"}";
+    {
+      \"status_type\": \"ok\" | \"mild_incident\" | \"severe_incident\",
+      \"reason\": \"Beschreibung\",
+      \"behavior_log\": \"Protokoll zu Tonalität/Pausen/Sätzen\",
+      \"medication_already_done\": true | false,
+      \"medication_status\": \"Protokollsatz zur Medikation\"
+    }";
 
     $data = [
         'model' => 'gpt-5.4-mini',
@@ -256,8 +292,7 @@ function evaluateClientInputWithAI($userInput, $medicationInfo)
     curl_close($ch);
 
     $result = json_decode($response, true);
-    $content = json_decode($result['choices'][0]['message']['content'] ?? '{"type":"ok","reason":"","medication_status":"An Medikation/Zusatzinfo erinnert."}', true);
-    return $content;
+    return json_decode($result['choices'][0]['message']['content'] ?? '{"status_type":"ok","reason":"","behavior_log":"Normal","medication_already_done":false,"medication_status":"Prüfung ausstehend"}', true);
 }
 
 function executeTwilioCall($db, $clientId, $telType, $cycle, $callType)
