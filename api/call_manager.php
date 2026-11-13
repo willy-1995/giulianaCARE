@@ -27,7 +27,6 @@ try {
         "übel",
         "druck im kopf",
         "kratzen im hals"
-        // Hier beliebig weitere leichte Buzzwords mit Komma ergänzen
     ];
 
     $SEVERE_BUZZWORDS = [
@@ -43,7 +42,6 @@ try {
         "verwirrt",
         "kann nicht mehr",
         "notruf"
-        // Hier beliebig weitere ernste Buzzwords mit Komma ergänzen
     ];
 
     $dbInstance = new Database();
@@ -57,10 +55,12 @@ try {
 
         header("Content-Type: application/json; charset=UTF-8");
         $phoneNumber = $_POST['phone_number'] ?? null;
+        $testName = trim($_POST['name'] ?? '');
+        $testMedication = trim($_POST['medication'] ?? '');
 
-        if (empty($phoneNumber)) {
+        if (empty($phoneNumber) || empty($testName) || empty($testMedication)) {
             http_response_code(400);
-            echo json_encode(["success" => false, "message" => "Keine Telefonnummer übergeben."]);
+            echo json_encode(["success" => false, "message" => "Name, Zusatzinfo und Telefonnummer sind erforderlich."]);
             exit;
         }
 
@@ -69,7 +69,13 @@ try {
             $phone = '+49' . substr($phone, 1);
         }
 
-        $webhookUrl = "https://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "/call_manager.php?step=test_welcome";
+        $queryParams = http_build_query([
+            'step' => 'test_welcome',
+            'name' => $testName,
+            'medication' => $testMedication
+        ]);
+
+        $webhookUrl = "https://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "/call_manager.php?" . $queryParams;
 
         $url = "https://api.twilio.com/2010-04-01/Accounts/" . TWILIO_ACCOUNT_SID . "/Calls.json";
         $postData = [
@@ -129,19 +135,71 @@ try {
 
         switch ($incomingStep) {
 
+            // TEST-ANRUF: BEGRÜSSUNG + WOHLBEFINDEN & MEDIKATION/ZUSATZINFO
             case 'test_welcome':
-                $welcomeText = "Guten Tag! Hier ist die Test-Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht?";
-                echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=test_process\">\n";
+                $testName = trim($_GET['name'] ?? '');
+                $testMedication = trim($_GET['medication'] ?? '');
+
+                $medQuestion = buildMedicationQuestionWithAI($testMedication);
+                $welcomeText = "Hallo {$testName}, vielen Dank, dass Sie die Telefonassistenz von Dschuliana Kär testen. Geht es Ihnen heute gut und {$medQuestion}";
+
+                $nextAction = htmlspecialchars("call_manager.php?" . http_build_query([
+                    'step' => 'test_process',
+                    'name' => $testName,
+                    'medication' => $testMedication
+                ]));
+
+                echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"{$nextAction}\">\n";
                 echo "<Say voice=\"alice\" language=\"de-DE\">" . htmlspecialchars($welcomeText) . "</Say>\n";
                 echo "</Gather>\n";
                 break;
 
+            // TEST-ANRUF: AUSWERTUNG DER ANTWORT
             case 'test_process':
-                echo "<Say voice=\"alice\" language=\"de-DE\">Vielen Dank für Ihren Test. Auf Wiederhören!</Say>\n";
+                $testName = trim($_GET['name'] ?? '');
+                $testMedication = trim($_GET['medication'] ?? '');
+
+                if (empty($userInput)) {
+                    $retryAction = htmlspecialchars("call_manager.php?" . http_build_query([
+                        'step' => 'test_process',
+                        'name' => $testName,
+                        'medication' => $testMedication
+                    ]));
+                    echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"{$retryAction}\">\n";
+                    echo "<Say voice=\"alice\" language=\"de-DE\">Entschuldigung, ich habe Sie akustisch nicht verstanden. Geht es Ihnen gut und haben Sie an {$testMedication} gedacht?</Say>\n";
+                    echo "</Gather>\n";
+                    break;
+                }
+
+                $analysis = evaluateStrictStructureWithAI($userInput, $testMedication, $MILD_BUZZWORDS, $SEVERE_BUZZWORDS);
+                $statusType = $analysis['status_type'];
+                $medDone = !empty($analysis['medication_already_done']);
+
+                if ($statusType === 'ok') {
+                    if ($medDone) {
+                        $reply = "Das freut mich zu hören. Wunderbar, dass Sie {$testMedication} bereits erledigt haben. Vielen Dank für den Test, auf Wiederhören!";
+                    } else {
+                        $reply = "Das freut mich zu hören. Bitte denken Sie noch daran: {$testMedication}. Vielen Dank für den Test, auf Wiederhören!";
+                    }
+                } elseif ($statusType === 'mild_incident') {
+                    if ($medDone) {
+                        $reply = "Das tut mir leid zu hören. Ich habe notiert, dass Sie {$testMedication} bereits erledigt haben, und würde im Ernstfall jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                    } else {
+                        $reply = "Das tut mir leid zu hören. Bitte denken Sie noch daran: {$testMedication}. Im Ernstfall würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                    }
+                } else {
+                    if ($medDone) {
+                        $reply = "Das klingt ernst. Im Echtbetrieb würde ich sofort Ihre Notfallkontakte informieren und darauf hinweisen, bei akuten Beschwerden den Notruf 112 zu wählen. Vielen Dank für den Test, auf Wiederhören!";
+                    } else {
+                        $reply = "Das klingt ernst. Bitte denken Sie an {$testMedication} und wählen Sie bei akuten Beschwerden den Notruf 112. Im Echtbetrieb würde ich jetzt sofort Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                    }
+                }
+
+                echo "<Say voice=\"alice\" language=\"de-DE\">" . htmlspecialchars($reply) . "</Say>\n";
                 echo "<Hangup/>\n";
                 break;
 
-            // SCHRITT A: BEGRÜSSUNG & FRAGE NACH DEM WOHLBEFINDEN
+            // SCHRITT A: BEGRÜSSUNG & FRAGE NACH DEM WOHLBEFINDEN (REGULÄR)
             case 'welcome':
                 $client = getClientData($db, $clientId);
                 $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
@@ -154,7 +212,7 @@ try {
                 echo "</Gather>\n";
                 break;
 
-            // SCHRITT B: AUSWERTUNG WOHLBEFINDEN (Struktur-Verzweigung)
+            // SCHRITT B: AUSWERTUNG WOHLBEFINDEN (REGULÄR)
             case 'process_wellbeing':
                 if (empty($userInput)) {
                     echo "<Gather input=\"speech\" language=\"de-DE\" speechTimeout=\"auto\" action=\"call_manager.php?step=process_wellbeing&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
@@ -166,15 +224,13 @@ try {
                 $client = getClientData($db, $clientId);
                 $medication = getClientMedication($client, $callType);
 
-                // Buzzwords an die KI-Analyse übergeben
                 $analysis = evaluateStrictStructureWithAI($userInput, $medication, $MILD_BUZZWORDS, $SEVERE_BUZZWORDS);
 
-                $statusType = $analysis['status_type']; // 'ok', 'mild_incident', 'severe_incident'
+                $statusType = $analysis['status_type'];
                 $reason = $analysis['reason'] ?? '';
                 $medStatus = $analysis['medication_status'] ?? '';
                 $behaviorLog = $analysis['behavior_log'] ?? 'Normale Sprachweise.';
 
-                // 1. FALL: ES GEHT IHM GUT
                 if ($statusType === 'ok') {
                     if ($analysis['medication_already_done']) {
                         markCallCompleted($db, $clientId, $callType, "Wohlbefinden gut. Medikation bereits erledigt.");
@@ -184,9 +240,7 @@ try {
                         echo "<Say voice=\"alice\" language=\"de-DE\">Das freut mich. Bitte denken Sie noch daran, Ihre Medikation beziehungsweise Zusatzinfo einzunehmen. Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!</Say>\n";
                     }
                     echo "<Hangup/>\n";
-                }
-                // 2. FALL: LEICHTE BESCHWERDEN
-                elseif ($statusType === 'mild_incident') {
+                } elseif ($statusType === 'mild_incident') {
                     $fullLog = "Leichte Beschwerden: $reason | Verhalten/Tonalität: $behaviorLog | $medStatus";
                     logClientIncident($db, $clientId, $fullLog);
                     updateCallStatusSummary($db, $clientId, $callType, $fullLog);
@@ -199,9 +253,7 @@ try {
 
                     notifyEmergencyContacts($db, $clientId, $reason);
                     echo "<Hangup/>\n";
-                }
-                // 3. FALL: ERNSTE BESCHWERDEN
-                elseif ($statusType === 'severe_incident') {
+                } elseif ($statusType === 'severe_incident') {
                     $fullLog = "Ernster Vorfall: $reason | Verhalten/Tonalität: $behaviorLog | $medStatus";
                     logClientIncident($db, $clientId, $fullLog);
                     updateCallStatusSummary($db, $clientId, $callType, $fullLog);
@@ -232,8 +284,47 @@ try {
 
 
 // ==================================================
-// HILFSFUNKTIONEN (STRUKTURIERTE KI-ANALYSE)
+// HILFSFUNKTIONEN
 // ==================================================
+
+function buildMedicationQuestionWithAI($medicationText)
+{
+    $apiKey = OPEN_AI_KEY;
+    $url = 'https://api.openai.com/v1/chat/completions';
+
+    $systemPrompt = "Formuliere aus dem folgenden Stichwort (Medikation oder Zusatzinfo) eine kurze, höfliche Frage-Ergänzung in der Sie-Form, die direkt nach 'Geht es Ihnen heute gut und ' angeschlossen werden kann.
+    Beispiele:
+    - Eingabe: '2 Gläser Wasser' -> Ausgabe: 'haben Sie Ihre 2 Gläser Wasser bereits getrunken?'
+    - Eingabe: 'Blutdrucktablette' -> Ausgabe: 'haben Sie Ihre Blutdrucktablette bereits eingenommen?'
+    - Eingabe: 'Spaziergang' -> Ausgabe: 'haben Sie Ihren Spaziergang heute schon gemacht?'
+    Antworte AUSSCHLIESSLICH mit dem Satzteil (kleingeschrieben am Anfang, mit Fragezeichen am Ende). Keine Anführungszeichen.";
+
+    $data = [
+        'model' => 'gpt-5.4-mini',
+        'messages' => [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $medicationText]
+        ],
+        'temperature' => 0.0,
+        'max_tokens' => 40
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $apiKey,
+        'Content-Type: application/json'
+    ]);
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $result = json_decode($response, true);
+    $question = trim($result['choices'][0]['message']['content'] ?? '');
+
+    return !empty($question) ? $question : "haben Sie an {$medicationText} gedacht?";
+}
 
 function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwords, $severeBuzzwords)
 {
@@ -383,7 +474,6 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $reason): void
 function escalateCallTwilio($db, $clientId, $cycle, $telType, $callType)
 {
     $client = getClientData($db, $clientId);
-    $phone = ($telType === 'tel1') ? ($client['tel1'] ?? '') : ($client['tel2'] ?? '');
 
     if ($telType === 'tel1' && !empty($client['tel2'])) {
         executeTwilioCall($db, $clientId, 'tel2', $cycle, $callType);

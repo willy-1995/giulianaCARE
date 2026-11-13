@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
-//BASE URL
 import { API_BASE } from "../assets/base_url";
 
-//COUNTRY CODES
 const COUNTRY_CODES = [
   { code: "+49", label: "🇩🇪 Deutschland (+49)" },
   { code: "+43", label: "🇦🇹 Österreich (+43)" },
@@ -10,6 +8,8 @@ const COUNTRY_CODES = [
 ];
 
 const TestCallForm: React.FC = () => {
+  const [name, setName] = useState("");
+  const [medication, setMedication] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,12 +17,10 @@ const TestCallForm: React.FC = () => {
   const [isLocked, setIsLocked] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
 
-  // Key für den LocalStorage
-  const LOCK_KEY = "vapi_test_call_lock_time";
-  const LOCK_DURATION_MS = 30 * 60 * 1000; // 30 Minuten in Millisekunden
+  const LOCK_KEY = "twilio_test_call_lock_time";
+  const LOCK_DURATION_MS = 30 * 60 * 1000;
 
   useEffect(() => {
-    // Prüfen, ob eine Sperre im Browser aktiv ist
     const checkLock = () => {
       const lockTime = localStorage.getItem(LOCK_KEY);
       if (lockTime) {
@@ -31,11 +29,9 @@ const TestCallForm: React.FC = () => {
 
         if (now < expirationTime) {
           setIsLocked(true);
-          // Countdown-Text berechnen
           const minutesLeft = Math.ceil((expirationTime - now) / 60000);
           setTimeLeft(`${minutesLeft} Min.`);
         } else {
-          // Sperre ist abgelaufen
           localStorage.removeItem(LOCK_KEY);
           setIsLocked(false);
         }
@@ -43,59 +39,43 @@ const TestCallForm: React.FC = () => {
     };
 
     checkLock();
-    // Jede Minute den Status aktualisieren (für die Restzeitanzeige)
     const interval = setInterval(checkLock, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  //==========================================
-  //COUNTRY SELECT HANDLER
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCode = e.target.value;
     setSelectedCountry(newCode);
 
-    // Ersetzt die alte Vorwahl am Anfang oder setzt die neue Vorwahl vor
     const currentDigitsOnly = phoneNumber.replace(/^\+\d+\s*/, "");
     setPhoneNumber(`${newCode} ${currentDigitsOnly}`);
   };
 
-  //===========================================
-  //TEST CALL HANDLER
   const handleTestCall = async (e: React.FormEvent) => {
-    console.log("Testanruf geklickt"); //////////
     e.preventDefault();
-    if (!phoneNumber) return;
+    if (!phoneNumber || !name.trim() || !medication.trim()) return;
 
     setLoading(true);
     setStatusMessage("Anruf wird vorbereitet...");
 
     try {
-      // Absenden an deine call_manager.php auf dem Server (bzw. Localhost)
+      const bodyParams = new URLSearchParams({
+        action: "test_call",
+        phone_number: phoneNumber,
+        name: name.trim(),
+        medication: medication.trim(),
+      });
+
       const response = await fetch(`${API_BASE}/api/call_manager.php`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        // Wir senden eine neue Action "test_call" und die Nummer direkt mit
-        body: `action=test_call&phone_number=${encodeURIComponent(phoneNumber)}`,
+        body: bodyParams.toString(),
       });
 
-      console.log("Fetch geschickt!");
       const result = await response.json();
 
       if (result.success) {
-        console.log("Anruf gestartet");
-        /*
-         setStatusMessage(
-          "Dein Telefon klingelt gleich! Der Button ist nun für 30 Min. gesperrt.",
-        );
-        */
-
-        // 30-Minuten-Sperre aktivieren & im LocalStorage sichern
-        /*
-         const now = Date.now();
-        localStorage.setItem(LOCK_KEY, now.toString());
-        setIsLocked(true);
-        setTimeLeft("30 Min.");
-        */
+        setStatusMessage("Dein Telefon klingelt gleich!");
       } else {
         setStatusMessage(`Fehler: ${result.message}`);
       }
@@ -113,9 +93,30 @@ const TestCallForm: React.FC = () => {
       style={{ maxWidth: "400px", margin: "20px auto", textAlign: "center" }}
     >
       <h2>Probiere unsere Telefon-KI aus</h2>
-      <p>Trage deine Nummer ein und lass dich sofort anrufen.</p>
+      <p>Trage deine Daten ein und lass dich sofort anrufen.</p>
 
-      <form onSubmit={handleTestCall}>
+      <form
+        onSubmit={handleTestCall}
+        style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+      >
+        <input
+          type="text"
+          placeholder="Dein Name (z. B. Herr Müller)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={isLocked || loading}
+          required
+        />
+
+        <input
+          type="text"
+          placeholder="Zusatzinfo / Medikation (z. B. 2 Gläser Wasser)"
+          value={medication}
+          onChange={(e) => setMedication(e.target.value)}
+          disabled={isLocked || loading}
+          required
+        />
+
         <select
           value={selectedCountry}
           onChange={handleCountryChange}
@@ -134,6 +135,7 @@ const TestCallForm: React.FC = () => {
 
         <input
           type="tel"
+          placeholder="Telefonnummer"
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
           disabled={isLocked || loading || !selectedCountry}
@@ -143,10 +145,21 @@ const TestCallForm: React.FC = () => {
         <button
           type="submit"
           className="modal-button"
-          disabled={isLocked || loading || !phoneNumber || !selectedCountry}
+          disabled={
+            isLocked ||
+            loading ||
+            !phoneNumber ||
+            !selectedCountry ||
+            !name.trim() ||
+            !medication.trim()
+          }
           style={{
             cursor:
-              isLocked || loading || !selectedCountry
+              isLocked ||
+              loading ||
+              !selectedCountry ||
+              !name.trim() ||
+              !medication.trim()
                 ? "not-allowed"
                 : "pointer",
           }}
