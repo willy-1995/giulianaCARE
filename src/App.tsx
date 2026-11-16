@@ -76,7 +76,7 @@ function App() {
           <Route path="/carematch" element={<CareMatchLanding />} />
 
           <Route
-            path="/dashboard"
+            path="/carematch_dashboard"
             element={
               <ProtectedRoute>
                 <CarematchDashboard />
