@@ -769,7 +769,7 @@ function getClientData($db, $clientId)
 
 {
 
-    $stmt = $db->prepare("SELECT \* FROM clients WHERE id = ?");
+    $stmt = $db->prepare("SELECT * FROM clients WHERE id = ?");
 
     $stmt->execute([$clientId]);
 
