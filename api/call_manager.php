@@ -141,7 +141,7 @@ try {
                 $testMedication = trim($_GET['medication'] ?? '');
 
                 $medQuestion = buildMedicationQuestionWithAI($testMedication);
-                $welcomeText = "Hallo {$testName}, vielen Dank, dass Sie die Telefonassistenz von Dschuliana Kär testen. Geht es Ihnen heute gut und {$medQuestion}";
+                $welcomeText = "Hallo {$testName}, vielen Dank, dass Sie die Telefonbetreuung von Dschuliana Kär testen. Geht es Ihnen heute gut und {$medQuestion}";
 
                 $nextAction = htmlspecialchars("call_manager.php?" . http_build_query([
                     'step' => 'test_process',
