@@ -51,7 +51,7 @@ try {
                         $logStmt->execute([$clientId, $callType, $currentDate]);
 
                         initializeCallStatus($db, $clientId, $callType);
-                        executeCall($db, $clientId, 'tel1', 1, $callType);
+                        executeTwilioCall($db, $clientId, 'tel1', 1, $callType);
                     }
                 }
             }
@@ -105,7 +105,7 @@ try {
                     "($callType). Beginnt mit tel1."
             );
 
-            executeCall(
+            executeTwilioCall(
                 $db,
                 $clientId,
                 'tel1',
