@@ -290,6 +290,10 @@ try {
 function buildMedicationQuestionWithAI($medicationText)
 {
     $apiKey = $_ENV['API_KEY_OPENAI'] ?? getenv('API_KEY_OPENAI') ?: '';
+    if (empty($apiKey)) {
+        error_log("OpenAI API-Key API_KEY_OPENAI wurde nicht geladen.");
+        throw new RuntimeException("OpenAI API-Konfiguration fehlt.");
+    }
     $url = 'https://api.openai.com/v1/chat/completions';
 
     $systemPrompt = "Formuliere aus dem folgenden Stichwort (Medikation oder Zusatzinfo) eine kurze, höfliche Frage-Ergänzung in der Sie-Form, die direkt nach 'Geht es Ihnen heute gut und ' angeschlossen werden kann.
@@ -329,6 +333,10 @@ function buildMedicationQuestionWithAI($medicationText)
 function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwords, $severeBuzzwords)
 {
     $apiKey = $_ENV['API_KEY_OPENAI'] ?? getenv('API_KEY_OPENAI') ?: '';
+    if (empty($apiKey)) {
+        error_log("OpenAI API-Key API_KEY_OPENAI wurde nicht geladen.");
+        throw new RuntimeException("OpenAI API-Konfiguration fehlt.");
+    }
     $url = 'https://api.openai.com/v1/chat/completions';
 
     $mildList = implode(', ', $mildBuzzwords);
