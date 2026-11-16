@@ -55,7 +55,7 @@ function Login() {
 
         //REDIRECT
         setTimeout(() => {
-          navigate("/dashboard");
+          navigate("/telecare_dashboard");
         }, 3000);
       } else {
         //count attempts

@@ -113,7 +113,7 @@ function App() {
           {/* ========================================== */}
           {/* Bestehende geschützte Routen */}
           <Route
-            path="/dashboard"
+            path="/telecare_dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
