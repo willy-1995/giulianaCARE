@@ -289,7 +289,7 @@ try {
 
 function buildMedicationQuestionWithAI($medicationText)
 {
-    $apiKey = OPEN_AI_KEY;
+    $apiKey = $_ENV['API_KEY_OPENAI'] ?? getenv('API_KEY_OPENAI') ?: '';
     $url = 'https://api.openai.com/v1/chat/completions';
 
     $systemPrompt = "Formuliere aus dem folgenden Stichwort (Medikation oder Zusatzinfo) eine kurze, höfliche Frage-Ergänzung in der Sie-Form, die direkt nach 'Geht es Ihnen heute gut und ' angeschlossen werden kann.
@@ -328,7 +328,7 @@ function buildMedicationQuestionWithAI($medicationText)
 
 function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwords, $severeBuzzwords)
 {
-    $apiKey = OPEN_AI_KEY;
+    $apiKey = $_ENV['API_KEY_OPENAI'] ?? getenv('API_KEY_OPENAI') ?: '';
     $url = 'https://api.openai.com/v1/chat/completions';
 
     $mildList = implode(', ', $mildBuzzwords);
