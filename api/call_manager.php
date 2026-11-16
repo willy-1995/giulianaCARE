@@ -514,7 +514,7 @@ try {
                         $reply = "Das freut mich zu hören. Wunderbar, dass Sie {$testMedication} bereits erledigt haben. Vielen Dank für den Test, auf Wiederhören!";
                     } else {
 
-                        $reply = "Das freut mich zu hören. Bitte denken Sie noch daran: {$testMedication}. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das freut mich zu hören. Bitte denken Sie noch an die hinterlegte Angabe: {$testMedication}. Vielen Dank für den Test, auf Wiederhören!";
                     }
                 } elseif ($statusType === 'mild_incident') {
 
@@ -523,7 +523,7 @@ try {
                         $reply = "Das tut mir leid zu hören. Ich habe notiert, dass Sie {$testMedication} bereits erledigt haben, und würde im Ernstfall jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
                     } else {
 
-                        $reply = "Das tut mir leid zu hören. Bitte denken Sie noch daran: {$testMedication}. Im Ernstfall würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das tut mir leid zu hören. Bitte denken Sie noch an die hinterlegte Angabe: {$testMedication}. Im Ernstfall würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
                     }
                 } else {
 
@@ -532,7 +532,7 @@ try {
                         $reply = "Das klingt ernst. Im Echtbetrieb würde ich sofort Ihre Notfallkontakte informieren und darauf hinweisen, bei akuten Beschwerden den Notruf 112 zu wählen. Vielen Dank für den Test, auf Wiederhören!";
                     } else {
 
-                        $reply = "Das klingt ernst. Bitte denken Sie an {$testMedication} und wählen Sie bei akuten Beschwerden den Notruf 112. Im Echtbetrieb würde ich jetzt sofort Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das klingt ernst. Ihre hinterlegte Angabe lautet: {$testMedication}. Wählen Sie bei akuten Beschwerden bitte den Notruf 112. Im Echtbetrieb würde ich jetzt sofort Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
                     }
                 }
 
@@ -705,6 +705,9 @@ try {
                 $client = getClientData($db, $clientId);
 
                 $medication = getClientMedication($client, $callType);
+                $medicationForSpeech = !empty($medication)
+                    ? htmlspecialchars($medication, ENT_QUOTES | ENT_XML1, 'UTF-8')
+                    : 'Ihre hinterlegte Medikation oder Zusatzinformation';
 
                 $analysis = evaluateStrictStructureWithAI(
 
@@ -776,7 +779,7 @@ try {
 
                         );
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das freut mich. Bitte denken Sie noch daran, Ihre Medikation beziehungsweise Zusatzinfo einzunehmen. Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das freut mich. Bitte denken Sie noch an: {$medicationForSpeech}. Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!</Say>\n";
                     }
 
                     echo "<Hangup/>\n";
@@ -800,7 +803,7 @@ try {
                         echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. Ich habe registriert, dass Sie Ihre Medikation bereits erledigt hatten. Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
                     } else {
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. Bitte denken Sie daran, Ihre Medikation beziehungsweise Zusatzinfo einzunehmen. Ich informiere jetzt umgehend Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. Bitte beachten Sie auch noch Ihre hinterlegte Angabe: {$medicationForSpeech}. Ich informiere jetzt umgehend Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
                     }
 
                     notifyEmergencyContacts($db, $clientId, $reason);
@@ -826,7 +829,7 @@ try {
                         echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. Da Sie Ihre Medikation bereits erledigt hatten, informiere ich sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Schmerzen selbst den Notruf 112. Auf Wiederhören!</Say>\n";
                     } else {
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. Bitte nehmen Sie sofort Ihre Medikation beziehungsweise Zusatzinfo ein und wählen Sie bei akuten Beschwerden selbst den Notruf 112. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. Ihre hinterlegte Angabe lautet: {$medicationForSpeech}. Bei akuten Beschwerden wählen Sie bitte sofort den Notruf 112. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
                     }
 
                     notifyEmergencyContacts($db, $clientId, $reason);
