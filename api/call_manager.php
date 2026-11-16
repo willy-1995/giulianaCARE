@@ -112,6 +112,7 @@ try {
             ]);
 
             exit;
+
         }
 
         $phone = preg_replace('/[^0-9+]/', '', $phoneNumber);
@@ -119,6 +120,7 @@ try {
         if (strpos($phone, '0') === 0) {
 
             $phone = '+49' . substr($phone, 1);
+
         }
 
         $queryParams = http_build_query([
@@ -188,6 +190,7 @@ try {
         }
 
         exit;
+
     }
 
     // ==================================================
@@ -217,6 +220,7 @@ try {
             ]);
 
             exit;
+
         }
 
         initializeCallStatus($db, $clientId, $callType);
@@ -239,6 +243,7 @@ try {
         ]);
 
         exit;
+
     }
 
     // ==================================================
@@ -381,17 +386,21 @@ try {
                         echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
 
                         echo "</Gather>\n";
+
                     } else {
 
                         echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Ich konnte Sie leider nicht hören. Bitte versuchen Sie es später noch einmal. Auf Wiederhören!</Say>\n";
 
                         echo "<Hangup/>\n";
+
                     }
 
                     break;
+
                 }
 
-                $medQuestion = buildMedicationQuestionWithAI($testMedication);
+                $itemLanguage = buildMedicationLanguageWithAI($testMedication);
+                $medQuestion = $itemLanguage['question'];
 
                 $welcomeText = "Hallo {$testName}, vielen Dank, dass Sie die Telefonbetreuung von Dschuliana Kär testen. Geht es Ihnen heute gut und {$medQuestion}";
 
@@ -432,6 +441,7 @@ try {
                 $testName = trim($_GET['name'] ?? '');
 
                 $testMedication = trim($_GET['medication'] ?? '');
+                $itemLanguage = buildMedicationLanguageWithAI($testMedication);
 
                 if (empty($userInput)) {
 
@@ -455,11 +465,13 @@ try {
 
                     echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
 
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Entschuldigung, ich habe Sie akustisch nicht verstanden. Geht es Ihnen gut und haben Sie an {$testMedication} gedacht?</Say>\n";
+                    $retryQuestion = htmlspecialchars("Entschuldigung, ich habe Sie akustisch nicht verstanden. Geht es Ihnen gut und {$itemLanguage['question']}", ENT_QUOTES | ENT_XML1, 'UTF-8');
+                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">{$retryQuestion}</Say>\n";
 
                     echo "</Gather>\n";
 
                     break;
+
                 }
 
                 $analysis = evaluateStrictStructureWithAI(
@@ -505,34 +517,29 @@ try {
                     echo "</Gather>\n";
 
                     break;
+
                 }
 
+                $reminderText = $itemLanguage['reminder'];
+                $doneText = $itemLanguage['done_confirmation'];
+
                 if ($statusType === 'ok') {
-
                     if ($medDone) {
-
-                        $reply = "Das freut mich zu hören. Wunderbar, dass Sie {$testMedication} bereits erledigt haben. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das freut mich zu hören. {$doneText} Vielen Dank für den Test, auf Wiederhören!";
                     } else {
-
-                        $reply = "Das freut mich zu hören. Bitte denken Sie noch an die hinterlegte Angabe: {$testMedication}. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das freut mich zu hören. {$reminderText} Vielen Dank für den Test, auf Wiederhören!";
                     }
                 } elseif ($statusType === 'mild_incident') {
-
                     if ($medDone) {
-
-                        $reply = "Das tut mir leid zu hören. Ich habe notiert, dass Sie {$testMedication} bereits erledigt haben, und würde im Ernstfall jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das tut mir leid zu hören. {$doneText} Im Echtbetrieb würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
                     } else {
-
-                        $reply = "Das tut mir leid zu hören. Bitte denken Sie noch an die hinterlegte Angabe: {$testMedication}. Im Ernstfall würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das tut mir leid zu hören. {$reminderText} Im Echtbetrieb würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
                     }
                 } else {
-
                     if ($medDone) {
-
                         $reply = "Das klingt ernst. Im Echtbetrieb würde ich sofort Ihre Notfallkontakte informieren und darauf hinweisen, bei akuten Beschwerden den Notruf 112 zu wählen. Vielen Dank für den Test, auf Wiederhören!";
                     } else {
-
-                        $reply = "Das klingt ernst. Ihre hinterlegte Angabe lautet: {$testMedication}. Wählen Sie bei akuten Beschwerden bitte den Notruf 112. Im Echtbetrieb würde ich jetzt sofort Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das klingt ernst. {$reminderText} Wählen Sie bei akuten Beschwerden bitte den Notruf 112. Im Echtbetrieb würde ich jetzt sofort Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
                     }
                 }
 
@@ -617,14 +624,17 @@ try {
                         echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
 
                         echo "</Gather>\n";
+
                     } else {
 
                         echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Ich konnte Sie leider nicht hören. Bitte versuchen Sie es später noch einmal. Auf Wiederhören!</Say>\n";
 
                         echo "<Hangup/>\n";
+
                     }
 
                     break;
+
                 }
 
                 // Sobald der Angerufene gesprochen hat, folgt die Begrüßung.
@@ -694,6 +704,7 @@ try {
                     echo "</Gather>\n";
 
                     break;
+
                 }
 
                 // Eingabe protokollieren, damit die tatsächliche
@@ -705,9 +716,9 @@ try {
                 $client = getClientData($db, $clientId);
 
                 $medication = getClientMedication($client, $callType);
-                $medicationForSpeech = !empty($medication)
-                    ? htmlspecialchars($medication, ENT_QUOTES | ENT_XML1, 'UTF-8')
-                    : 'Ihre hinterlegte Medikation oder Zusatzinformation';
+                $itemLanguage = buildMedicationLanguageWithAI($medication);
+                $itemReminderForSpeech = htmlspecialchars($itemLanguage['reminder'], ENT_QUOTES | ENT_XML1, 'UTF-8');
+                $itemDoneForSpeech = htmlspecialchars($itemLanguage['done_confirmation'], ENT_QUOTES | ENT_XML1, 'UTF-8');
 
                 $analysis = evaluateStrictStructureWithAI(
 
@@ -740,6 +751,7 @@ try {
                     echo "</Gather>\n";
 
                     break;
+
                 }
 
                 // ==================================================
@@ -764,7 +776,8 @@ try {
 
                         );
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das freut mich. Dass Sie Ihre Medikation beziehungsweise Zusatzinfo bereits erledigt haben, ist wunderbar. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das freut mich. {$itemDoneForSpeech} Auf Wiederhören!</Say>\n";
+
                     } else {
 
                         markCallCompleted(
@@ -779,7 +792,8 @@ try {
 
                         );
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das freut mich. Bitte denken Sie noch an: {$medicationForSpeech}. Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das freut mich. {$itemReminderForSpeech} Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!</Say>\n";
+
                     }
 
                     echo "<Hangup/>\n";
@@ -800,10 +814,12 @@ try {
 
                     if (!empty($analysis['medication_already_done'])) {
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. Ich habe registriert, dass Sie Ihre Medikation bereits erledigt hatten. Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. {$itemDoneForSpeech} Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+
                     } else {
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. Bitte beachten Sie auch noch Ihre hinterlegte Angabe: {$medicationForSpeech}. Ich informiere jetzt umgehend Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. {$itemReminderForSpeech} Ich informiere jetzt umgehend Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+
                     }
 
                     notifyEmergencyContacts($db, $clientId, $reason);
@@ -826,24 +842,30 @@ try {
 
                     if (!empty($analysis['medication_already_done'])) {
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. Da Sie Ihre Medikation bereits erledigt hatten, informiere ich sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Schmerzen selbst den Notruf 112. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemDoneForSpeech} Ich informiere sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Schmerzen selbst den Notruf 112. Auf Wiederhören!</Say>\n";
+
                     } else {
 
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. Ihre hinterlegte Angabe lautet: {$medicationForSpeech}. Bei akuten Beschwerden wählen Sie bitte sofort den Notruf 112. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemReminderForSpeech} Bei akuten Beschwerden wählen Sie bitte sofort den Notruf 112. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
+
                     }
 
                     notifyEmergencyContacts($db, $clientId, $reason);
 
                     echo "<Hangup/>\n";
+
                 }
 
                 break;
+
         }
 
         echo "</Response>\n";
 
         exit;
+
     }
+
 } catch (Throwable $e) {
 
     error_log("Error in call_manager.php: " . $e->getMessage());
@@ -851,11 +873,13 @@ try {
     while (ob_get_level()) {
 
         ob_end_clean();
+
     }
 
     http_response_code(500);
 
     exit;
+
 }
 
 // ==================================================
@@ -864,93 +888,111 @@ try {
 
 // ==================================================
 
-function buildMedicationQuestionWithAI($medicationText)
-
+function buildMedicationLanguageWithAI($itemText)
 {
+    $itemText = trim((string)$itemText);
+
+    // Sicherer neutraler Fallback, falls kein Eintrag oder keine KI-Antwort verfügbar ist.
+    $fallback = [
+        'category' => 'other',
+        'question' => 'haben Sie die hinterlegte Aufgabe bereits erledigt?',
+        'reminder' => 'Bitte denken Sie noch an die hinterlegte Aufgabe: ' . $itemText . '.',
+        'done_confirmation' => 'Wunderbar, dass Sie die hinterlegte Aufgabe bereits erledigt haben.'
+    ];
+
+    if ($itemText === '') {
+        return $fallback;
+    }
 
     $apiKey = $_ENV['API_KEY_OPENAI'] ?? getenv('API_KEY_OPENAI') ?: '';
-
     if (empty($apiKey)) {
-
-        error_log("OpenAI API-Key API_KEY_OPENAI wurde nicht geladen.");
-
-        throw new RuntimeException("OpenAI API-Konfiguration fehlt.");
+        error_log('OpenAI API-Key API_KEY_OPENAI wurde nicht geladen. Neutrale Aufgabenformulierung wird verwendet.');
+        return $fallback;
     }
 
     $url = 'https://api.openai.com/v1/chat/completions';
 
-    $systemPrompt = "Formuliere aus dem folgenden Stichwort (Medikation oder Zusatzinfo) eine kurze, höfliche Frage-Ergänzung in der Sie-Form, die direkt nach 'Geht es Ihnen heute gut und ' angeschlossen werden kann.
+    $systemPrompt = <<<'PROMPT'
+Du formulierst natürliche, höfliche deutsche Sätze für eine telefonische Betreuung älterer Menschen.
 
-Beispiele:
+Deine Aufgabe: Erkenne anhand des hinterlegten Eintrags, um welche Art von Aufgabe es sich handelt, und wähle passende Verben. Der Eintrag kann beispielsweise sein:
+- Medikament/Tablette: einnehmen, nehmen
+- Flüssigkeit/Getränk: trinken
+- Bewegung/Aktivität/Spaziergang: machen, durchführen oder gehen
+- Messung (z. B. Blutdruck oder Blutzucker): messen
+- Termin/Behandlung: wahrnehmen oder hingehen
+- Körperpflege/Alltagsaufgabe: erledigen, durchführen
 
-\- Eingabe: '2 Gläser Wasser' -> Ausgabe: 'haben Sie Ihre 2 Gläser Wasser bereits getrunken?'
+WICHTIG:
+- Verwende niemals „einnehmen“ für einen Spaziergang, Sport, Wasser, Termine oder Messungen.
+- Verwende niemals „trinken“ für Medikamente.
+- Erfinde keine Menge, Uhrzeit, Häufigkeit oder medizinische Anweisung.
+- Wenn die Art nicht eindeutig erkennbar ist, verwende eine neutrale Formulierung mit „Aufgabe erledigen“ und vermeide eine falsche Handlung.
+- Sprich die Person mit „Sie“ an.
+- Die Frage muss als Ergänzung nach „Geht es Ihnen heute gut und ...“ funktionieren.
+- Die Erinnerung muss ein vollständiger, natürlicher Satz sein.
+- Die Bestätigung muss ein vollständiger, natürlicher Satz sein.
 
-\- Eingabe: 'Blutdrucktablette' -> Ausgabe: 'haben Sie Ihre Blutdrucktablette bereits eingenommen?'
-
-\- Eingabe: 'Spaziergang' -> Ausgabe: 'haben Sie Ihren Spaziergang heute schon gemacht?'
-
-Antworte ausschließlich mit dem Satzteil, kleingeschrieben am Anfang und mit Fragezeichen am Ende. Keine Anführungszeichen.";
+Gib ausschließlich ein gültiges JSON-Objekt mit genau diesen Feldern zurück:
+{
+  "category": "medication|drink|activity|measurement|appointment|daily_task|other",
+  "question": "haben Sie ...?",
+  "reminder": "Bitte denken Sie daran, ... .",
+  "done_confirmation": "Wunderbar, dass Sie ... bereits ... haben."
+}
+PROMPT;
 
     $data = [
-
         'model' => 'gpt-5.4-mini',
-
         'messages' => [
-
             ['role' => 'system', 'content' => $systemPrompt],
-
-            ['role' => 'user', 'content' => $medicationText]
-
+            ['role' => 'user', 'content' => 'Hinterlegter Eintrag: ' . $itemText]
         ],
-
-        'max_completion_tokens' => 80
-
+        'response_format' => ['type' => 'json_object'],
+        'max_completion_tokens' => 180
     ];
 
     $ch = curl_init($url);
-
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
     curl_setopt($ch, CURLOPT_POST, true);
-
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-
         'Authorization: Bearer ' . $apiKey,
-
         'Content-Type: application/json'
-
     ]);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
 
     $response = curl_exec($ch);
-
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
     $curlError = curl_error($ch);
-
     curl_close($ch);
 
     if ($response === false || $httpCode < 200 || $httpCode >= 300) {
-
-        error_log("OpenAI Medikamentenfrage fehlgeschlagen. HTTP: {$httpCode}. cURL: {$curlError}. Antwort: " . substr((string)$response, 0, 1000));
-
-        return "haben Sie an {$medicationText} gedacht?";
+        error_log("OpenAI Aufgabenformulierung fehlgeschlagen. HTTP: {$httpCode}. cURL: {$curlError}. Antwort: " . substr((string)$response, 0, 1000));
+        return $fallback;
     }
 
     $result = json_decode($response, true);
+    $content = $result['choices'][0]['message']['content'] ?? '';
+    $phrasing = json_decode($content, true);
 
-    $question = trim(
+    $allowedCategories = ['medication', 'drink', 'activity', 'measurement', 'appointment', 'daily_task', 'other'];
+    if (!is_array($phrasing) ||
+        !in_array($phrasing['category'] ?? '', $allowedCategories, true) ||
+        empty($phrasing['question']) ||
+        empty($phrasing['reminder']) ||
+        empty($phrasing['done_confirmation'])) {
+        error_log('OpenAI Aufgabenformulierung lieferte ungültiges JSON: ' . substr((string)$content, 0, 1000));
+        return $fallback;
+    }
 
-        $result['choices'][0]['message']['content'] ?? ''
-
-    );
-
-    return !empty($question)
-
-        ? $question
-
-        : "haben Sie an {$medicationText} gedacht?";
+    return [
+        'category' => $phrasing['category'],
+        'question' => trim($phrasing['question']),
+        'reminder' => trim($phrasing['reminder']),
+        'done_confirmation' => trim($phrasing['done_confirmation'])
+    ];
 }
 
 // ==================================================
@@ -982,6 +1024,7 @@ function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwor
             'medication_status' => 'Prüfung ausstehend'
 
         ];
+
     }
 
     $url = 'https://api.openai.com/v1/chat/completions';
@@ -1022,9 +1065,10 @@ Weitere Felder:
 
 \- behavior_log: Hinweise auf auffällige Tonalität, lange Pausen oder zusammenhanglose Aussagen. Wenn nichts Auffälliges erkennbar ist, schreibe 'Normale Sprachweise'.
 
-\- medication_already_done: true, wenn der Klient ausdrücklich angibt, die Medikation oder Zusatzinfo bereits erledigt zu haben. Andernfalls false.
+\- medication_already_done: Dieses Feld bedeutet: Ist der konkret hinterlegte Eintrag bereits erledigt? Beurteile die Antwort passend zur Art des Eintrags. Bei einem Medikament bedeutet erledigt beispielsweise ausdrücklich eingenommen; bei einem Spaziergang ausdrücklich gemacht oder absolviert; bei Wasser ausdrücklich getrunken; bei einer Messung ausdrücklich gemessen; bei einem Termin ausdrücklich wahrgenommen.
+\  Ein bloßes 'Ja' zählt nur dann als erledigt, wenn die Frage im Gespräch eindeutig auf diesen Eintrag bezogen war. Erfinde keine Erledigung.
 
-\- medication_status: Ein kurzer Protokollsatz zur Medikation.
+\- medication_status: Ein kurzer Protokollsatz zum konkreten hinterlegten Eintrag.
 
 Wichtige Regeln:
 
@@ -1036,7 +1080,7 @@ Wichtige Regeln:
 
 4\. Bei ernsten Beschwerden hat 'severe_incident' Vorrang.
 
-5\. Erfinde keine Beschwerden und keine Medikamenteneinnahme.
+5\. Erfinde keine Beschwerden und keine Erledigung des hinterlegten Eintrags. Berücksichtige dessen Art: Ein Spaziergang wird gemacht, Wasser wird getrunken, ein Medikament wird eingenommen, Blutdruck wird gemessen und ein Termin wird wahrgenommen.
 
 6\. Eine Verneinung wie 'Ich habe keine Kopfschmerzen' ist keine Beschwerde.
 
@@ -1137,6 +1181,7 @@ Erlaubte status_type-Werte: ok, mild_incident, severe_incident oder unclear.
             'medication_status' => 'Prüfung ausstehend'
 
         ];
+
     }
 
     $result = json_decode($response, true);
@@ -1194,6 +1239,7 @@ Erlaubte status_type-Werte: ok, mild_incident, severe_incident oder unclear.
             'medication_status' => 'Prüfung ausstehend'
 
         ];
+
     }
 
     // Pflichtfelder ergänzen und Datentypen absichern.
@@ -1245,6 +1291,7 @@ Erlaubte status_type-Werte: ok, mild_incident, severe_incident oder unclear.
             if (preg_match('/\\b(kein|keine|keinen|keiner|nicht|ohne)\\b/u', $before)) {
 
                 continue;
+
             }
 
             $analysis['status_type'] = 'severe_incident';
@@ -1254,7 +1301,9 @@ Erlaubte status_type-Werte: ok, mild_incident, severe_incident oder unclear.
             error_log("Sicherheitsprüfung: Ernste Beschwerde erkannt: " . $userInput);
 
             break;
+
         }
+
     }
 
     // Leichte Beschwerden prüfen, wenn noch kein ernster Vorfall vorliegt.
@@ -1282,6 +1331,7 @@ Erlaubte status_type-Werte: ok, mild_incident, severe_incident oder unclear.
                 if (preg_match('/\\b(kein|keine|keinen|keiner|nicht|ohne)\\b/u', $before)) {
 
                     continue;
+
                 }
 
                 $analysis['status_type'] = 'mild_incident';
@@ -1291,11 +1341,15 @@ Erlaubte status_type-Werte: ok, mild_incident, severe_incident oder unclear.
                 error_log("Sicherheitsprüfung: Leichte Beschwerde erkannt: " . $userInput);
 
                 break;
+
             }
+
         }
+
     }
 
     return $analysis;
+
 }
 
 // ==================================================
@@ -1323,26 +1377,19 @@ function executeTwilioCall($db, $clientId, $telType, $cycle, $callType)
         return false;
     }
 
-    if (
-        !defined('TWILIO_ACCOUNT_SID') || !defined('TWILIO_AUTH_TOKEN') || !defined('TWILIO_PHONE_NUMBER') ||
-        !TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER
-    ) {
+    if (!defined('TWILIO_ACCOUNT_SID') || !defined('TWILIO_AUTH_TOKEN') || !defined('TWILIO_PHONE_NUMBER') ||
+        !TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
         error_log('Twilio-Konfiguration unvollständig.');
         return false;
     }
 
     $baseUrl = 'https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']);
     $webhookUrl = $baseUrl . '/call_manager.php?' . http_build_query([
-        'step' => 'welcome',
-        'clientId' => $clientId,
-        'callType' => $callType
+        'step' => 'welcome', 'clientId' => $clientId, 'callType' => $callType
     ]);
     $statusCallbackUrl = $baseUrl . '/call_manager.php?' . http_build_query([
-        'step' => 'call_status',
-        'clientId' => $clientId,
-        'callType' => $callType,
-        'telType' => $telType,
-        'cycle' => $cycle
+        'step' => 'call_status', 'clientId' => $clientId, 'callType' => $callType,
+        'telType' => $telType, 'cycle' => $cycle
     ]);
 
     $url = 'https://api.twilio.com/2010-04-01/Accounts/' . TWILIO_ACCOUNT_SID . '/Calls.json';
@@ -1397,6 +1444,7 @@ function getClientData($db, $clientId)
         error_log("Kein Client-Datensatz gefunden. Client-ID: {$clientId}");
     }
     return $client ?: null;
+
 }
 
 // ==================================================
@@ -1412,14 +1460,17 @@ function getClientMedication($client, $callType)
     if ($callType === 'call_2') {
 
         return trim($client['medication_2'] ?? '');
+
     }
 
     if ($callType === 'call_3') {
 
         return trim($client['medication_3'] ?? '');
+
     }
 
     return trim($client['medication_1'] ?? '');
+
 }
 
 // ==================================================
@@ -1467,6 +1518,7 @@ function initializeCallStatus($db, $clientId, $callType)
     ");
 
     $stmt->execute([$clientId, $callType]);
+
 }
 
 // ==================================================
@@ -1494,6 +1546,7 @@ function markCallCompleted($db, $clientId, $callType, $summary)
     ");
 
     $stmt->execute([$summary, $clientId, $callType]);
+
 }
 
 // ==================================================
@@ -1515,6 +1568,7 @@ function logClientIncident($db, $clientId, $reason)
     ");
 
     $stmt->execute([$clientId, $reason]);
+
 }
 
 // ==================================================
@@ -1540,6 +1594,7 @@ function updateCallStatusSummary($db, $clientId, $callType, $summary)
     ");
 
     $stmt->execute([$summary, $clientId, $callType]);
+
 }
 
 // ==================================================
@@ -1595,8 +1650,11 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $reason): void
                 "From: info@giuliana-care.de\r\nContent-Type: text/plain; charset=UTF-8"
 
             );
+
         }
+
     }
+
 }
 
 // ==================================================
@@ -1614,6 +1672,7 @@ function escalateCallTwilio($db, $clientId, $cycle, $telType, $callType)
     if ($telType === 'tel1' && !empty($client['tel2'])) {
 
         executeTwilioCall($db, $clientId, 'tel2', $cycle, $callType);
+
     } else {
 
         $stmt = $db->prepare("
@@ -1631,5 +1690,7 @@ function escalateCallTwilio($db, $clientId, $cycle, $telType, $callType)
         ");
 
         $stmt->execute([$clientId, $callType]);
+
     }
+
 }
