@@ -1,6 +1,5 @@
 <?php
 
-
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -118,14 +117,49 @@ try {
     error_log("CRON ERROR (Retry-Handler): " . $e->getMessage());
 }
 
+// ==========================================
+// 3. WATCHDOG FÜR FESTHÄNGENDE TEL2-ANRUFE
+// ==========================================
+// Wenn Twilio keinen verwertbaren Callback liefert, kann ein Datensatz
+// im Status "calling" hängen bleiben. Nach 3 Minuten wird tel2 als
+// fehlgeschlagen behandelt. handleCallFailure unterscheidet dabei:
+// Zyklus 1 -> Retry-Zyklus 2 in 15 Minuten
+// Zyklus 2 -> endgültig failed + Incident + Notfallkontakte
+try {
+    $watchdogStmt = $db->prepare("
+        SELECT client_id, call_type, attempt_cycle
+        FROM call_status
+        WHERE status = 'calling'
+          AND last_tel_used = 'tel2'
+          AND attempt_cycle IN (1, 2)
+          AND updated_at <= DATE_SUB(NOW(), INTERVAL 3 MINUTE)
+    ");
+    $watchdogStmt->execute();
+    $staleCalls = $watchdogStmt->fetchAll(PDO::FETCH_ASSOC);
 
+    foreach ($staleCalls as $staleCall) {
+        $clientId = (int)$staleCall['client_id'];
+        $callType = $staleCall['call_type'] ?? 'call_1';
+        $cycle = (int)$staleCall['attempt_cycle'];
 
+        error_log(
+            "CRON WATCHDOG: Tel2-Anruf für Client ID $clientId ($callType), " .
+                "Zyklus $cycle, hängt seit mindestens 3 Minuten. " .
+                "Behandle den Anruf als fehlgeschlagen."
+        );
 
-
-
-
-
-
+        handleCallFailure(
+            $db,
+            $clientId,
+            $callType,
+            'tel2',
+            $cycle,
+            'Watchdog: Kein verwertbarer Twilio-Callback innerhalb von 3 Minuten; tel2 als nicht erreicht behandelt.'
+        );
+    }
+} catch (Exception $e) {
+    error_log("CRON ERROR (Call Watchdog): " . $e->getMessage());
+}
 
 /*
 error_reporting(E_ALL);
