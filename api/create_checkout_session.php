@@ -52,7 +52,7 @@ try {
             'quantity' => 1,
         ]],
         'mode' => 'subscription',
-        'success_url' => $clientUrl . '/dashboard?welcome=true',
+        'success_url' => $clientUrl . '/telecare_dashboard?welcome=true',
         'cancel_url'  => $clientUrl . '/registration?canceled=true',
 
         // Nur 14 Tage Testphase – Abrechnung erfolgt flexibel am 15. Tag
