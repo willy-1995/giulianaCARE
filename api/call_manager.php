@@ -755,8 +755,15 @@ function handleCallFailure(PDO $db, int $clientId, string $callType, string $tel
     ]);
 
     if ($finish->rowCount() > 0) {
-        notifyEmergencyContacts($db, $clientId, "Person nach zwei Anrufzyklen (tel1 und tel2 jeweils) nicht erreichbar. {$reason}");
-        error_log("Notfallkontakte für Client {$clientId} nach endgültigem Anrufausfall informiert.");
+        $incidentReason = "Person nach allen Anrufversuchen nicht erreicht. " .
+            "Zyklus 1: tel1 und tel2; Zyklus 2 nach 15 Minuten: tel1 und tel2. " .
+            "Notfallkontakte wurden informiert. Ursache/Details: {$reason}";
+
+        // Endgültigen Nichterreichbarkeits-Vorfall in client_incidents protokollieren.
+        logClientIncident($db, $clientId, $incidentReason);
+
+        notifyEmergencyContacts($db, $clientId, $incidentReason);
+        error_log("Endgültiger Nichterreichbarkeits-Vorfall für Client {$clientId} protokolliert; Notfallkontakte informiert.");
     }
 }
 
