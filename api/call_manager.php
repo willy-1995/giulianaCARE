@@ -949,24 +949,202 @@ function updateCallStatusSummary($db, $clientId, $callType, $summary)
     $stmt->execute([$summary, $clientId, $callType]);
 }
 
+
 function notifyEmergencyContacts(PDO $db, int $clientId, string $reason): void
 {
-    $client = getClientData($db, $clientId);
-    $clientName = trim(($client['title'] ?? '') . ' ' . ($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
+    if ($clientId <= 0) {
+        error_log("NOTIFY ERROR: Ungültige Client-ID: {$clientId}");
+        return;
+    }
 
-    $stmt = $db->prepare("SELECT email, tel1 FROM contacts WHERE client_id = ?");
+    // Kundendaten einschließlich SMS-Freigabe laden.
+    $stmt = $db->prepare("
+        SELECT firstname, lastname, title, sms_status
+        FROM clients
+        WHERE id = ?
+    ");
     $stmt->execute([$clientId]);
-    $contacts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $msg = "giulianaCARE Notfall: {$clientName} hat im Anruf angegeben: {$reason}. Bitte sofort handeln!";
+    if (!$client) {
+        error_log("NOTIFY ERROR: Client {$clientId} nicht gefunden.");
+        return;
+    }
+
+    $clientName = trim(
+        ($client['title'] ?? '') . ' ' .
+            ($client['firstname'] ?? '') . ' ' .
+            ($client['lastname'] ?? '')
+    );
+
+    // SMS nur versenden, wenn beim Kunden aktiviert.
+    $smsEnabled = !empty($client['sms_status']);
+
+    // Notfallkontakte laden.
+    $stmtContacts = $db->prepare("
+        SELECT firstname, lastname, email, tel1
+        FROM contacts
+        WHERE client_id = ?
+    ");
+    $stmtContacts->execute([$clientId]);
+    $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($contacts)) {
+        error_log("NOTIFY ERROR: Keine Notfallkontakte für Client {$clientId} gefunden.");
+        return;
+    }
+
+    $subject = "NOTFALL-ALARM: {$clientName} benötigt Hilfe!";
+
+    $messageText =
+        "giulianaCARE NOTFALLMELDUNG\n\n" .
+        "Betroffene Person: {$clientName}\n\n" .
+        "Grund: {$reason}\n\n" .
+        "Bitte nehmen Sie umgehend Kontakt auf und überprüfen Sie, ob Hilfe benötigt wird.";
+
+    error_log(
+        "NOTIFY: Client {$clientId}: " . count($contacts) .
+            " Notfallkontakt(e). SMS-Status: " .
+            ($smsEnabled ? 'AKTIV' : 'INAKTIV')
+    );
+
     foreach ($contacts as $contact) {
+
+        $contactName = trim(
+            ($contact['firstname'] ?? '') . ' ' .
+                ($contact['lastname'] ?? '')
+        );
+
+        // =====================================
+        // 1. E-MAIL VERSENDEN
+        // =====================================
         if (!empty($contact['email'])) {
-            mail(
+
+            $headers =
+                "From: giulianaCARE <info@giuliana-care.de>\r\n" .
+                "Reply-To: info@giuliana-care.de\r\n" .
+                "MIME-Version: 1.0\r\n" .
+                "Content-Type: text/plain; charset=UTF-8\r\n";
+
+            $mailResult = mail(
                 $contact['email'],
-                "NOTFALL: {$clientName}",
-                $msg,
-                "From: info@giuliana-care.de\r\nContent-Type: text/plain; charset=UTF-8"
+                $subject,
+                $messageText,
+                $headers
+            );
+
+            error_log(
+                "NOTIFY EMAIL: Kontakt {$contactName} ({$contact['email']}): " .
+                    ($mailResult ? "an Mailserver übergeben" : "VERSAND FEHLGESCHLAGEN")
+            );
+        } else {
+            error_log(
+                "NOTIFY EMAIL: Keine E-Mail-Adresse für {$contactName} hinterlegt."
+            );
+        }
+
+        // =====================================
+        // 2. SMS ÜBER TWILIO VERSENDEN
+        // =====================================
+        $phoneToSms = trim($contact['tel1'] ?? '');
+
+        if ($smsEnabled) {
+
+            if ($phoneToSms !== '') {
+
+                error_log(
+                    "NOTIFY SMS: Starte SMS an {$contactName} ({$phoneToSms})."
+                );
+
+                try {
+                    sendSmsNotification($phoneToSms, $messageText);
+                } catch (Throwable $e) {
+                    error_log(
+                        "NOTIFY SMS ERROR für {$contactName}: " . $e->getMessage()
+                    );
+                }
+            } else {
+                error_log(
+                    "NOTIFY SMS: Keine Telefonnummer tel1 für {$contactName} vorhanden."
+                );
+            }
+        } else {
+            error_log(
+                "NOTIFY SMS: SMS-Versand deaktiviert (sms_status) für Client {$clientId}."
             );
         }
     }
+}
+
+
+/**
+ * Versendet eine SMS über die Twilio REST API.
+ */
+function sendSmsNotification(string $phoneNumber, string $message): void
+{
+    if (
+        !defined('TWILIO_ACCOUNT_SID') ||
+        !defined('TWILIO_AUTH_TOKEN') ||
+        !defined('TWILIO_PHONE_NUMBER')
+    ) {
+        throw new RuntimeException(
+            "Twilio-Zugangsdaten fehlen in config.php."
+        );
+    }
+
+    if (!function_exists('curl_init')) {
+        throw new RuntimeException("PHP-cURL ist nicht aktiviert.");
+    }
+
+    $phoneNumber = trim($phoneNumber);
+
+    if ($phoneNumber === '') {
+        throw new InvalidArgumentException("SMS-Zielnummer ist leer.");
+    }
+
+    $url = "https://api.twilio.com/2010-04-01/Accounts/" .
+        TWILIO_ACCOUNT_SID . "/Messages.json";
+
+    $postData = [
+        'From' => TWILIO_PHONE_NUMBER,
+        'To'   => $phoneNumber,
+        'Body' => $message
+    ];
+
+    $ch = curl_init($url);
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => http_build_query($postData),
+        CURLOPT_USERPWD => TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN,
+        CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 20
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+
+    curl_close($ch);
+
+    if ($response === false || $httpCode !== 201) {
+        error_log(
+            "TWILIO SMS FEHLER: HTTP {$httpCode}; " .
+                "cURL: {$curlError}; Antwort: " .
+                substr((string)$response, 0, 1000)
+        );
+
+        throw new RuntimeException(
+            "Twilio konnte die SMS nicht annehmen (HTTP {$httpCode})."
+        );
+    }
+
+    $result = json_decode($response, true);
+    $messageSid = $result['sid'] ?? 'unbekannt';
+
+    error_log(
+        "TWILIO SMS ERFOLGREICH ANGENOMMEN: {$phoneNumber}; SID: {$messageSid}"
+    );
 }
