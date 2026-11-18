@@ -166,8 +166,7 @@ try {
         $callStarted = executeTwilioCall($db, $clientId, 'tel1', 1, $callType);
 
         if (!$callStarted) {
-            $failedStmt = $db->prepare("UPDATE call_status SET status = 'failed', summary = 'Twilio konnte den Anruf nicht erstellen.' WHERE client_id = ? AND call_type = ? AND status = 'calling'");
-            $failedStmt->execute([$clientId, $callType]);
+            handleCallFailure($db, $clientId, $callType, 'tel1', 1, 'Twilio konnte den Anruf auf tel1 nicht erstellen.');
             http_response_code(502);
             echo json_encode([
                 "success" => false,
@@ -195,47 +194,59 @@ try {
         $callType = $_GET['callType'] ?? 'call_1';
         $userInput = trim($_POST['SpeechResult'] ?? $_POST['Digits'] ?? '');
 
+        // Telefonnummer und Zyklus gehören zu jedem Callback.
+        $telType = $_GET['telType'] ?? 'tel1';
+        $cycle = max(1, (int)($_GET['cycle'] ?? 1));
+
         // --- ANRUFBEANTWORTER-ERKENNUNG (AMD CALLBACK) ---
         if ($incomingStep === 'amd_callback') {
             header('Content-Type: text/plain; charset=UTF-8');
-            $answeredBy = $_POST['AnsweredBy'] ?? '';
+            $answeredBy = strtolower(trim($_POST['AnsweredBy'] ?? ''));
             $callSid = $_POST['CallSid'] ?? '';
-            error_log("Twilio AMD Callback: Client {$clientId}, AnsweredBy: {$answeredBy}, CallSid: {$callSid}");
+            error_log("Twilio AMD Callback: Client {$clientId}, Nummer {$telType}, Zyklus {$cycle}, AnsweredBy: {$answeredBy}, CallSid: {$callSid}");
 
-            // Anrufbeantworter/Fax: niemals sprechen. Anruf sofort beenden und
-            // bei regulären Anrufen denselben Eskalationsweg wie bei Nichterreichbarkeit nutzen.
             if (strpos($answeredBy, 'machine') !== false || strpos($answeredBy, 'fax') !== false) {
                 if (!empty($callSid)) {
                     terminateTwilioCallImmediately($callSid);
                 }
-
                 if ($clientId > 0 && empty($_GET['test'])) {
-                    $telType = $_GET['telType'] ?? 'tel1';
-                    $cycle = max(1, (int)($_GET['cycle'] ?? 1));
                     handleCallFailure($db, $clientId, $callType, $telType, $cycle, 'Anrufbeantworter erkannt; Anruf sofort und ohne Nachricht beendet.');
-                } else {
-                    error_log("Testanruf/Anrufbeantworter erkannt für CallSid: {$callSid}. Sofort und ohne Nachricht beendet.");
                 }
+            } elseif ($clientId > 0 && empty($_GET['test'])) {
+                // AMD hat einen Menschen oder ein nicht eindeutig klassifiziertes Ziel erkannt.
+                // Heartbeat aktualisieren; die eigentliche Gesprächslogik entscheidet über Erfolg.
+                touchCallStatus($db, $clientId, $callType, $telType, $cycle);
             }
             http_response_code(200);
             echo 'OK';
             exit;
         }
 
+        // --- TWILIO STATUS CALLBACK ---
         if ($incomingStep === 'call_status') {
             header('Content-Type: text/plain; charset=UTF-8');
-            $telType = $_GET['telType'] ?? 'tel1';
-            $cycle = max(1, (int)($_GET['cycle'] ?? 1));
             $twilioStatus = strtolower($_POST['CallStatus'] ?? '');
             $twilioCallSid = $_POST['CallSid'] ?? 'unbekannt';
-            error_log("Twilio Statuscallback: Client {$clientId}, CallType {$callType}, Nummer {$telType}, Status {$twilioStatus}, SID {$twilioCallSid}");
+            error_log("Twilio Statuscallback: Client {$clientId}, CallType {$callType}, Nummer {$telType}, Zyklus {$cycle}, Status {$twilioStatus}, SID {$twilioCallSid}");
 
-            if (in_array($twilioStatus, ['no-answer', 'busy', 'failed', 'canceled'], true)) {
+            if (in_array($twilioStatus, ['initiated', 'ringing', 'answered'], true)) {
+                touchCallStatus($db, $clientId, $callType, $telType, $cycle);
+            } elseif (in_array($twilioStatus, ['no-answer', 'busy', 'failed', 'canceled'], true)) {
                 handleCallFailure($db, $clientId, $callType, $telType, $cycle, "Twilio-Status: {$twilioStatus}");
+            } elseif ($twilioStatus === 'completed') {
+                // completed ist NICHT automatisch ein erfolgreicher Care-Anruf.
+                // Nur markCallCompleted() nach erfolgreichem Gespräch setzt diesen Status.
+                handleCallFailure($db, $clientId, $callType, $telType, $cycle, 'Twilio-Status: completed, aber kein erfolgreicher Gesprächsabschluss im Care-System registriert.');
             }
             http_response_code(200);
             echo 'OK';
             exit;
+        }
+
+        // Heartbeat bei jedem regulären Voice-Webhook (z.B. nach Gather-Antwort).
+        // Dadurch löst der Watchdog keinen noch laufenden Dialog aus.
+        if ($clientId > 0 && empty($_GET['test'])) {
+            touchCallStatus($db, $clientId, $callType, $telType, $cycle);
         }
 
         header("Content-Type: text/xml; charset=UTF-8");
@@ -681,6 +692,25 @@ function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwor
 }
 
 /**
+ * Aktualisiert den Aktivitätszeitpunkt nur für den aktuell aktiven Anruf.
+ * Verspätete Callbacks von tel1 dürfen einen bereits gestarteten tel2-Anruf
+ * nicht künstlich am Leben halten.
+ */
+function touchCallStatus(PDO $db, int $clientId, string $callType, string $telType, int $cycle): void
+{
+    $stmt = $db->prepare("
+        UPDATE call_status
+        SET updated_at = CURRENT_TIMESTAMP
+        WHERE client_id = ?
+          AND call_type = ?
+          AND status = 'calling'
+          AND attempt_cycle = ?
+          AND last_tel_used = ?
+    ");
+    $stmt->execute([$clientId, $callType, $cycle, $telType]);
+}
+
+/**
  * Eskalation bei fehlgeschlagenem Anruf:
  * Zyklus 1: tel1 -> tel2 -> Retry in 15 Minuten.
  * Zyklus 2: tel1 -> tel2 -> Notfallkontakte benachrichtigen.
@@ -795,7 +825,9 @@ function executeTwilioCall($db, $clientId, $telType, $cycle, $callType)
     $webhookUrl = $baseUrl . '/call_manager.php?' . http_build_query([
         'step' => 'welcome',
         'clientId' => $clientId,
-        'callType' => $callType
+        'callType' => $callType,
+        'telType' => $telType,
+        'cycle' => $cycle
     ]);
     $statusCallbackUrl = $baseUrl . '/call_manager.php?' . http_build_query([
         'step' => 'call_status',
@@ -826,7 +858,8 @@ function executeTwilioCall($db, $clientId, $telType, $cycle, $callType)
         'MachineDetection' => 'DetectMessageEnd',
         'AsyncAmd' => 'true',
         'AsyncAmdStatusCallback' => $amdCallbackUrl,
-        'AsyncAmdStatusCallbackMethod' => 'POST'
+        'AsyncAmdStatusCallbackMethod' => 'POST',
+        'Timeout' => 50
     ];
 
     $ch = curl_init($url);
@@ -842,14 +875,18 @@ function executeTwilioCall($db, $clientId, $telType, $cycle, $callType)
     ]);
     $response = curl_exec($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
 
     $twilioResult = json_decode((string)$response, true);
     $twilioSid = $twilioResult['sid'] ?? null;
 
     if ($response === false || $httpCode < 200 || $httpCode >= 300 || empty($twilioSid)) {
+        error_log("Twilio-Anruf konnte nicht erstellt werden. Client {$clientId}, {$callType}, {$telType}, Zyklus {$cycle}. HTTP {$httpCode}; cURL: {$curlError}; Antwort: " . substr((string)$response, 0, 1200));
         return false;
     }
+
+    error_log("Twilio-Anruf erstellt. Client {$clientId}, {$callType}, {$telType}, Zyklus {$cycle}, CallSid {$twilioSid}.");
 
     return true;
 }
