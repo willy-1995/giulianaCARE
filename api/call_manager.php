@@ -382,13 +382,13 @@ try {
                     }
                 } else {
                     if ($medDone) {
-                        $reply = "Das klingt ernst. Im Echtbetrieb würde ich sofort Ihre Notfallkontakte informieren und darauf hinweisen, bei akuten Beschwerden den Notruf 112 zu wählen. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das klingt ernst. Im Echtbetrieb würde ich sofort Ihre Notfallkontakte informieren und darauf hinweisen, bei akuten Beschwerden den Notruf eins-eins-zwei zu wählen. Vielen Dank für den Test, auf Wiederhören!";
                     } else {
-                        $reply = "Das klingt ernst. {$reminderText} Wählen Sie bei akuten Beschwerden bitte den Notruf 112. Im Echtbetrieb würde ich jetzt sofort Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
+                        $reply = "Das klingt ernst. {$reminderText} Wählen Sie bei akuten Beschwerden bitte den Notruf eins-eins-zwei. Im Echtbetrieb würde ich jetzt sofort Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
                     }
                 }
 
-                echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($reply, ENT_QUOTES, 'UTF-8') . "</Say>\n";
+                echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars(normalizeEmergencyNumberSpeech($reply), ENT_QUOTES, 'UTF-8') . "</Say>\n";
                 echo "<Hangup/>\n";
                 break;
 
@@ -460,8 +460,8 @@ try {
                 $client = getClientData($db, $clientId);
                 $medication = getClientMedication($client, $callType);
                 $itemLanguage = buildMedicationLanguageWithAI($medication);
-                $itemReminderForSpeech = htmlspecialchars($itemLanguage['reminder'], ENT_QUOTES | ENT_XML1, 'UTF-8');
-                $itemDoneForSpeech = htmlspecialchars($itemLanguage['done_confirmation'], ENT_QUOTES | ENT_XML1, 'UTF-8');
+                $itemReminderForSpeech = htmlspecialchars(normalizeEmergencyNumberSpeech($itemLanguage['reminder']), ENT_QUOTES | ENT_XML1, 'UTF-8');
+                $itemDoneForSpeech = htmlspecialchars(normalizeEmergencyNumberSpeech($itemLanguage['done_confirmation']), ENT_QUOTES | ENT_XML1, 'UTF-8');
 
                 $analysis = evaluateStrictStructureWithAI($userInput, $medication, $MILD_BUZZWORDS, $SEVERE_BUZZWORDS);
 
@@ -521,9 +521,9 @@ try {
                     updateCallStatusSummary($db, $clientId, $callType, $fullLog);
 
                     if (!empty($analysis['medication_already_done'])) {
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemDoneForSpeech} Ich informiere sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Schmerzen selbst den Notruf 112. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemDoneForSpeech} Ich informiere sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Schmerzen selbst den Notruf eins-eins-zwei. Auf Wiederhören!</Say>\n";
                     } else {
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemReminderForSpeech} Bei akuten Beschwerden wählen Sie bitte sofort den Notruf 112. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemReminderForSpeech} Bei akuten Beschwerden wählen Sie bitte sofort den Notruf eins-eins-zwei. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
                     }
                     notifyEmergencyContacts($db, $clientId, $reason);
                     echo "<Hangup/>\n";
@@ -546,6 +546,12 @@ try {
 // ==================================================
 // HILFSFUNKTIONEN
 // ==================================================
+
+/** Ersetzt die Notrufnummer in gesprochenen Texten durch die gewünschte Aussprache. */
+function normalizeEmergencyNumberSpeech(string $text): string
+{
+    return preg_replace('/(?<!\\d)112(?!\\d)/u', 'eins-eins-zwei', $text) ?? $text;
+}
 
 function terminateTwilioCallImmediately($callSid)
 {
@@ -616,7 +622,7 @@ function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwor
     $mildList = implode(', ', $mildBuzzwords);
     $severeList = implode(', ', $severeBuzzwords);
 
-    $systemPrompt = "Du bist das Analysemodul eines telefonischen Care-Systems. Analysiere ausschließlich die tatsächliche Aussage des Klienten. Werte: ok, mild_incident, severe_incident, unclear. Antworte ausschließlich im JSON-Format mit status_type, reason, behavior_log, medication_already_done, medication_status.";
+    $systemPrompt = "Du bist das Analysemodul eines telefonischen Care-Systems. Analysiere ausschließlich die tatsächliche Aussage des Klienten. Werte: ok, mild_incident, severe_incident, unclear. Antworte ausschließlich im JSON-Format mit status_type, reason, behavior_log, medication_already_done, medication_status. Wenn du den Notruf erwähnst, schreibe die Nummer als „eins-eins-zwei“ statt als Ziffern.";
 
     $data = [
         'model' => 'gpt-5.4-mini',
