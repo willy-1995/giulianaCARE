@@ -193,6 +193,9 @@ try {
         $clientId = (int)($_GET['clientId'] ?? 0);
         $callType = $_GET['callType'] ?? 'call_1';
         $userInput = trim($_POST['SpeechResult'] ?? $_POST['Digits'] ?? '');
+        if ($userInput === '') {
+            $userInput = trim((string)($_GET['earlyInput'] ?? ''));
+        }
 
         // Telefonnummer und Zyklus gehören zu jedem Callback.
         $telType = $_GET['telType'] ?? 'tel1';
@@ -390,71 +393,67 @@ try {
                 break;
 
             case 'welcome':
-                $actionUrl = htmlspecialchars(
-                    "call_manager.php?" . http_build_query([
-                        'step' => 'welcome_after_greeting',
-                        'clientId' => $clientId,
-                        'callType' => $callType,
-                        'wait' => 0
-                    ]),
-                    ENT_QUOTES,
-                    'UTF-8'
-                );
-
-                echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$actionUrl}\">\n";
+                // Erst 3 Sekunden zuhören. Wenn der Klient spricht oder die 3 Sekunden
+                // verstreichen, wird die Begrüßung im nächsten Schritt gesprochen.
+                $listenAction = htmlspecialchars("call_manager.php?" . http_build_query([
+                    'step' => 'welcome_after_greeting',
+                    'clientId' => $clientId,
+                    'callType' => $callType,
+                    'wait' => 0
+                ]), ENT_QUOTES, 'UTF-8');
+                echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"3\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$listenAction}\">\n";
                 echo "</Gather>\n";
                 break;
 
             case 'welcome_after_greeting':
-                $waitCount = (int)($_GET['wait'] ?? 0);
-
-                if (empty($userInput)) {
-                    if ($waitCount < 1) {
-                        $retryAction = htmlspecialchars(
-                            "call_manager.php?" . http_build_query([
-                                'step' => 'welcome_after_greeting',
-                                'clientId' => $clientId,
-                                'callType' => $callType,
-                                'wait' => 1
-                            ]),
-                            ENT_QUOTES,
-                            'UTF-8'
-                        );
-                        echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
-                        echo "</Gather>\n";
-                    } else {
-                        // Keine Nachricht auf Mailbox/bei unklarer Erkennung: still beenden.
-                        echo "<Hangup/>\n";
-                    }
-                    break;
-                }
-
+                // Auch bei erkannter Äußerung (z.B. 'Hallo?') und bei 3 Sekunden
+                // Stille beginnt die Assistenz erst jetzt mit ihrer Begrüßung.
                 $client = getClientData($db, $clientId);
                 $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
                 $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
-
-                $firstText = "Guten Tag " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht?";
-
-                $nextAction = htmlspecialchars(
-                    "call_manager.php?" . http_build_query([
-                        'step' => 'process_wellbeing',
-                        'clientId' => $clientId,
-                        'callType' => $callType
-                    ]),
-                    ENT_QUOTES,
-                    'UTF-8'
-                );
-
-                echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$nextAction}\">\n";
-                echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($firstText, ENT_QUOTES, 'UTF-8') . "</Say>\n";
-                echo "</Gather>\n";
+                $hour = (int)(new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('G');
+                $greeting = ($hour >= 18) ? 'Guten Abend' : (($hour >= 5 && $hour < 11) ? 'Guten Morgen' : 'Guten Tag');
+                $firstText = $greeting . " " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht?";
+                $earlyInput = trim($_POST['SpeechResult'] ?? $_POST['Digits'] ?? '');
+                $nextActionParams = [
+                    'step' => 'process_wellbeing',
+                    'clientId' => $clientId,
+                    'callType' => $callType,
+                    'retry' => 0
+                ];
+                if ($earlyInput !== '') {
+                    // Bereits in der ersten 3-Sekunden-Phase gesprochene Aussage sichern.
+                    $nextActionParams['earlyInput'] = $earlyInput;
+                    $nextAction = htmlspecialchars("call_manager.php?" . http_build_query($nextActionParams), ENT_QUOTES, 'UTF-8');
+                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($firstText, ENT_QUOTES, 'UTF-8') . "</Say>\n";
+                    echo "<Redirect method=\"POST\" >{$nextAction}</Redirect>\n";
+                } else {
+                    $nextAction = htmlspecialchars("call_manager.php?" . http_build_query($nextActionParams), ENT_QUOTES, 'UTF-8');
+                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$nextAction}\">\n";
+                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($firstText, ENT_QUOTES, 'UTF-8') . "</Say>\n";
+                    echo "</Gather>\n";
+                }
                 break;
 
             case 'process_wellbeing':
+                $retryCount = (int)($_GET['retry'] ?? 0);
                 if (empty($userInput)) {
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"call_manager.php?step=process_wellbeing&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Entschuldigung, ich habe Sie akustisch nicht verstanden. Wie geht es Ihnen heute?</Say>\n";
-                    echo "</Gather>\n";
+                    if ($retryCount >= 2) {
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Ich konnte Sie leider nicht verstehen. Ich beende den Anruf jetzt. Auf Wiederhören.</Say>\n<Hangup/>\n";
+                        break;
+                    }
+                    $nextRetry = $retryCount + 1;
+                    $retryAction = htmlspecialchars("call_manager.php?" . http_build_query([
+                        'step' => 'process_wellbeing',
+                        'clientId' => $clientId,
+                        'callType' => $callType,
+                        'retry' => $nextRetry
+                    ]), ENT_QUOTES, 'UTF-8');
+                    $retryPhrase = $retryCount === 0
+                        ? "Entschuldigung, ich habe Sie akustisch nicht verstanden. Wie geht es Ihnen heute?"
+                        : "Ich habe Sie leider erneut nicht verstanden. Bitte sagen Sie kurz, ob es Ihnen gut geht oder ob Sie Beschwerden haben.";
+                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
+                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($retryPhrase, ENT_QUOTES, 'UTF-8') . "</Say>\n</Gather>\n";
                     break;
                 }
 
@@ -472,9 +471,26 @@ try {
                 $behaviorLog = $analysis['behavior_log'] ?? 'Normale Sprachweise.';
 
                 if ($statusType === 'unclear') {
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"call_manager.php?step=process_wellbeing&amp;clientId={$clientId}&amp;callType={$callType}\">\n";
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Entschuldigung, ich konnte Ihre Antwort nicht eindeutig auswerten. Können Sie mir bitte noch einmal sagen, wie es Ihnen heute geht?</Say>\n";
-                    echo "</Gather>\n";
+                    if ($retryCount >= 2) {
+                        $fullLog = "Antwort nach maximal zwei Wiederholungen nicht eindeutig: " . $userInput;
+                        logClientIncident($db, $clientId, $fullLog);
+                        updateCallStatusSummary($db, $clientId, $callType, $fullLog);
+                        notifyEmergencyContacts($db, $clientId, "Telefonische Rückmeldung war nach zwei Wiederholungen nicht eindeutig. Gesprochene Antwort: " . $userInput);
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Ich konnte Ihre Antwort leider nicht sicher einordnen. Ich informiere vorsichtshalber Ihre Notfallkontakte und beende den Anruf. Auf Wiederhören.</Say>\n<Hangup/>\n";
+                        break;
+                    }
+                    $nextRetry = $retryCount + 1;
+                    $retryAction = htmlspecialchars("call_manager.php?" . http_build_query([
+                        'step' => 'process_wellbeing',
+                        'clientId' => $clientId,
+                        'callType' => $callType,
+                        'retry' => $nextRetry
+                    ]), ENT_QUOTES, 'UTF-8');
+                    $retryPhrase = $retryCount === 0
+                        ? "Entschuldigung, ich konnte Ihre Antwort nicht eindeutig verstehen. Können Sie bitte kurz sagen, ob es Ihnen gut geht oder ob Sie Beschwerden haben?"
+                        : "Bitte sagen Sie noch einmal ganz kurz: Geht es Ihnen gut, oder haben Sie Beschwerden?";
+                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
+                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($retryPhrase, ENT_QUOTES, 'UTF-8') . "</Say>\n</Gather>\n";
                     break;
                 }
 
@@ -553,73 +569,38 @@ function terminateTwilioCallImmediately($callSid)
 
 function buildMedicationLanguageWithAI($itemText)
 {
+    // Lokale Textbausteine statt zusätzlichem OpenAI-Aufruf: schneller und stabiler.
     $itemText = trim((string)$itemText);
-    $fallback = [
-        'category' => 'other',
-        'question' => 'haben Sie die hinterlegte Aufgabe bereits erledigt?',
-        'reminder' => 'Bitte denken Sie noch an die hinterlegte Aufgabe: ' . $itemText . '.',
-        'done_confirmation' => 'Wunderbar, dass Sie die hinterlegte Aufgabe bereits erledigt haben.'
-    ];
-
-    if ($itemText === '') {
-        return $fallback;
-    }
-
-    $apiKey = $_ENV['API_KEY_OPENAI'] ?? getenv('API_KEY_OPENAI') ?: '';
-    if (empty($apiKey)) {
-        return $fallback;
-    }
-
-    $url = 'https://api.openai.com/v1/chat/completions';
-    $systemPrompt = "Du formulierst natürliche, höfliche deutsche Sätze für eine telefonische Betreuung älterer Menschen. Gib ausschließlich ein gültiges JSON-Object zurück mit den Feldern category, question, reminder, done_confirmation.";
-
-    $data = [
-        'model' => 'gpt-5.4-mini',
-        'messages' => [
-            ['role' => 'system', 'content' => $systemPrompt],
-            ['role' => 'user', 'content' => 'Hinterlegter Eintrag: ' . $itemText]
-        ],
-        'response_format' => ['type' => 'json_object'],
-        'max_completion_tokens' => 180
-    ];
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $apiKey,
-        'Content-Type: application/json'
-    ]);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($response === false || $httpCode < 200 || $httpCode >= 300) {
-        return $fallback;
-    }
-
-    $result = json_decode($response, true);
-    $content = $result['choices'][0]['message']['content'] ?? '';
-    $phrasing = json_decode($content, true);
-
-    if (!is_array($phrasing) || empty($phrasing['question']) || empty($phrasing['reminder']) || empty($phrasing['done_confirmation'])) {
-        return $fallback;
-    }
-
     return [
-        'category' => $phrasing['category'] ?? 'other',
-        'question' => trim($phrasing['question']),
-        'reminder' => trim($phrasing['reminder']),
-        'done_confirmation' => trim($phrasing['done_confirmation'])
+        'category' => 'other',
+        'question' => 'haben Sie das bereits erledigt?',
+        'reminder' => $itemText !== '' ? 'Bitte denken Sie noch an Folgendes: ' . $itemText . '.' : 'Bitte denken Sie noch an Ihre hinterlegte Aufgabe.',
+        'done_confirmation' => 'Danke für die Rückmeldung. Gut, dass Sie das erledigt haben.'
     ];
 }
 
 function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwords, $severeBuzzwords)
 {
+    // Schnelle lokale Einordnung klarer Aussagen; bei Mehrdeutigkeit weiterhin KI.
+    $text = mb_strtolower(trim((string)$userInput), 'UTF-8');
+    $severeLocal = ['brustschmerz', 'atemnot', 'luftnot', 'keine luft', 'starke blutung', 'gestürzt', 'hingefallen', 'sturz', 'notruf'];
+    foreach ($severeLocal as $word) {
+        if (mb_strpos($text, $word) !== false && !preg_match('/(?:keine|kein|nicht)\\s+' . preg_quote($word, '/') . '/u', $text)) {
+            return ['status_type' => 'severe_incident', 'reason' => $userInput, 'behavior_log' => 'Lokale Erkennung eines möglichen Warnsignals.', 'medication_already_done' => false, 'medication_status' => 'Prüfung ausstehend'];
+        }
+    }
+    $mildLocal = ['kopfschmerzen', 'schwindel', 'müde', 'schwach', 'übel', 'kratzen im hals', 'unwohl', 'mir geht es schlecht'];
+    foreach ($mildLocal as $word) {
+        if (mb_strpos($text, $word) !== false) {
+            return ['status_type' => 'mild_incident', 'reason' => $userInput, 'behavior_log' => 'Lokale Erkennung möglicher Beschwerden.', 'medication_already_done' => false, 'medication_status' => 'Prüfung ausstehend'];
+        }
+    }
+    $positiveLocal = ['mir geht es gut', 'es geht mir gut', 'alles in ordnung', 'alles okay', 'alles ok', 'gut, danke', 'gut danke', 'prima', 'wunderbar', 'keine beschwerden'];
+    foreach ($positiveLocal as $phrase) {
+        if ($text === $phrase) {
+            return ['status_type' => 'ok', 'reason' => 'Wohlbefinden ausdrücklich positiv bestätigt.', 'behavior_log' => 'Klare positive Rückmeldung.', 'medication_already_done' => false, 'medication_status' => 'Prüfung ausstehend'];
+        }
+    }
     $apiKey = $_ENV['API_KEY_OPENAI'] ?? getenv('API_KEY_OPENAI') ?: '';
     if (empty($apiKey)) {
         return [
@@ -649,7 +630,9 @@ function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwor
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $apiKey,
         'Content-Type: application/json'
