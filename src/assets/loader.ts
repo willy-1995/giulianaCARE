@@ -17,7 +17,7 @@ export const loadClients = async (setLoading: (loading: boolean) => void) =>{
     );
 
     const rawdata = await response.text();
-    console.log("Antwort: ", rawdata);
+    //console.log("Antwort: ", rawdata);
     const data = JSON.parse(rawdata);
 
    return data;
@@ -48,7 +48,7 @@ export const loadClients = async (setLoading: (loading: boolean) => void) =>{
     );
 
     const rawdata = await response.text();
-    console.log("Antwort: ", rawdata);
+    //console.log("Antwort: ", rawdata);
     const data = JSON.parse(rawdata);
 
    return data;
@@ -76,7 +76,7 @@ export const loadUser = async (setLoading: (loading: boolean) => void) => {
     });
 
     const rawdata = await response.text();
-    console.log("User Antwort: ", rawdata);
+    //console.log("User Antwort: ", rawdata);
     const data = JSON.parse(rawdata);
 
     return data;
@@ -102,9 +102,9 @@ export const loadProtocol = async (setLoading: (loading: boolean) => void) => {
     });
 
     const rawdata = await response.text();
-    console.log("Protokoll Antwort: ", rawdata);
+    //console.log("Protokoll Antwort: ", rawdata);
     const data = JSON.parse(rawdata);
-    console.log("Protokoll geladen");
+    //console.log("Protokoll geladen");
 
     return data;
   } catch (error) {

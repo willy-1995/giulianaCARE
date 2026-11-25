@@ -1,16 +1,38 @@
 <?php
 require_once __DIR__ . '/cors.php';
-require_once __DIR__ . '/envloader.php'; // Lädt die .env Datei
+require_once __DIR__ . '/envloader.php';
+require_once __DIR__ . '/rate_limiter.php';
 
 header("Content-Type: application/json; charset=UTF-8");
 
-$input = json_decode(file_get_contents("php://input"), true);
-$enteredPin = $input['master_pin'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode([
+        "success" => false,
+        "message" => "Methode nicht erlaubt."
+    ]);
+    exit;
+}
 
-// Direktes Auslesen aus $_ENV (exakt wie in deiner mailer.php und Database-Klasse)
-$masterPin = $_ENV['ADMIN_MASTER_PIN'] ?? '';
+// Rate Limiter: max. 5 Versuche innerhalb von 600 Sekunden (10 Minuten)
+checkRateLimit('admin_verify_pin', 5, 600);
 
-if (empty($masterPin)) {
+$rawInput = file_get_contents("php://input");
+$input = json_decode($rawInput, true);
+
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode([
+        "success" => false,
+        "message" => "Ungültiges JSON-Format."
+    ]);
+    exit;
+}
+
+$enteredPin = (string) ($input['master_pin'] ?? '');
+$masterPin = (string) ($_ENV['ADMIN_MASTER_PIN'] ?? '');
+
+if ($masterPin === '') {
     http_response_code(500);
     echo json_encode([
         "success" => false,
@@ -19,8 +41,7 @@ if (empty($masterPin)) {
     exit;
 }
 
-// PIN vergleichen
-if ($enteredPin === $masterPin) {
+if (hash_equals($masterPin, $enteredPin)) {
     echo json_encode([
         "success" => true,
         "message" => "PIN korrekt."

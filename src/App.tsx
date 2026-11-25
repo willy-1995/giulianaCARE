@@ -15,7 +15,7 @@ import { Imprint } from "./routes/imprint";
 import { Salespartnership } from "./routes/salespartnership";
 import ResetPassword from "./routes/resetPassword";
 import Metrics from "./routes/metrics";
-import AdminLogin from "./routes/admin_login";
+import AdminDashboard from "./routes/components/admin_dashboard";
 import AdminRegistration from "./routes/admin_registration";
 import "./routes/styles/main.scss";
 import { ScrollToTop } from "./routes/toTop";
@@ -61,7 +61,7 @@ function App() {
           <Route path="/datasecurity" element={<Datasecurity />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/salespartnership" element={<Salespartnership />} />
-          <Route path="/admin_login" element={<AdminLogin />} />
+
           <Route path="/admin_registration" element={<AdminRegistration />} />
 
           {/* ========================================== */}
@@ -112,6 +112,14 @@ function App() {
           {/* TELECARE ROUTEN                         */}
           {/* ========================================== */}
           {/* Bestehende geschützte Routen */}
+          <Route
+            path="/admin_dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/telecare_dashboard"
             element={

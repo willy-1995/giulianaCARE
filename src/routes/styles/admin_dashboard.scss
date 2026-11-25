@@ -1,0 +1,134 @@
+.admin-dashboard {
+  padding: 1.5rem;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  &__title {
+    margin: 0;
+  }
+
+  &__subtitle {
+    margin: 0.25rem 0 0;
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  &__refresh-btn {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+  }
+
+  &__error {
+    color: #b91c1c;
+    margin-bottom: 1rem;
+  }
+
+  &__kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  &__kpi-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #fff;
+  }
+
+  &__kpi-label {
+    font-size: 0.85rem;
+    color: #6b7280;
+  }
+
+  &__kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-top: 0.25rem;
+
+    &--compact {
+      font-size: 1.5rem;
+    }
+  }
+
+  &__kpi-change-rate {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  &__kpi-meta {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+  }
+
+  &__table-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #fff;
+    overflow-x: auto;
+  }
+
+  &__table-title {
+    margin-top: 0;
+  }
+
+  &__warning {
+    color: #b45309;
+    font-size: 0.9rem;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+
+    thead tr {
+      border-bottom: 2px solid #e5e7eb;
+      text-align: left;
+    }
+
+    th,
+    td {
+      padding: 0.6rem;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #f3f4f6;
+
+      &.is-strongest {
+        background: #f0fdf4;
+      }
+    }
+  }
+
+  &__empty-cell {
+    padding: 0.75rem !important;
+    color: #6b7280;
+  }
+
+  &__month-cell {
+    font-weight: 600;
+  }
+
+  &__trend-cell {
+    font-weight: 500;
+    color: #374151;
+
+    &--positive {
+      color: #15803d;
+    }
+
+    &--negative {
+      color: #b91c1c;
+    }
+  }
+}

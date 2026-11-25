@@ -51,6 +51,31 @@ function Footer() {
             AGB
           </Link>
         </footer>
+        {/*
+        
+        <div>
+          <a
+            rel="nofollow"
+            href="https://www.exali.de/siegel/giulianaCARE"
+            target="_blank"
+            title="Weitere Informationen zur IT-Haftpflicht von Lucas Wingenfeld"
+          >
+            <img
+              src="https://www.exali.de/siegel/siegel_de-2_a7a4422a7017c8f964e4ba0e4ca20559.png"
+              width="90"
+              height="90"
+              alt="Weitere Informationen zur IT-Haftpflicht von Lucas Wingenfeld"
+              onError={(e) => {
+                console.error(
+                  "Exali-Siegel konnte nicht geladen werden:",
+                  e.currentTarget.src,
+                );
+              }}
+            />
+          </a>
+        </div>
+        
+        */}
       </div>
 
       <p className="right-advise">
