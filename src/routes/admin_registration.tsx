@@ -116,7 +116,7 @@ export default function AdminRegistration() {
         setLoginPassword("");
 
         // Weiterleitung zum Admin-Dashboard
-        navigate("/admin-dashboard", { replace: true });
+        navigate("/admin_dashboard", { replace: true });
       } else {
         setLoginError(data.message || "Login fehlgeschlagen.");
       }
