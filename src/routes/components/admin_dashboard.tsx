@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/admin_dashboard.scss";
 import {
-  loadClients,
-  loadContacts,
-  loadProtocol,
-  loadUser,
-} from "../../assets/loader";
+  loadAllClients,
+  loadAllContacts,
+  loadAllProtocol,
+  loadAllUsers,
+} from "../../assets/admin_loader"; // Importpfad ggf. an deinen Ordner anpassen
 
 interface UserRecord {
   id: number;
@@ -90,10 +90,10 @@ export default function AdminDashboard() {
     try {
       const [userRes, clientsRes, contactsRes, protocolRes] = await Promise.all(
         [
-          loadUser(() => {}),
-          loadClients(() => {}),
-          loadContacts(() => {}),
-          loadProtocol(() => {}),
+          loadAllUsers(() => {}),
+          loadAllClients(() => {}),
+          loadAllContacts(() => {}),
+          loadAllProtocol(() => {}),
         ],
       );
 
@@ -378,7 +378,7 @@ export default function AdminDashboard() {
           <p className="admin-dashboard__warning">
             Hinweis: In den geladenen User-Daten fehlt aktuell das Feld{" "}
             <code>created_at</code>. Stelle sicher, dass{" "}
-            <code>users_manager.php</code> das Feld <code>created_at</code> mit
+            <code>admin_loader.php</code> das Feld <code>created_at</code> mit
             zurückgibt.
           </p>
         )}
