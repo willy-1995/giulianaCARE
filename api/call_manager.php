@@ -392,6 +392,10 @@ try {
                 echo "<Hangup/>\n";
                 break;
 
+            //====================================
+            //REAL CALL
+            //====================================
+
             case 'welcome':
                 // Erst 3 Sekunden zuhören. Wenn der Klient spricht oder die 3 Sekunden
                 // verstreichen, wird die Begrüßung im nächsten Schritt gesprochen.
@@ -413,7 +417,7 @@ try {
                 $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
                 $hour = (int)(new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('G');
                 $greeting = ($hour >= 18) ? 'Guten Abend' : (($hour >= 5 && $hour < 11) ? 'Guten Morgen' : 'Guten Tag');
-                $firstText = $greeting . " " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen heute geht?";
+                $firstText = $greeting . " " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen aktuell geht?";
                 $earlyInput = trim($_POST['SpeechResult'] ?? $_POST['Digits'] ?? '');
                 $nextActionParams = [
                     'step' => 'process_wellbeing',
@@ -450,7 +454,7 @@ try {
                         'retry' => $nextRetry
                     ]), ENT_QUOTES, 'UTF-8');
                     $retryPhrase = $retryCount === 0
-                        ? "Entschuldigung, ich habe Sie akustisch nicht verstanden. Wie geht es Ihnen heute?"
+                        ? "Entschuldigung, ich habe Sie akustisch nicht verstanden. Wie geht es Ihnen aktuell?"
                         : "Ich habe Sie leider erneut nicht verstanden. Bitte sagen Sie kurz, ob es Ihnen gut geht oder ob Sie Beschwerden haben.";
                     echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
                     echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($retryPhrase, ENT_QUOTES, 'UTF-8') . "</Say>\n</Gather>\n";
@@ -476,7 +480,7 @@ try {
                         logClientIncident($db, $clientId, $fullLog);
                         updateCallStatusSummary($db, $clientId, $callType, $fullLog);
                         notifyEmergencyContacts($db, $clientId, "Telefonische Rückmeldung war nach zwei Wiederholungen nicht eindeutig. Gesprochene Antwort: " . $userInput);
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Ich konnte Ihre Antwort leider nicht sicher einordnen. Ich informiere vorsichtshalber Ihre Notfallkontakte und beende den Anruf. Auf Wiederhören.</Say>\n<Hangup/>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Ich konnte Ihre Antwort leider nicht sicher einordnen. Ich informiere vorsichtshalber Ihre Notfallkontakte über das Gespräch und beende den Anruf. Auf Wiederhören.</Say>\n<Hangup/>\n";
                         break;
                     }
                     $nextRetry = $retryCount + 1;
@@ -521,7 +525,7 @@ try {
                     updateCallStatusSummary($db, $clientId, $callType, $fullLog);
 
                     if (!empty($analysis['medication_already_done'])) {
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemDoneForSpeech} Ich informiere sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Schmerzen selbst den Notruf eins-eins-zwei. Auf Wiederhören!</Say>\n";
+                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemDoneForSpeech} Ich informiere sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Beschwerden selbst den Notruf eins-eins-zwei. Auf Wiederhören!</Say>\n";
                     } else {
                         echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemReminderForSpeech} Bei akuten Beschwerden wählen Sie bitte sofort den Notruf eins-eins-zwei. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
                     }
@@ -774,9 +778,15 @@ function handleCallFailure(PDO $db, int $clientId, string $callType, string $tel
     ]);
 
     if ($finish->rowCount() > 0) {
-        $incidentReason = "Person nach allen Anrufversuchen nicht erreicht. " .
-            "Zyklus 1: tel1 und tel2; Zyklus 2 nach 15 Minuten: tel1 und tel2. " .
-            "Notfallkontakte wurden informiert. Ursache/Details: {$reason}";
+        $clientName = trim(
+            ($client['title'] ?? '') . ' ' .
+                ($client['firstname'] ?? '') . ' ' .
+                ($client['lastname'] ?? '')
+        );
+
+        $incidentReason = "{$clientName} wurde nach allen Anrufversuchen nicht erreicht. " .
+            "Bitte erkundige dich nach dem Befinden. " .
+            "Alle angegebenen Notfallkontakte wurden informiert.";
 
         // Endgültigen Nichterreichbarkeits-Vorfall in client_incidents protokollieren.
         logClientIncident($db, $clientId, $incidentReason);
@@ -986,10 +996,10 @@ function notifyEmergencyContacts(PDO $db, int $clientId, string $reason): void
     $subject = "NOTFALL-ALARM: {$clientName} benötigt Hilfe!";
 
     $messageText =
-        "giulianaCARE NOTFALLMELDUNG\n\n" .
+        "giulianaCARE ALARM\n\n" .
         "Betroffene Person: {$clientName}\n\n" .
         "Grund: {$reason}\n\n" .
-        "Bitte nehmen Sie umgehend Kontakt auf und überprüfen Sie, ob Hilfe benötigt wird.";
+        "Bitte nimm umgehend Kontakt auf und überprüfe, ob Hilfe benötigt wird.";
 
     error_log(
         "NOTIFY: Client {$clientId}: " . count($contacts) .
