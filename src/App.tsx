@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Landing from "./routes/landing";
+import Landingpage from "./routes/landingpage";
 import TeleCare from "./routes/telecare";
 import Registration from "./routes/registration";
 import Login from "./routes/login";
@@ -50,7 +50,7 @@ function App() {
         <Routes>
           {/* Bestehende öffentliche Routen */}
           <Route path="/" element={<TeleCare />} />
-          <Route path="/landing" element={<Landing />} />
+          <Route path="/main" element={<Landingpage />} />
           <Route path="/telecare" element={<TeleCare />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/login" element={<Login />} />

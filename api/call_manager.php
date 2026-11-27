@@ -439,6 +439,44 @@ try {
                 }
                 break;
 
+            case 'incident_followup':
+                $originalReason = trim((string)($_GET['reason'] ?? 'Leichte Beschwerden'));
+                $followupReply = trim($userInput);
+                $medDone = !empty($_GET['medDone']);
+                $medStatus = trim((string)($_GET['medStatus'] ?? ''));
+                $behaviorLog = trim((string)($_GET['behaviorLog'] ?? ''));
+                $client = getClientData($db, $clientId);
+                $medication = getClientMedication($client, $callType);
+                $itemLanguage = buildMedicationLanguageWithAI($medication);
+                $itemReminderForSpeech = htmlspecialchars(normalizeEmergencyNumberSpeech($itemLanguage['reminder']), ENT_QUOTES | ENT_XML1, 'UTF-8');
+                $itemDoneForSpeech = htmlspecialchars(normalizeEmergencyNumberSpeech($itemLanguage['done_confirmation']), ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+                // Nur Beschwerde und kurze Kontextangabe speichern; kein Gesprächsverlauf.
+                $incidentReason = $originalReason;
+                if ($followupReply !== '') {
+                    $incidentReason .= " | Zusatzinfo: " . $followupReply;
+                }
+
+                $fullLog = "Leichte Beschwerden: {$incidentReason}";
+                if ($behaviorLog !== '') {
+                    $fullLog .= " | Verhalten/Tonalität: {$behaviorLog}";
+                }
+                if ($medStatus !== '') {
+                    $fullLog .= " | {$medStatus}";
+                }
+
+                logClientIncident($db, $clientId, $incidentReason);
+                updateCallStatusSummary($db, $clientId, $callType, $fullLog);
+
+                if ($medDone) {
+                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Danke für die Information. {$itemDoneForSpeech} Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+                } else {
+                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Danke für die Information. {$itemReminderForSpeech} Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
+                }
+                notifyEmergencyContacts($db, $clientId, $incidentReason);
+                echo "<Hangup/>\n";
+                break;
+
             case 'process_wellbeing':
                 $retryCount = (int)($_GET['retry'] ?? 0);
                 if (empty($userInput)) {
@@ -508,16 +546,20 @@ try {
                     }
                     echo "<Hangup/>\n";
                 } elseif ($statusType === 'mild_incident') {
-                    $fullLog = "Leichte Beschwerden: $reason | Verhalten/Tonalität: $behaviorLog | $medStatus";
-                    logClientIncident($db, $clientId, $fullLog);
-                    updateCallStatusSummary($db, $clientId, $callType, $fullLog);
+                    // Bei leichten Beschwerden zunächst eine kurze Kontext-Rückfrage.
+                    $followupAction = htmlspecialchars("call_manager.php?" . http_build_query([
+                        'step' => 'incident_followup',
+                        'clientId' => $clientId,
+                        'callType' => $callType,
+                        'reason' => $reason,
+                        'medDone' => !empty($analysis['medication_already_done']) ? 1 : 0,
+                        'medStatus' => $medStatus,
+                        'behaviorLog' => $behaviorLog
+                    ]), ENT_QUOTES, 'UTF-8');
 
-                    if (!empty($analysis['medication_already_done'])) {
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. {$itemDoneForSpeech} Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
-                    } else {
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. {$itemReminderForSpeech} Ich informiere jetzt umgehend Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
-                    }
-                    notifyEmergencyContacts($db, $clientId, $reason);
+                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$followupAction}\">\n";
+                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. Können Sie mir kurz sagen, seit wann Sie diese Beschwerden haben und ob sie stärker werden oder gleich bleiben?</Say>\n";
+                    echo "</Gather>\n";
                     echo "<Hangup/>\n";
                 } elseif ($statusType === 'severe_incident') {
                     $fullLog = "Ernster Vorfall: $reason | Verhalten/Tonalität: $behaviorLog | $medStatus";
@@ -599,9 +641,13 @@ function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwor
             return ['status_type' => 'severe_incident', 'reason' => $userInput, 'behavior_log' => 'Lokale Erkennung eines möglichen Warnsignals.', 'medication_already_done' => false, 'medication_status' => 'Prüfung ausstehend'];
         }
     }
-    $mildLocal = ['kopfschmerzen', 'schwindel', 'müde', 'schwach', 'übel', 'kratzen im hals', 'unwohl', 'mir geht es schlecht'];
+    $mildLocal = ['kopfschmerzen', 'schwindel', 'müde', 'schwach', 'übel', 'kratzen im hals', 'unwohl', 'mir geht es schlecht', 'geht so', 'nicht gut', 'schmerzen', 'beschwerden'];
     foreach ($mildLocal as $word) {
         if (mb_strpos($text, $word) !== false) {
+            // Explizite Verneinung von Beschwerden nicht als Vorfall einstufen.
+            if (preg_match('/\b(keine|kein|nicht)\s+(?:[a-zäöüß]+\s+)?(?:beschwerden|schmerzen|kopfschmerzen|übelkeit)\b/u', $text)) {
+                continue;
+            }
             return ['status_type' => 'mild_incident', 'reason' => $userInput, 'behavior_log' => 'Lokale Erkennung möglicher Beschwerden.', 'medication_already_done' => false, 'medication_status' => 'Prüfung ausstehend'];
         }
     }
@@ -626,7 +672,7 @@ function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwor
     $mildList = implode(', ', $mildBuzzwords);
     $severeList = implode(', ', $severeBuzzwords);
 
-    $systemPrompt = "Du bist das Analysemodul eines telefonischen Care-Systems. Analysiere ausschließlich die tatsächliche Aussage des Klienten. Werte: ok, mild_incident, severe_incident, unclear. Antworte ausschließlich im JSON-Format mit status_type, reason, behavior_log, medication_already_done, medication_status. Wenn du den Notruf erwähnst, schreibe die Nummer als „eins-eins-zwei“ statt als Ziffern.";
+    $systemPrompt = "Du bist das Analysemodul eines telefonischen Care-Systems. Analysiere ausschließlich die tatsächliche Aussage des Klienten und ordne sie vorsichtig ein. Werte: ok, mild_incident, severe_incident, unclear. WICHTIG: status_type=ok darf nur vergeben werden, wenn die Person eindeutig und ohne Einschränkung sagt, dass es ihr gut geht und keine Beschwerden bestehen. Aussagen wie „nicht gut“, „geht so“, „schlecht“, „ich habe Schmerzen“, „mir ist schwindelig“, „ich bin müde“, Beschwerden, Sorgen, negative oder ambivalente Aussagen dürfen niemals als ok eingestuft werden; ordne sie mild_incident oder severe_incident (bei Warnzeichen) zu. Bei Mehrdeutigkeit unclear. Antworte ausschließlich im JSON-Format mit status_type, reason, behavior_log, medication_already_done, medication_status. Wenn du den Notruf erwähnst, schreibe die Nummer als „eins-eins-zwei“ statt als Ziffern.";
 
     $data = [
         'model' => 'gpt-5.4-mini',

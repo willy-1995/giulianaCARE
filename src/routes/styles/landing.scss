@@ -1,61 +1,119 @@
-#overview {
-  .services-div {
-    width: auto;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    padding-top: 100px;
-    gap: 10%;
+.welcome-text {
+  width: 80%;
+  margin: 0 auto;
+  margin-top: 50px;
+  margin-bottom: 50px;
+
+  @media (max-width: 700px) {
+    display: flex;
+    flex-direction: column;
+    width: 90%;
+    margin: 0 auto;
+    gap: 10px;
+  }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 50px;
+  }
+}
+
+.menue-grid {
+  width: 80%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5%;
+  margin: 0 auto;
+  margin-bottom: 50px;
+
+  @media (max-width: 700px) {
+    display: flex;
+    flex-direction: column;
+    width: 90%;
+    margin: 0 auto;
+    gap: 10px;
+  }
+}
+
+.menue-item {
+  border-radius: 15px;
+  box-shadow: 0 0 10px gray;
+
+  &:hover {
+    box-shadow: 0 0 10px var(--accent-color);
+    background-color: var(--accent-color);
+    color: white;
+    cursor: pointer;
+    transition: ease-in-out 200ms;
+
+    h2 {
+      color: white;
+    }
+  }
+
+  @media (max-width: 700px) {
+  }
+
+  h2 {
+    text-align: center;
+    color: var(--accent-color);
+    margin: 10px 0;
+  }
+
+  .menue-img-div {
+    width: 90%;
+    height: 270px;
+    border-radius: 15px;
+    margin: 0 auto;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     @media (max-width: 700px) {
-      display: flex;
-      flex-direction: column;
-      width: 90%;
-      margin: 0 auto;
-      gap: 10px;
     }
 
-    .service-card {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      position: relative;
+    img {
+      max-width: 100%;
 
-      img {
-        max-width: 100%;
+      @media (max-width: 700px) {
       }
+    }
+  }
 
-      .cover {
-        position: absolute;
-        top: 0;
-        right: 0;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+  .menue-item-text {
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
 
-        h3 {
-          background-color: var(--cover-color);
-          padding: 10px;
-          border-radius: 15px;
-        }
-      }
+    p {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .menue-button {
+      background-color: var(--button-color);
+      border-radius: 15px;
+      padding: 10px 20px;
+      margin: 0 auto;
+      margin-bottom: 20px;
     }
   }
 }
 
-.about_us-div {
-  display: flex;
-  gap: 20px;
+.about-us {
+  height: 400px;
+  width: 80%;
   margin: 0 auto;
+  background-color: var(--accent-color);
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 50px;
+  padding: 20px;
 
   @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: center;
-    width: 90%;
   }
 
   .about-us-img-div {
@@ -71,14 +129,63 @@
 
     img {
       max-width: 100%;
-      scale: 1.4;
       object-fit: cover;
     }
   }
 
-  .about_us-text-div {
-    text-align: center;
+  .about-us-text {
+    color: white;
+    h3 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 1.5rem;
+    }
   }
 
   // Der Shaper bleibt links sitzen und behält seine feste Höhe von 300px (analog zum Bild)
+}
+
+//SLIDER
+.slider-container {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  margin-bottom: 50px;
+  border-radius: 15px;
+  box-shadow: 0 0 10px gray;
+  min-height: 150px;
+  overflow: hidden;
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 3s ease-in-out;
+
+    h2 {
+      text-align: center;
+      margin: 0;
+    }
+
+    &.active {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+
+  @media (max-width: 700px) {
+    width: 100%;
+    min-height: 250px;
+  }
 }
