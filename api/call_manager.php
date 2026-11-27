@@ -1,1195 +1,1285 @@
 <?php
-
-// ==================================================
-// TWILIO + PHP STRICT-STRUCTURE PIPELINE (OHNE VAPI)
-// ==================================================
-
+// 1. Output-Buffering aktivieren (schützt vor kaputten JSON-Responses)
 ob_start();
-ini_set('display_errors', '0');
-ini_set('log_errors', '1');
+
+// Fehler-Logging konfigurieren
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/my_php_errors.log');
-date_default_timezone_set('Europe/Berlin');
-require_once __DIR__ . "/cors.php";
+
+header("Content-Type: application/json; charset=UTF-8");
 
 try {
-
+    // Config & Database laden
     require_once __DIR__ . "/config.php";
     require_once __DIR__ . "/database.php";
-    require_once __DIR__ . "/envloader.php";
-    require_once __DIR__ . "/rate_limiter.php";
 
-    // ==========================================
-    // BUZZWORDS-KONFIGURATION
-    // ==========================================
-    $MILD_BUZZWORDS = [
-        "kopfschmerzen",
-        "schwindel",
-        "müde",
-        "schwach",
-        "leichtes unwohlsein",
-        "übel",
-        "druck im kopf",
-        "kratzen im hals"
-    ];
+    // --- 1. WEBHOOK-JSON SOFORT AUSLESEN ---
+    $rawInput = file_get_contents('php://input');
 
-    $SEVERE_BUZZWORDS = [
-        "starke schmerzen",
-        "brustschmerzen",
-        "luftnot",
-        "atemnot",
-        "keine luft",
-        "starke blutung",
-        "sturz",
-        "hingefallen",
-        "schwindelanfall",
-        "benommen",
-        "verwirrt",
-        "kann nicht mehr",
-        "notruf"
-    ];
+    if (!empty($rawInput)) {
+        file_put_contents(
+            __DIR__ . '/vapi_webhook_debug.log',
+            date('Y-m-d H:i:s') . " - " . $rawInput . "\n\n",
+            FILE_APPEND
+        );
+    }
 
-    $dbInstance = new Database();
-    $db = $dbInstance->getConnection();
+    $input = json_decode($rawInput, true);
 
-    $action = $_POST['action'] ?? $_GET['action'] ?? null;
+    if (!is_array($input)) {
+        $input = [];
+    }
 
-    // ==================================================
-    // 1. TEST-ANRUF VON DER LANDINGPAGE
-    // ==================================================
-    if ($action === 'test_call') {
+    // --- 2. VAPI WEBHOOKS DIREKT ABFANGEN ---
+    $messageType = $input['message']['type'] ?? '';
 
-        checkRateLimit('landingpage_test_call', 2, 3600);
+    if (
+        $messageType === 'tool-calls'
+        || isset($input['message']['toolCalls'])
+        || isset($input['toolCalls'])
+    ) {
+        $dbInstance = new Database();
+        $db = $dbInstance->getConnection();
 
-        header("Content-Type: application/json; charset=UTF-8");
-
-        $phoneNumber = $_POST['phone_number'] ?? null;
-        $testName = trim($_POST['name'] ?? '');
-        $testMedication = trim($_POST['medication'] ?? '');
-
-        if (empty($phoneNumber) || empty($testName) || empty($testMedication)) {
-            http_response_code(400);
-            echo json_encode([
-                "success" => false,
-                "message" => "Name, Zusatzinfo und Telefonnummer sind erforderlich."
-            ]);
-            exit;
-        }
-
-        $phone = preg_replace('/[^0-9+]/', '', $phoneNumber);
-        if (strpos($phone, '0') === 0) {
-            $phone = '+49' . substr($phone, 1);
-        }
-
-        $queryParams = http_build_query([
-            'step' => 'test_welcome',
-            'name' => $testName,
-            'medication' => $testMedication
-        ]);
-
-        $baseUrl = 'https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']);
-        $webhookUrl = $baseUrl . "/call_manager.php?" . $queryParams;
-        $statusCallbackUrl = $baseUrl . "/call_manager.php?step=call_status";
-        $amdCallbackUrl = $baseUrl . "/call_manager.php?step=amd_callback&test=1";
-
-        $url = "https://api.twilio.com/2010-04-01/Accounts/" . TWILIO_ACCOUNT_SID . "/Calls.json";
-
-        $postData = [
-            'From' => TWILIO_PHONE_NUMBER,
-            'To' => $phone,
-            'Url' => $webhookUrl,
-            'Method' => 'POST',
-            'StatusCallback' => $statusCallbackUrl,
-            'StatusCallbackMethod' => 'POST',
-            'StatusCallbackEvent' => 'initiated ringing answered completed',
-            // ANRUFBEANTWORTER ERKENNUNG (AMD) FÜR TESTANRUFE
-            'MachineDetection' => 'DetectMessageEnd',
-            'AsyncAmd' => 'true',
-            'AsyncAmdStatusCallback' => $amdCallbackUrl,
-            'AsyncAmdStatusCallbackMethod' => 'POST'
-        ];
-
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-        curl_setopt($ch, CURLOPT_USERPWD, TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN);
-
-        $response = curl_exec($ch);
-        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        $twilioResult = json_decode((string)$response, true);
-        $twilioSid = $twilioResult['sid'] ?? null;
-        $twilioErrorCode = $twilioResult['code'] ?? null;
-
-        if ($response !== false && $httpCode >= 200 && $httpCode < 300 && !empty($twilioSid)) {
-            echo json_encode([
-                "success" => true,
-                "message" => "Testanruf erfolgreich gestartet.",
-                "call_sid" => $twilioSid
-            ]);
-        } else {
-            error_log("Twilio Testanruf fehlgeschlagen. HTTP: {$httpCode}. Twilio-Code: " . ($twilioErrorCode ?? 'unbekannt') . ". cURL: {$curlError}. Antwort: " . substr((string)$response, 0, 1500));
-            http_response_code(502);
-            echo json_encode([
-                "success" => false,
-                "message" => "Twilio konnte den Testanruf nicht starten.",
-                "http_status" => $httpCode,
-                "twilio_error_code" => $twilioErrorCode
-            ]);
-        }
-
+        handleVapiToolCall($db, $input);
         exit;
     }
 
-    // ==================================================
-    // 2. REGULÄREN ANRUF STARTEN
-    // ==================================================
-    if ($action === 'start') {
+    if ($messageType === 'end-of-call-report') {
+        $dbInstance = new Database();
+        $db = $dbInstance->getConnection();
 
-        header("Content-Type: application/json; charset=UTF-8");
+        handleVapiWebhook($db, $input);
 
-        $clientId = (int)($_POST['clientId'] ?? $_POST['client_id'] ?? 0);
+        echo json_encode(["success" => true]);
+        exit;
+    }
+
+    // --- 3. STANDARD FORMULAR- & API-ANFRAGEN ---
+    if (
+        $_SERVER['REQUEST_METHOD'] === 'POST'
+        && isset($_POST['action'])
+    ) {
+        require_once __DIR__ . "/cors.php";
+        require_once __DIR__ . "/envloader.php";
+        require_once __DIR__ . "/rate_limiter.php";
+
+        $action = $_POST['action'] ?? null;
+        $clientId = $_POST['clientId'] ?? $_POST['client_id'] ?? null;
         $callType = $_POST['call_type'] ?? 'call_1';
+        $directPhoneNumber = $_POST['phone_number'] ?? null;
 
-        if ($clientId <= 0) {
-            http_response_code(400);
-            echo json_encode([
-                "success" => false,
-                "message" => "Keine Client ID."
-            ]);
-            exit;
-        }
+        $dbInstance = new Database();
+        $db = $dbInstance->getConnection();
 
-        initializeCallStatus($db, $clientId, $callType);
-        $callStarted = executeTwilioCall($db, $clientId, 'tel1', 1, $callType);
+        switch ($action) {
+            case 'start':
+                if ($clientId) {
+                    initializeCallStatus(
+                        $db,
+                        (int)$clientId,
+                        $callType
+                    );
 
-        if (!$callStarted) {
-            handleCallFailure($db, $clientId, $callType, 'tel1', 1, 'Twilio konnte den Anruf auf tel1 nicht erstellen.');
-            http_response_code(502);
-            echo json_encode([
-                "success" => false,
-                "message" => "Twilio konnte den Anruf nicht starten. Bitte my_php_errors.log prüfen."
-            ]);
-            exit;
-        }
+                    executeCall(
+                        $db,
+                        (int)$clientId,
+                        'tel1',
+                        1,
+                        $callType
+                    );
 
-        echo json_encode([
-            "success" => true,
-            "message" => "Twilio hat den Anruf angenommen und erstellt."
-        ]);
-
-        exit;
-    }
-
-    // ==================================================
-    // 3. TWILIO VOICE WEBHOOKS & CALLBACKS
-    // ==================================================
-    $incomingStep = $_GET['step'] ?? null;
-
-    if ($incomingStep) {
-
-        $clientId = (int)($_GET['clientId'] ?? 0);
-        $callType = $_GET['callType'] ?? 'call_1';
-        $userInput = trim($_POST['SpeechResult'] ?? $_POST['Digits'] ?? '');
-        if ($userInput === '') {
-            $userInput = trim((string)($_GET['earlyInput'] ?? ''));
-        }
-
-        // Telefonnummer und Zyklus gehören zu jedem Callback.
-        $telType = $_GET['telType'] ?? 'tel1';
-        $cycle = max(1, (int)($_GET['cycle'] ?? 1));
-
-        // --- ANRUFBEANTWORTER-ERKENNUNG (AMD CALLBACK) ---
-        if ($incomingStep === 'amd_callback') {
-            header('Content-Type: text/plain; charset=UTF-8');
-            $answeredBy = strtolower(trim($_POST['AnsweredBy'] ?? ''));
-            $callSid = $_POST['CallSid'] ?? '';
-            error_log("Twilio AMD Callback: Client {$clientId}, Nummer {$telType}, Zyklus {$cycle}, AnsweredBy: {$answeredBy}, CallSid: {$callSid}");
-
-            if (strpos($answeredBy, 'machine') !== false || strpos($answeredBy, 'fax') !== false) {
-                if (!empty($callSid)) {
-                    terminateTwilioCallImmediately($callSid);
+                    echo json_encode([
+                        "success" => true,
+                        "message" => "Anruf gestartet."
+                    ]);
+                    exit;
+                } else {
+                    http_response_code(400);
+                    echo json_encode([
+                        "success" => false,
+                        "message" => "Keine Client ID übergeben."
+                    ]);
+                    exit;
                 }
-                if ($clientId > 0 && empty($_GET['test'])) {
-                    handleCallFailure($db, $clientId, $callType, $telType, $cycle, 'Anrufbeantworter erkannt; Anruf sofort und ohne Nachricht beendet.');
-                }
-            } elseif ($clientId > 0 && empty($_GET['test'])) {
-                // AMD hat einen Menschen oder ein nicht eindeutig klassifiziertes Ziel erkannt.
-                // Heartbeat aktualisieren; die eigentliche Gesprächslogik entscheidet über Erfolg.
-                touchCallStatus($db, $clientId, $callType, $telType, $cycle);
-            }
-            http_response_code(200);
-            echo 'OK';
-            exit;
-        }
 
-        // --- TWILIO STATUS CALLBACK ---
-        if ($incomingStep === 'call_status') {
-            header('Content-Type: text/plain; charset=UTF-8');
-            $twilioStatus = strtolower($_POST['CallStatus'] ?? '');
-            $twilioCallSid = $_POST['CallSid'] ?? 'unbekannt';
-            error_log("Twilio Statuscallback: Client {$clientId}, CallType {$callType}, Nummer {$telType}, Zyklus {$cycle}, Status {$twilioStatus}, SID {$twilioCallSid}");
-
-            if (in_array($twilioStatus, ['initiated', 'ringing', 'answered'], true)) {
-                touchCallStatus($db, $clientId, $callType, $telType, $cycle);
-            } elseif (in_array($twilioStatus, ['no-answer', 'busy', 'failed', 'canceled'], true)) {
-                handleCallFailure($db, $clientId, $callType, $telType, $cycle, "Twilio-Status: {$twilioStatus}");
-            } elseif ($twilioStatus === 'completed') {
-                // completed ist NICHT automatisch ein erfolgreicher Care-Anruf.
-                // Nur markCallCompleted() nach erfolgreichem Gespräch setzt diesen Status.
-                handleCallFailure($db, $clientId, $callType, $telType, $cycle, 'Twilio-Status: completed, aber kein erfolgreicher Gesprächsabschluss im Care-System registriert.');
-            }
-            http_response_code(200);
-            echo 'OK';
-            exit;
-        }
-
-        // Heartbeat bei jedem regulären Voice-Webhook (z.B. nach Gather-Antwort).
-        // Dadurch löst der Watchdog keinen noch laufenden Dialog aus.
-        if ($clientId > 0 && empty($_GET['test'])) {
-            touchCallStatus($db, $clientId, $callType, $telType, $cycle);
-        }
-
-        header("Content-Type: text/xml; charset=UTF-8");
-        echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        echo "<Response>\n";
-
-        switch ($incomingStep) {
-
-            case 'test_welcome':
-                $testName = trim($_GET['name'] ?? '');
-                $testMedication = trim($_GET['medication'] ?? '');
-                $waitCount = 0;
-
-                $actionUrl = htmlspecialchars(
-                    "call_manager.php?" . http_build_query([
-                        'step' => 'test_after_greeting',
-                        'name' => $testName,
-                        'medication' => $testMedication,
-                        'wait' => $waitCount
-                    ]),
-                    ENT_QUOTES,
-                    'UTF-8'
+            case 'test_call':
+                checkRateLimit(
+                    'landingpage_test_call',
+                    2,
+                    3600
                 );
 
-                echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$actionUrl}\">\n";
-                echo "</Gather>\n";
-                break;
+                if ($directPhoneNumber) {
+                    executeDirectTestCall($directPhoneNumber);
 
-            case 'test_after_greeting':
-                $testName = trim($_GET['name'] ?? '');
-                $testMedication = trim($_GET['medication'] ?? '');
-                $waitCount = (int)($_GET['wait'] ?? 0);
-
-                if (empty($userInput)) {
-                    if ($waitCount < 1) {
-                        $retryAction = htmlspecialchars(
-                            "call_manager.php?" . http_build_query([
-                                'step' => 'test_after_greeting',
-                                'name' => $testName,
-                                'medication' => $testMedication,
-                                'wait' => 1
-                            ]),
-                            ENT_QUOTES,
-                            'UTF-8'
-                        );
-                        echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
-                        echo "</Gather>\n";
-                    } else {
-                        // Keine Nachricht auf Mailbox/bei unklarer Erkennung: still beenden.
-                        echo "<Hangup/>\n";
-                    }
-                    break;
-                }
-
-                $itemLanguage = buildMedicationLanguageWithAI($testMedication);
-                $medQuestion = $itemLanguage['question'];
-                $welcomeText = "Hallo {$testName}, vielen Dank, dass Sie die Telefonbetreuung von Dschuliana Kär testen. Geht es Ihnen heute gut und {$medQuestion}";
-
-                $nextAction = htmlspecialchars(
-                    "call_manager.php?" . http_build_query([
-                        'step' => 'test_process',
-                        'name' => $testName,
-                        'medication' => $testMedication
-                    ]),
-                    ENT_QUOTES,
-                    'UTF-8'
-                );
-
-                echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$nextAction}\">\n";
-                echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($welcomeText, ENT_QUOTES, 'UTF-8') . "</Say>\n";
-                echo "</Gather>\n";
-                break;
-
-            case 'test_process':
-                $testName = trim($_GET['name'] ?? '');
-                $testMedication = trim($_GET['medication'] ?? '');
-                $itemLanguage = buildMedicationLanguageWithAI($testMedication);
-
-                if (empty($userInput)) {
-                    $retryAction = htmlspecialchars(
-                        "call_manager.php?" . http_build_query([
-                            'step' => 'test_process',
-                            'name' => $testName,
-                            'medication' => $testMedication
-                        ]),
-                        ENT_QUOTES,
-                        'UTF-8'
-                    );
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
-                    $retryQuestion = htmlspecialchars("Entschuldigung, ich habe Sie akustisch nicht verstanden. Geht es Ihnen gut und {$itemLanguage['question']}", ENT_QUOTES | ENT_XML1, 'UTF-8');
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">{$retryQuestion}</Say>\n";
-                    echo "</Gather>\n";
-                    break;
-                }
-
-                $analysis = evaluateStrictStructureWithAI($userInput, $testMedication, $MILD_BUZZWORDS, $SEVERE_BUZZWORDS);
-                $statusType = $analysis['status_type'];
-                $medDone = !empty($analysis['medication_already_done']);
-
-                if ($statusType === 'unclear') {
-                    $retryAction = htmlspecialchars(
-                        "call_manager.php?" . http_build_query([
-                            'step' => 'test_process',
-                            'name' => $testName,
-                            'medication' => $testMedication
-                        ]),
-                        ENT_QUOTES,
-                        'UTF-8'
-                    );
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Entschuldigung, ich konnte Ihre Antwort nicht eindeutig auswerten. Können Sie mir bitte noch einmal sagen, wie es Ihnen geht?</Say>\n";
-                    echo "</Gather>\n";
-                    break;
-                }
-
-                $reminderText = $itemLanguage['reminder'];
-                $doneText = $itemLanguage['done_confirmation'];
-
-                if ($statusType === 'ok') {
-                    if ($medDone) {
-                        $reply = "Das freut mich zu hören. {$doneText} Vielen Dank für den Test, auf Wiederhören!";
-                    } else {
-                        $reply = "Das freut mich zu hören. {$reminderText} Vielen Dank für den Test, auf Wiederhören!";
-                    }
-                } elseif ($statusType === 'mild_incident') {
-                    if ($medDone) {
-                        $reply = "Das tut mir leid zu hören. {$doneText} Im Echtbetrieb würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
-                    } else {
-                        $reply = "Das tut mir leid zu hören. {$reminderText} Im Echtbetrieb würde ich jetzt Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
-                    }
+                    echo json_encode([
+                        "success" => true,
+                        "message" => "Testanruf gestartet."
+                    ]);
+                    exit;
                 } else {
-                    if ($medDone) {
-                        $reply = "Das klingt ernst. Im Echtbetrieb würde ich sofort Ihre Notfallkontakte informieren und darauf hinweisen, bei akuten Beschwerden den Notruf eins-eins-zwei zu wählen. Vielen Dank für den Test, auf Wiederhören!";
-                    } else {
-                        $reply = "Das klingt ernst. {$reminderText} Wählen Sie bei akuten Beschwerden bitte den Notruf eins-eins-zwei. Im Echtbetrieb würde ich jetzt sofort Ihre Notfallkontakte informieren. Vielen Dank für den Test, auf Wiederhören!";
-                    }
+                    http_response_code(400);
+                    echo json_encode([
+                        "success" => false,
+                        "message" => "Keine Telefonnummer übergeben."
+                    ]);
+                    exit;
                 }
 
-                echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars(normalizeEmergencyNumberSpeech($reply), ENT_QUOTES, 'UTF-8') . "</Say>\n";
-                echo "<Hangup/>\n";
-                break;
-
-            //====================================
-            //REAL CALL
-            //====================================
-
-            case 'welcome':
-                // Erst 3 Sekunden zuhören. Wenn der Klient spricht oder die 3 Sekunden
-                // verstreichen, wird die Begrüßung im nächsten Schritt gesprochen.
-                $listenAction = htmlspecialchars("call_manager.php?" . http_build_query([
-                    'step' => 'welcome_after_greeting',
-                    'clientId' => $clientId,
-                    'callType' => $callType,
-                    'wait' => 0
-                ]), ENT_QUOTES, 'UTF-8');
-                echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"3\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$listenAction}\">\n";
-                echo "</Gather>\n";
-                break;
-
-            case 'welcome_after_greeting':
-                // Auch bei erkannter Äußerung (z.B. 'Hallo?') und bei 3 Sekunden
-                // Stille beginnt die Assistenz erst jetzt mit ihrer Begrüßung.
-                $client = getClientData($db, $clientId);
-                $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
-                $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
-                $hour = (int)(new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('G');
-                $greeting = ($hour >= 18) ? 'Guten Abend' : (($hour >= 5 && $hour < 11) ? 'Guten Morgen' : 'Guten Tag');
-                $firstText = $greeting . " " . $titlePrefix . $fullName . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, wie es Ihnen aktuell geht?";
-                $earlyInput = trim($_POST['SpeechResult'] ?? $_POST['Digits'] ?? '');
-                $nextActionParams = [
-                    'step' => 'process_wellbeing',
-                    'clientId' => $clientId,
-                    'callType' => $callType,
-                    'retry' => 0
-                ];
-                if ($earlyInput !== '') {
-                    // Bereits in der ersten 3-Sekunden-Phase gesprochene Aussage sichern.
-                    $nextActionParams['earlyInput'] = $earlyInput;
-                    $nextAction = htmlspecialchars("call_manager.php?" . http_build_query($nextActionParams), ENT_QUOTES, 'UTF-8');
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($firstText, ENT_QUOTES, 'UTF-8') . "</Say>\n";
-                    echo "<Redirect method=\"POST\" >{$nextAction}</Redirect>\n";
-                } else {
-                    $nextAction = htmlspecialchars("call_manager.php?" . http_build_query($nextActionParams), ENT_QUOTES, 'UTF-8');
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$nextAction}\">\n";
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($firstText, ENT_QUOTES, 'UTF-8') . "</Say>\n";
-                    echo "</Gather>\n";
-                }
-                break;
-
-            case 'incident_followup':
-                $originalReason = trim((string)($_GET['reason'] ?? 'Leichte Beschwerden'));
-                $followupReply = trim($userInput);
-                $medDone = !empty($_GET['medDone']);
-                $medStatus = trim((string)($_GET['medStatus'] ?? ''));
-                $behaviorLog = trim((string)($_GET['behaviorLog'] ?? ''));
-                $client = getClientData($db, $clientId);
-                $medication = getClientMedication($client, $callType);
-                $itemLanguage = buildMedicationLanguageWithAI($medication);
-                $itemReminderForSpeech = htmlspecialchars(normalizeEmergencyNumberSpeech($itemLanguage['reminder']), ENT_QUOTES | ENT_XML1, 'UTF-8');
-                $itemDoneForSpeech = htmlspecialchars(normalizeEmergencyNumberSpeech($itemLanguage['done_confirmation']), ENT_QUOTES | ENT_XML1, 'UTF-8');
-
-                // Nur Beschwerde und kurze Kontextangabe speichern; kein Gesprächsverlauf.
-                $incidentReason = $originalReason;
-                if ($followupReply !== '') {
-                    $incidentReason .= " | Zusatzinfo: " . $followupReply;
-                }
-
-                $fullLog = "Leichte Beschwerden: {$incidentReason}";
-                if ($behaviorLog !== '') {
-                    $fullLog .= " | Verhalten/Tonalität: {$behaviorLog}";
-                }
-                if ($medStatus !== '') {
-                    $fullLog .= " | {$medStatus}";
-                }
-
-                logClientIncident($db, $clientId, $incidentReason);
-                updateCallStatusSummary($db, $clientId, $callType, $fullLog);
-
-                if ($medDone) {
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Danke für die Information. {$itemDoneForSpeech} Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
-                } else {
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Danke für die Information. {$itemReminderForSpeech} Ich informiere jetzt Ihre Notfallkontakte darüber. Auf Wiederhören!</Say>\n";
-                }
-                notifyEmergencyContacts($db, $clientId, $incidentReason);
-                echo "<Hangup/>\n";
-                break;
-
-            case 'process_wellbeing':
-                $retryCount = (int)($_GET['retry'] ?? 0);
-                if (empty($userInput)) {
-                    if ($retryCount >= 2) {
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Ich konnte Sie leider nicht verstehen. Ich beende den Anruf jetzt. Auf Wiederhören.</Say>\n<Hangup/>\n";
-                        break;
-                    }
-                    $nextRetry = $retryCount + 1;
-                    $retryAction = htmlspecialchars("call_manager.php?" . http_build_query([
-                        'step' => 'process_wellbeing',
-                        'clientId' => $clientId,
-                        'callType' => $callType,
-                        'retry' => $nextRetry
-                    ]), ENT_QUOTES, 'UTF-8');
-                    $retryPhrase = $retryCount === 0
-                        ? "Entschuldigung, ich habe Sie akustisch nicht verstanden. Wie geht es Ihnen aktuell?"
-                        : "Ich habe Sie leider erneut nicht verstanden. Bitte sagen Sie kurz, ob es Ihnen gut geht oder ob Sie Beschwerden haben.";
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($retryPhrase, ENT_QUOTES, 'UTF-8') . "</Say>\n</Gather>\n";
-                    break;
-                }
-
-                $client = getClientData($db, $clientId);
-                $medication = getClientMedication($client, $callType);
-                $itemLanguage = buildMedicationLanguageWithAI($medication);
-                $itemReminderForSpeech = htmlspecialchars(normalizeEmergencyNumberSpeech($itemLanguage['reminder']), ENT_QUOTES | ENT_XML1, 'UTF-8');
-                $itemDoneForSpeech = htmlspecialchars(normalizeEmergencyNumberSpeech($itemLanguage['done_confirmation']), ENT_QUOTES | ENT_XML1, 'UTF-8');
-
-                $analysis = evaluateStrictStructureWithAI($userInput, $medication, $MILD_BUZZWORDS, $SEVERE_BUZZWORDS);
-
-                $statusType = $analysis['status_type'];
-                $reason = $analysis['reason'] ?? '';
-                $medStatus = $analysis['medication_status'] ?? '';
-                $behaviorLog = $analysis['behavior_log'] ?? 'Normale Sprachweise.';
-
-                if ($statusType === 'unclear') {
-                    if ($retryCount >= 2) {
-                        $fullLog = "Antwort nach maximal zwei Wiederholungen nicht eindeutig: " . $userInput;
-                        logClientIncident($db, $clientId, $fullLog);
-                        updateCallStatusSummary($db, $clientId, $callType, $fullLog);
-                        notifyEmergencyContacts($db, $clientId, "Telefonische Rückmeldung war nach zwei Wiederholungen nicht eindeutig. Gesprochene Antwort: " . $userInput);
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Ich konnte Ihre Antwort leider nicht sicher einordnen. Ich informiere vorsichtshalber Ihre Notfallkontakte über das Gespräch und beende den Anruf. Auf Wiederhören.</Say>\n<Hangup/>\n";
-                        break;
-                    }
-                    $nextRetry = $retryCount + 1;
-                    $retryAction = htmlspecialchars("call_manager.php?" . http_build_query([
-                        'step' => 'process_wellbeing',
-                        'clientId' => $clientId,
-                        'callType' => $callType,
-                        'retry' => $nextRetry
-                    ]), ENT_QUOTES, 'UTF-8');
-                    $retryPhrase = $retryCount === 0
-                        ? "Entschuldigung, ich konnte Ihre Antwort nicht eindeutig verstehen. Können Sie bitte kurz sagen, ob es Ihnen gut geht oder ob Sie Beschwerden haben?"
-                        : "Bitte sagen Sie noch einmal ganz kurz: Geht es Ihnen gut, oder haben Sie Beschwerden?";
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$retryAction}\">\n";
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">" . htmlspecialchars($retryPhrase, ENT_QUOTES, 'UTF-8') . "</Say>\n</Gather>\n";
-                    break;
-                }
-
-                if ($statusType === 'ok') {
-                    if (!empty($analysis['medication_already_done'])) {
-                        markCallCompleted($db, $clientId, $callType, "Wohlbefinden gut. Medikation bereits erledigt.");
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das freut mich. {$itemDoneForSpeech} Auf Wiederhören!</Say>\n";
-                    } else {
-                        markCallCompleted($db, $clientId, $callType, "Wohlbefinden gut. An Medikation erinnert.");
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das freut mich. {$itemReminderForSpeech} Ich wünsche Ihnen einen schönen Tag. Auf Wiederhören!</Say>\n";
-                    }
-                    echo "<Hangup/>\n";
-                } elseif ($statusType === 'mild_incident') {
-                    // Bei leichten Beschwerden zunächst eine kurze Kontext-Rückfrage.
-                    $followupAction = htmlspecialchars("call_manager.php?" . http_build_query([
-                        'step' => 'incident_followup',
-                        'clientId' => $clientId,
-                        'callType' => $callType,
-                        'reason' => $reason,
-                        'medDone' => !empty($analysis['medication_already_done']) ? 1 : 0,
-                        'medStatus' => $medStatus,
-                        'behaviorLog' => $behaviorLog
-                    ]), ENT_QUOTES, 'UTF-8');
-
-                    echo "<Gather input=\"speech\" language=\"de-DE\" speechModel=\"experimental_conversations\" speechTimeout=\"2\" timeout=\"10\" actionOnEmptyResult=\"true\" method=\"POST\" action=\"{$followupAction}\">\n";
-                    echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das tut mir leid zu hören. Können Sie mir kurz sagen, seit wann Sie diese Beschwerden haben und ob sie stärker werden oder gleich bleiben?</Say>\n";
-                    echo "</Gather>\n";
-                    echo "<Hangup/>\n";
-                } elseif ($statusType === 'severe_incident') {
-                    $fullLog = "Ernster Vorfall: $reason | Verhalten/Tonalität: $behaviorLog | $medStatus";
-                    logClientIncident($db, $clientId, $fullLog);
-                    updateCallStatusSummary($db, $clientId, $callType, $fullLog);
-
-                    if (!empty($analysis['medication_already_done'])) {
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemDoneForSpeech} Ich informiere sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Beschwerden selbst den Notruf eins-eins-zwei. Auf Wiederhören!</Say>\n";
-                    } else {
-                        echo "<Say voice=\"Google.de-DE-Chirp3-HD-Aoede\" language=\"de-DE\">Das ist ernst. {$itemReminderForSpeech} Bei akuten Beschwerden wählen Sie bitte sofort den Notruf eins-eins-zwei. Ich informiere sofort Ihre Notfallkontakte. Auf Wiederhören!</Say>\n";
-                    }
-                    notifyEmergencyContacts($db, $clientId, $reason);
-                    echo "<Hangup/>\n";
-                }
-                break;
+            default:
+                http_response_code(400);
+                echo json_encode([
+                    "success" => false,
+                    "message" => "Aktion nicht erkannt."
+                ]);
+                exit;
         }
-
-        echo "</Response>\n";
-        exit;
     }
-} catch (Throwable $e) {
-    error_log("Error in call_manager.php: " . $e->getMessage());
+} catch (PDOException $e) {
+    error_log("Database Error (Vapi Webhook): " . $e->getMessage());
     while (ob_get_level()) {
         ob_end_clean();
     }
     http_response_code(500);
+    echo json_encode([
+        "success" => false,
+        "message" => "Ein interner Datenbankfehler ist aufgetreten."
+    ]);
+    exit;
+} catch (Exception $e) {
+    error_log("Server Error (Vapi Webhook): " . $e->getMessage());
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    http_response_code(500);
+    echo json_encode([
+        "success" => false,
+        "message" => "Ein unerwarteter Serverfehler ist aufgetreten."
+    ]);
     exit;
 }
 
+
 // ==================================================
-// HILFSFUNKTIONEN
+// VAPI TOOL CALLS
 // ==================================================
 
-/** Ersetzt die Notrufnummer in gesprochenen Texten durch die gewünschte Aussprache. */
-function normalizeEmergencyNumberSpeech(string $text): string
+function handleVapiToolCall($db, $data)
 {
-    return preg_replace('/(?<!\\d)112(?!\\d)/u', 'eins-eins-zwei', $text) ?? $text;
-}
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
 
-function terminateTwilioCallImmediately($callSid)
-{
-    if (!defined('TWILIO_ACCOUNT_SID') || !defined('TWILIO_AUTH_TOKEN') || empty($callSid)) return;
+    $toolCalls = $data['message']['toolCalls']
+        ?? $data['message']['toolCallList']
+        ?? [];
 
-    $url = 'https://api.twilio.com/2010-04-01/Accounts/' . TWILIO_ACCOUNT_SID . '/Calls/' . $callSid . '.json';
-    $postData = ['Status' => 'completed'];
+    $metadata = $data['message']['call']['metadata']
+        ?? $data['message']['metadata']
+        ?? [];
 
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => http_build_query($postData),
-        CURLOPT_USERPWD => TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN,
-        CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_TIMEOUT => 10
-    ]);
-    curl_exec($ch);
-    curl_close($ch);
-}
+    $metadata = array_merge(
+        $data['message']['call']['assistantOverrides']['variableValues'] ?? [],
+        $metadata
+    );
 
-function buildMedicationLanguageWithAI($itemText)
-{
-    // Lokale Textbausteine statt zusätzlichem OpenAI-Aufruf: schneller und stabiler.
-    $itemText = trim((string)$itemText);
-    return [
-        'category' => 'other',
-        'question' => 'haben Sie das bereits erledigt?',
-        'reminder' => $itemText !== '' ? 'Bitte denken Sie noch an Folgendes: ' . $itemText . '.' : 'Bitte denken Sie noch an Ihre hinterlegte Aufgabe.',
-        'done_confirmation' => 'Danke für die Rückmeldung. Gut, dass Sie das erledigt haben.'
-    ];
-}
+    $clientId = isset($metadata['clientId']) ? (int)$metadata['clientId'] : 0;
+    $callType = $metadata['callType'] ?? 'call_1';
 
-function evaluateStrictStructureWithAI($userInput, $medicationInfo, $mildBuzzwords, $severeBuzzwords)
-{
-    // Schnelle lokale Einordnung klarer Aussagen; bei Mehrdeutigkeit weiterhin KI.
-    $text = mb_strtolower(trim((string)$userInput), 'UTF-8');
-    $severeLocal = ['brustschmerz', 'atemnot', 'luftnot', 'keine luft', 'starke blutung', 'gestürzt', 'hingefallen', 'sturz', 'notruf'];
-    foreach ($severeLocal as $word) {
-        if (mb_strpos($text, $word) !== false && !preg_match('/(?:keine|kein|nicht)\\s+' . preg_quote($word, '/') . '/u', $text)) {
-            return ['status_type' => 'severe_incident', 'reason' => $userInput, 'behavior_log' => 'Lokale Erkennung eines möglichen Warnsignals.', 'medication_already_done' => false, 'medication_status' => 'Prüfung ausstehend'];
+    $results = [];
+    $reason = 'Unwohlsein / Vorfall geäußert';
+    $notifyEmergency = false;
+
+    foreach ($toolCalls as $toolCall) {
+        $toolCallId = $toolCall['id'] ?? null;
+        $functionName = $toolCall['function']['name'] ?? $toolCall['name'] ?? '';
+
+        $rawArgs = $toolCall['function']['arguments']
+            ?? $toolCall['arguments']
+            ?? '{}';
+        $args = is_array($rawArgs) ? $rawArgs : (json_decode($rawArgs, true) ?: []);
+
+        // --------------------------------------------------
+        // 1. BESCHWERDE (WIE KOPFSCHMERZEN) SOFORT SPEICHERN
+        // --------------------------------------------------
+        if ($functionName === 'reportIncident') {
+            $reason = trim((string)($args['reason'] ?? 'Unwohlsein'));
+            $severity = strtolower(trim((string)($args['severity'] ?? 'mild')));
+            $isSevere = ($severity === 'severe');
+
+            if ($clientId > 0) {
+                try {
+                    $statusLabel = $isSevere
+                        ? "Schwerer Vorfall: $reason"
+                        : "Beschwerde (Kopfschmerzen o.ä.): $reason";
+
+                    $stmt = $db->prepare("
+                        UPDATE call_status
+                        SET status = 'incident_reported',
+                            summary = ?
+                        WHERE client_id = ?
+                          AND call_type = ?
+                          AND status IN ('calling', 'incident_reported')
+                        ORDER BY id DESC
+                        LIMIT 1
+                    ");
+                    $stmt->execute([
+                        $statusLabel,
+                        $clientId,
+                        $callType
+                    ]);
+
+                    logClientIncident($db, $clientId, "[$severity] $reason");
+
+                    if ($isSevere) {
+                        $notifyEmergency = true;
+                    }
+                } catch (Exception $e) {
+                    error_log("DB ERROR (reportIncident): " . $e->getMessage());
+                }
+            }
+
+            if ($isSevere) {
+                $msg = 'Notfall erfasst. Sage exakt: "Das ist ernst. Ich informiere sofort Ihre Notfallkontakte. Bitte wählen Sie bei akuten Schmerzen selbst den Notruf 112. Auf Wiederhören." und rufe endCall auf.';
+            } else {
+                $msg = 'BESCHWERDE ERFASST. Antworte dem Klienten JETZT WÖRTLICH: "Das tut mir leid zu hören. Möchten Sie, dass ich Ihre Notfallkontakte darüber informiere?"';
+            }
+
+            $results[] = [
+                'toolCallId' => $toolCallId,
+                'result' => $msg
+            ];
+        }
+
+        // --------------------------------------------------
+        // 2. ANTWORT AUF DIE NOTFALLKONTAKT-FRAGE
+        // --------------------------------------------------
+        if ($functionName === 'confirmNotifyContacts') {
+            $wantsNotification = !empty($args['notify']);
+            $reason = trim((string)($args['reason'] ?? 'Beschwerden'));
+
+            if ($clientId > 0) {
+                try {
+                    $infoText = $wantsNotification
+                        ? "Beschwerde: $reason | Notfallkontakte auf Wunsch informiert."
+                        : "Beschwerde: $reason | Keine Benachrichtigung gewünscht.";
+
+                    $stmt = $db->prepare("
+                        UPDATE call_status
+                        SET status = 'incident_reported',
+                            summary = ?
+                        WHERE client_id = ?
+                          AND call_type = ?
+                        ORDER BY id DESC
+                        LIMIT 1
+                    ");
+                    $stmt->execute([
+                        $infoText,
+                        $clientId,
+                        $callType
+                    ]);
+
+                    if ($wantsNotification) {
+                        $notifyEmergency = true;
+                    }
+                } catch (Exception $e) {
+                    error_log("DB ERROR (confirmNotifyContacts): " . $e->getMessage());
+                }
+            }
+
+            if ($wantsNotification) {
+                $msg = 'Sage exakt: "Ich informiere jetzt Ihre Notfallkontakte. Gute Besserung und auf Wiederhören!" und rufe sofort endCall auf.';
+            } else {
+                $msg = 'Sage exakt: "Verstanden, ich habe es notiert. Gute Besserung und auf Wiederhören!" und rufe sofort endCall auf.';
+            }
+
+            $results[] = [
+                'toolCallId' => $toolCallId,
+                'result' => $msg
+            ];
+        }
+
+        // --------------------------------------------------
+        // 3. MEDIKATION DOKUMENTIEREN
+        // --------------------------------------------------
+        if ($functionName === 'confirmMedication') {
+            $answer = trim((string)($args['response'] ?? 'Antwort erfasst'));
+
+            if ($clientId > 0) {
+                $stmt = $db->prepare("
+                    UPDATE call_status
+                    SET medication_checked = 1,
+                        medication_response = ?,
+                        status = 'completed',
+                        summary = ?
+                    WHERE client_id = ?
+                      AND call_type = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                ");
+                $stmt->execute([
+                    $answer,
+                    "Medikation abgefragt ($answer).",
+                    $clientId,
+                    $callType
+                ]);
+            }
+
+            $results[] = [
+                'toolCallId' => $toolCallId,
+                'result' => 'Gespeichert. Sage exakt: "Vielen Dank, ich wünsche Ihnen noch einen schönen Tag. Auf Wiederhören!" und rufe sofort endCall auf.'
+            ];
+        }
+
+        // --------------------------------------------------
+        // 4. WOHLBEFINDEN & ABSCHLUSS
+        // --------------------------------------------------
+        if ($functionName === 'confirmWellbeing') {
+            if ($clientId > 0) {
+                $upd = $db->prepare("
+                    UPDATE call_status
+                    SET status = 'completed',
+                        summary = 'Wohlbefinden bestätigt.'
+                    WHERE client_id = ?
+                      AND call_type = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                ");
+                $upd->execute([$clientId, $callType]);
+            }
+
+            $results[] = [
+                'toolCallId' => $toolCallId,
+                'result' => 'Gespeichert. Sage exakt: "Vielen Dank, ich wünsche Ihnen noch einen schönen Tag. Auf Wiederhören!" und rufe sofort endCall auf.'
+            ];
         }
     }
-    $mildLocal = ['kopfschmerzen', 'schwindel', 'müde', 'schwach', 'übel', 'kratzen im hals', 'unwohl', 'mir geht es schlecht', 'geht so', 'nicht gut', 'schmerzen', 'beschwerden'];
-    foreach ($mildLocal as $word) {
-        if (mb_strpos($text, $word) !== false) {
-            // Explizite Verneinung von Beschwerden nicht als Vorfall einstufen.
-            if (preg_match('/\b(keine|kein|nicht)\s+(?:[a-zäöüß]+\s+)?(?:beschwerden|schmerzen|kopfschmerzen|übelkeit)\b/u', $text)) {
+
+    // Antwort sofort an Vapi senden
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+
+    $jsonResponse = json_encode(['results' => $results]);
+
+    if (function_exists('fastcgi_finish_request')) {
+        echo $jsonResponse;
+        session_write_close();
+        fastcgi_finish_request();
+    } else {
+        header("Content-Length: " . strlen($jsonResponse));
+        header("Connection: close");
+        echo $jsonResponse;
+        flush();
+    }
+
+    if ($notifyEmergency && $clientId > 0) {
+        try {
+            notifyEmergencyContacts($db, $clientId, $reason);
+            error_log("SUCCESS: Emergency contacts notified in background for client $clientId");
+        } catch (Exception $e) {
+            error_log("NOTIFICATION ERROR: " . $e->getMessage());
+        }
+    }
+
+    exit;
+}
+
+
+// ==================================================
+// ANRUF STARTEN
+// ==================================================
+
+function executeCall(
+    $db,
+    $clientId,
+    $telType,
+    $cycle,
+    $callType = 'call_1'
+) {
+    error_log(
+        "CALL START [Versuch $cycle]: Client ID $clientId | Typ: $callType | Nummerntyp: $telType"
+    );
+
+    $stmt = $db->prepare("
+        SELECT
+            title,
+            firstname,
+            lastname,
+            tel1,
+            tel2,
+            call_1,
+            call_2,
+            call_3,
+            medication_1,
+            medication_2,
+            medication_3
+        FROM clients
+        WHERE id = ?
+          AND status = 'active'
+    ");
+
+    $stmt->execute([$clientId]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$client) {
+        error_log("VAPI ERROR: Client ID $clientId nicht in Datenbank gefunden oder inaktiv.");
+        return;
+    }
+
+    $phone = ($telType === 'tel1')
+        ? ($client['tel1'] ?? '')
+        : ($client['tel2'] ?? '');
+
+    if (empty($phone)) {
+        error_log("VAPI ERROR: Keine Telefonnummer ($telType) für Client ID $clientId vorhanden.");
+        if ($telType === 'tel1') {
+            escalateCall($db, $clientId, $cycle, 'tel1', $callType);
+        }
+        return;
+    }
+
+    $phone = preg_replace('/[^0-9+]/', '', $phone);
+    if (strpos($phone, '0') === 0) {
+        $phone = '+49' . substr($phone, 1);
+    }
+
+    $titlePrefix = !empty($client['title']) ? trim($client['title']) . ' ' : '';
+    $fullName = trim(($client['firstname'] ?? '') . ' ' . ($client['lastname'] ?? ''));
+
+    $currentMedication = '';
+    switch ($callType) {
+        case 'call_2':
+            $currentMedication = trim($client['medication_2'] ?? '');
+            break;
+        case 'call_3':
+            $currentMedication = trim($client['medication_3'] ?? '');
+            break;
+        case 'call_1':
+        default:
+            $currentMedication = trim($client['medication_1'] ?? '');
+            break;
+    }
+
+    $hasMedication = !empty($currentMedication);
+    $medicationBlock = $hasMedication
+        ? "MEDIKATION:\nHinterlegt: \"$currentMedication\". Frage danach nach dem Wohlbefinden und rufe confirmMedication auf."
+        : "MEDIKATION:\nKeine. Wenn alles gut ist, rufe confirmWellbeing auf.";
+
+    $systemPrompt = <<<PROMPT
+Du bist die telefonische Assistenz der Seniorenbetreuung von Dschuliana Kär.
+Sprich extrem kurz, empathisch und professionell.
+
+ABSOLUTE GESETZE:
+1. SIEZEN: Verwende immer "Sie" und "Ihnen".
+2. KEINE FÜLLWÖRTER: Sage NIEMALS "Warte mal kurz", "Moment mal" oder Ähnliches.
+3. KEIN NOTRUF: Du bist kein Notruf (112). Es geht nur um die privaten Notfallkontakte.
+4. BEI BESCHWERDEN (Kopfschmerzen, Schmerzen, Schwindel, Unwohlsein, "geht mir nicht gut"):
+   - Sage NIEMALS "Das ist schön zu hören" oder Ähnliches!
+   - Rufe SOFORT das Tool `reportIncident` auf! Keine Widerrede, keine eigene Textantwort vorher. Das Tool steuert, was du sagst.
+5. NACH DER RÜCKFRAGE ("Möchten Sie, dass ich Ihre Notfallkontakte informiere?"):
+   - Warte auf die Antwort des Klienten (Ja/Nein) und rufe SOFORT `confirmNotifyContacts` auf.
+6. AUFLEGEN: Sage "Auf Wiederhören" und rufe sofort das Tool `endCall` auf.
+
+GESPRÄCHSSCHRITTE:
+- Wenn Beschwerden genannt werden -> `reportIncident` aufrufen.
+- Wenn keine Beschwerden ("Mir geht es gut") -> $medicationBlock
+PROMPT;
+
+    $silentToolMessages = [
+        ['type' => 'request-start', 'content' => ''],
+        ['type' => 'request-response-delayed', 'content' => '']
+    ];
+
+    $payload = [
+        'assistantId' => VAPI_ASSISTANT_ID,
+        'phoneNumberId' => VAPI_PHONE_ID,
+
+        'assistantOverrides' => [
+            'firstMessage' =>
+            "Guten Tag " . $titlePrefix . $fullName
+                . ", hier ist die Assistenz von Dschuliana Kär. Ich wollte kurz fragen, ob bei Ihnen alles in Ordnung ist?",
+
+            'voice' => [
+                'provider' => 'google',
+                'voiceId' => 'de-DE-Chirp3-HD-Aoede',
+                'speed' => 1.05
+            ],
+            'transcriber' => [
+                'provider' => 'deepgram',
+                'model' => 'nova-2',
+                'language' => 'de',
+                'endpointing' => 150
+            ],
+            'startSpeakingPlan' => [
+                'waitSeconds' => 0.1,
+                'smartEndpointingEnabled' => true
+            ],
+            'responseDelaySeconds' => 0.1,
+            'backchannelingEnabled' => false,
+            'endCallPhrases' => ["Auf Wiederhören!", "Auf Wiederhören."],
+            'endCallFunctionEnabled' => true,
+
+            'model' => [
+                'provider' => 'azure-openai',
+                'model' => 'gpt-5.4-mini',
+                'temperature' => 0.0,
+                'maxTokens' => 150,
+
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => $systemPrompt
+                    ]
+                ],
+
+                'tools' => [
+                    ['type' => 'endCall'],
+                    [
+                        'type' => 'function',
+                        'messages' => $silentToolMessages,
+                        'function' => [
+                            'name' => 'reportIncident',
+                            'description' => 'SOFORT aufrufen bei Kopfschmerzen, Schmerzen, Schwindel oder Unwohlsein.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'reason' => [
+                                        'type' => 'string',
+                                        'description' => 'Die genaue Beschwerde.'
+                                    ],
+                                    'severity' => [
+                                        'type' => 'string',
+                                        'enum' => ['mild', 'severe'],
+                                        'description' => '"severe" bei schweren Notfällen, "mild" bei Kopfschmerzen/Unwohlsein.'
+                                    ]
+                                ],
+                                'required' => ['reason', 'severity']
+                            ]
+                        ],
+                        'async' => false
+                    ],
+                    [
+                        'type' => 'function',
+                        'messages' => $silentToolMessages,
+                        'function' => [
+                            'name' => 'confirmNotifyContacts',
+                            'description' => 'Aufrufen nach der Antwort des Klienten zur Notfallkontakt-Frage.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'notify' => [
+                                        'type' => 'boolean',
+                                        'description' => 'true bei Ja, false bei Nein.'
+                                    ],
+                                    'reason' => [
+                                        'type' => 'string',
+                                        'description' => 'Die Beschwerde.'
+                                    ]
+                                ],
+                                'required' => ['notify', 'reason']
+                            ]
+                        ],
+                        'async' => false
+                    ],
+                    [
+                        'type' => 'function',
+                        'messages' => $silentToolMessages,
+                        'function' => [
+                            'name' => 'confirmMedication',
+                            'description' => 'Dokumentiert die Medikation.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'response' => ['type' => 'string'],
+                                    'wellbeing_confirmed' => ['type' => 'boolean']
+                                ],
+                                'required' => ['response', 'wellbeing_confirmed']
+                            ]
+                        ],
+                        'async' => false
+                    ],
+                    [
+                        'type' => 'function',
+                        'messages' => $silentToolMessages,
+                        'function' => [
+                            'name' => 'confirmWellbeing',
+                            'description' => 'Bestätigt das Wohlbefinden ohne Medikation.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => new stdClass()
+                            ]
+                        ],
+                        'async' => false
+                    ]
+                ]
+            ],
+
+            'variableValues' => [
+                'clientId' => (string)$clientId,
+                'cycle' => (string)$cycle,
+                'telType' => $telType,
+                'callType' => $callType
+            ]
+        ],
+
+        'customer' => ['number' => $phone],
+        'metadata' => [
+            'clientId' => (string)$clientId,
+            'cycle' => (string)$cycle,
+            'telType' => $telType,
+            'callType' => $callType
+        ]
+    ];
+
+    $ch = curl_init('https://api.vapi.ai/call/phone');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . VAPI_PRIVATE_KEY,
+        'Content-Type: application/json'
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($httpCode === 201) {
+        $updateStmt = $db->prepare("
+            UPDATE call_status
+            SET last_tel_used = ?,
+                attempt_cycle = ?,
+                status = 'calling'
+            WHERE client_id = ?
+              AND call_type = ?
+              AND status = 'calling'
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+        $updateStmt->execute([$telType, $cycle, $clientId, $callType]);
+    } else {
+        $maskedPhone = substr($phone, 0, 5) . '******' . substr($phone, -2);
+        error_log("VAPI CRITICAL ERROR [Client ID: $clientId | Tel: $maskedPhone]: HTTP $httpCode | cURL Err: $curlError | Response: $response");
+        escalateCall($db, $clientId, $cycle, $telType, $callType);
+    }
+}
+
+
+// ==================================================
+// NOTFALL PROTOKOLLIEREN
+// ==================================================
+
+function logClientIncident(
+    PDO $db,
+    int $clientId,
+    string $reason
+): void {
+    $stmt = $db->prepare("
+        INSERT INTO client_incidents (
+            client_id,
+            reason,
+            created_at
+        )
+        VALUES (?, ?, NOW())
+    ");
+
+    $stmt->execute([
+        $clientId,
+        $reason
+    ]);
+}
+
+
+// ==================================================
+// VAPI ABSCHLUSS-WEBHOOK
+// ==================================================
+
+function handleVapiWebhook($db, $data)
+{
+    $message = $data['message'] ?? [];
+
+    $endedReason = $message['endedReason']
+        ?? $message['call']['endedReason']
+        ?? '';
+
+    $summary = $message['analysis']['summary'] ?? '';
+    $transcript = $message['transcript'] ?? '';
+
+    if (!is_string($transcript)) {
+        $transcript = '';
+    }
+
+    $metadata = $message['call']['metadata']
+        ?? $message['metadata']
+        ?? $data['metadata']
+        ?? [];
+
+    $metadata = array_merge(
+        $message['call']['assistantOverrides']['variableValues'] ?? [],
+        $metadata
+    );
+
+    $clientId = isset($metadata['clientId']) ? (int)$metadata['clientId'] : null;
+    $cycle = isset($metadata['cycle']) ? (int)$metadata['cycle'] : 1;
+    $telType = $metadata['telType'] ?? 'tel1';
+    $callType = $metadata['callType'] ?? 'call_1';
+
+    if (!$clientId) {
+        error_log("VAPI WEBHOOK ERROR: Konnte Client ID nicht auslesen!");
+        return;
+    }
+
+    $stmt = $db->prepare("
+        SELECT
+            id,
+            status,
+            attempt_cycle,
+            last_tel_used,
+            call_type
+        FROM call_status
+        WHERE client_id = ?
+          AND call_type = ?
+          AND attempt_cycle = ?
+          AND last_tel_used = ?
+          AND status = 'calling'
+        ORDER BY id DESC
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        $clientId,
+        $callType,
+        $cycle,
+        $telType
+    ]);
+
+    $state = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (
+        !$state
+        || $state['status'] !== 'calling'
+        || (int)$state['attempt_cycle'] !== $cycle
+        || $state['last_tel_used'] !== $telType
+        || $state['call_type'] !== $callType
+    ) {
+        error_log(
+            "VAPI WEBHOOK IGNORIERT: Client $clientId, Zyklus $cycle, $telType, Status/Versuch nicht mehr aktuell."
+        );
+        return;
+    }
+
+    $failedReasons = [
+        'customer-did-not-answer',
+        'voicemail',
+        'phone-call-provider-closed-call',
+        'pipeline-error-twilio-execution-failed'
+    ];
+
+    $isVoicemail = false;
+    $voicemailKeywords = [
+        'voicemail',
+        'anrufbeantworter',
+        'sprachbox',
+        'piepton'
+    ];
+
+    $isUnreachableAnnouncement = (bool)preg_match(
+        '/(?:^|[\s.!?])die angerufene person ist nicht erreichbar[.!?]?/iu',
+        $transcript
+    );
+
+    $conversationMessages = $message['artifact']['messages']
+        ?? $message['messages']
+        ?? [];
+
+    if (!$isUnreachableAnnouncement && is_array($conversationMessages)) {
+        foreach ($conversationMessages as $entry) {
+            if (!is_array($entry) || ($entry['role'] ?? '') !== 'user') {
                 continue;
             }
-            return ['status_type' => 'mild_incident', 'reason' => $userInput, 'behavior_log' => 'Lokale Erkennung möglicher Beschwerden.', 'medication_already_done' => false, 'medication_status' => 'Prüfung ausstehend'];
+
+            $spoken = trim((string)($entry['message'] ?? $entry['content'] ?? ''));
+
+            if (preg_match('/^die angerufene person ist nicht erreichbar[.!?]?$/iu', $spoken)) {
+                $isUnreachableAnnouncement = true;
+                break;
+            }
         }
     }
-    $positiveLocal = ['mir geht es gut', 'es geht mir gut', 'alles in ordnung', 'alles okay', 'alles ok', 'gut, danke', 'gut danke', 'prima', 'wunderbar', 'keine beschwerden'];
-    foreach ($positiveLocal as $phrase) {
-        if ($text === $phrase) {
-            return ['status_type' => 'ok', 'reason' => 'Wohlbefinden ausdrücklich positiv bestätigt.', 'behavior_log' => 'Klare positive Rückmeldung.', 'medication_already_done' => false, 'medication_status' => 'Prüfung ausstehend'];
+
+    foreach ($voicemailKeywords as $keyword) {
+        if (
+            stripos($summary, $keyword) !== false
+            || stripos($transcript, $keyword) !== false
+        ) {
+            $isVoicemail = true;
+            break;
         }
     }
-    $apiKey = $_ENV['API_KEY_OPENAI'] ?? getenv('API_KEY_OPENAI') ?: '';
-    if (empty($apiKey)) {
-        return [
-            'status_type' => 'unclear',
-            'reason' => 'OpenAI API-Konfiguration fehlt.',
-            'behavior_log' => 'Keine KI-Auswertung möglich.',
-            'medication_already_done' => false,
-            'medication_status' => 'Prüfung ausstehend'
-        ];
+
+    if (
+        in_array($endedReason, $failedReasons, true)
+        || $isVoicemail
+        || $isUnreachableAnnouncement
+    ) {
+        error_log(
+            "VAPI INFO: Anruf nicht erreicht ($endedReason). Eskalation für Client ID $clientId ($telType, Cycle $cycle)..."
+        );
+
+        escalateCall($db, $clientId, $cycle, $telType, $callType);
+        return;
     }
 
-    $url = 'https://api.openai.com/v1/chat/completions';
-    $mildList = implode(', ', $mildBuzzwords);
-    $severeList = implode(', ', $severeBuzzwords);
+    error_log(
+        "VAPI UNKLARES GESPRÄCHSERGEBNIS: Client $clientId, endedReason=$endedReason. Keine automatische Nichterreichbarkeitseskalation."
+    );
 
-    $systemPrompt = "Du bist das Analysemodul eines telefonischen Care-Systems. Analysiere ausschließlich die tatsächliche Aussage des Klienten und ordne sie vorsichtig ein. Werte: ok, mild_incident, severe_incident, unclear. WICHTIG: status_type=ok darf nur vergeben werden, wenn die Person eindeutig und ohne Einschränkung sagt, dass es ihr gut geht und keine Beschwerden bestehen. Aussagen wie „nicht gut“, „geht so“, „schlecht“, „ich habe Schmerzen“, „mir ist schwindelig“, „ich bin müde“, Beschwerden, Sorgen, negative oder ambivalente Aussagen dürfen niemals als ok eingestuft werden; ordne sie mild_incident oder severe_incident (bei Warnzeichen) zu. Bei Mehrdeutigkeit unclear. Antworte ausschließlich im JSON-Format mit status_type, reason, behavior_log, medication_already_done, medication_status. Wenn du den Notruf erwähnst, schreibe die Nummer als „eins-eins-zwei“ statt als Ziffern.";
+    $stmt = $db->prepare("
+        UPDATE call_status
+        SET status = 'review_required',
+            summary = ?
+        WHERE id = ?
+          AND status = 'calling'
+    ");
 
-    $data = [
-        'model' => 'gpt-5.4-mini',
-        'messages' => [
-            ['role' => 'system', 'content' => $systemPrompt],
-            ['role' => 'user', 'content' => $userInput]
-        ],
-        'response_format' => ['type' => 'json_object']
+    $stmt->execute([
+        "Gesprächsausgang unklar: " . $summary,
+        $state['id']
+    ]);
+}
+
+
+// ==================================================
+// ESKALATION: TEL1 -> TEL2
+// ==================================================
+
+function escalateCall(
+    $db,
+    $clientId,
+    $cycle,
+    $telType,
+    $callType = 'call_1'
+) {
+    error_log(
+        "ESKALATION AUFGERUFEN: Client=$clientId | Cycle=$cycle | TelType=$telType | CallType=$callType"
+    );
+
+    $stmt = $db->prepare("
+        SELECT
+            id,
+            status,
+            attempt_cycle,
+            last_tel_used,
+            call_type
+        FROM call_status
+        WHERE client_id = ?
+          AND call_type = ?
+          AND attempt_cycle = ?
+          AND last_tel_used = ?
+          AND status = 'calling'
+        ORDER BY id DESC
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        $clientId,
+        $callType,
+        $cycle,
+        $telType
+    ]);
+
+    $state = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (
+        !$state
+        || $state['status'] !== 'calling'
+        || (int)$state['attempt_cycle'] !== (int)$cycle
+        || $state['last_tel_used'] !== $telType
+        || $state['call_type'] !== $callType
+    ) {
+        error_log("ESKALATION ABGEBROCHEN: Vorgang nicht mehr aktuell für Client $clientId.");
+        return;
+    }
+
+    $stmt = $db->prepare("
+        SELECT
+            title,
+            firstname,
+            lastname,
+            tel1,
+            tel2
+        FROM clients
+        WHERE id = ?
+    ");
+
+    $stmt->execute([$clientId]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$client) {
+        return;
+    }
+
+    if ($telType === 'tel1') {
+        if (!empty($client['tel2'])) {
+            $lockStmt = $db->prepare("
+                UPDATE call_status
+                SET last_tel_used = 'tel2'
+                WHERE id = ?
+                  AND status = 'calling'
+                  AND attempt_cycle = ?
+                  AND last_tel_used = 'tel1'
+                  AND call_type = ?
+            ");
+
+            $lockStmt->execute([
+                $state['id'],
+                $cycle,
+                $callType
+            ]);
+
+            if ($lockStmt->rowCount() === 1) {
+                error_log("ESKALATION: Wechsel von tel1 zu tel2 für Client ID $clientId (Cycle $cycle)");
+                executeCall($db, $clientId, 'tel2', $cycle, $callType);
+            }
+        } else {
+            handleFailedCycle($db, $clientId, $cycle, $callType);
+        }
+    } elseif ($telType === 'tel2') {
+        handleFailedCycle($db, $clientId, $cycle, $callType);
+    }
+}
+
+
+// ==================================================
+// ZYKLUS FEHLGESCHLAGEN
+// ==================================================
+
+function handleFailedCycle(
+    $db,
+    $clientId,
+    $cycle,
+    $callType
+) {
+    if ((int)$cycle === 1) {
+        $stmt = $db->prepare("
+            UPDATE call_status
+            SET status = 'retry_scheduled',
+                attempt_cycle = 2,
+                scheduled_time = DATE_ADD(NOW(), INTERVAL 15 MINUTE)
+            WHERE client_id = ?
+              AND status = 'calling'
+              AND attempt_cycle = 1
+              AND call_type = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+
+        $stmt->execute([$clientId, $callType]);
+
+        if ($stmt->rowCount() === 1) {
+            error_log("RETRY SCHEDULED: Klient ID $clientId für Retry (Versuch 2 in 15 Min) vorgemerkt.");
+        }
+    } else {
+        $stmt = $db->prepare("
+            UPDATE call_status
+            SET status = 'failed',
+                summary = ?
+            WHERE client_id = ?
+              AND status = 'calling'
+              AND attempt_cycle = 2
+              AND call_type = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            'Niemand erreicht nach 2 Zyklen (tel1 & tel2).',
+            $clientId,
+            $callType
+        ]);
+
+        if ($stmt->rowCount() === 1) {
+            notifyEmergencyContacts($db, $clientId, null);
+            error_log("CALL FAILED: Klient ID $clientId nach 2 Zyklen endgültig nicht erreicht. Notfallkontakte EINMALIG benachrichtigt.");
+        }
+    }
+}
+
+
+// ==================================================
+// NOTFALLKONTAKTE BENACHRICHTIGEN
+// ==================================================
+
+function notifyEmergencyContacts(
+    PDO $db,
+    int $clientId,
+    ?string $customReason = null
+): void {
+    if ($clientId <= 0) {
+        return;
+    }
+
+    $stmt = $db->prepare("
+        SELECT
+            lastname,
+            firstname,
+            title,
+            sms_status
+        FROM clients
+        WHERE id = ?
+    ");
+
+    $stmt->execute([$clientId]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$client) {
+        return;
+    }
+
+    $clientName = trim(
+        ($client['title'] ?? '') . ' ' . $client['firstname'] . ' ' . $client['lastname']
+    );
+
+    $smsEnabled = !empty($client['sms_status']);
+
+    $stmtContacts = $db->prepare("
+        SELECT
+            lastname,
+            firstname,
+            email,
+            tel1
+        FROM contacts
+        WHERE client_id = ?
+    ");
+
+    $stmtContacts->execute([$clientId]);
+    $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($contacts)) {
+        return;
+    }
+
+    $subject = "NOTFALL-ALARM: $clientName benötigt Hilfe!";
+
+    $messageText = $customReason
+        ? "giulianaCARE Warnung: $clientName hat im Telefonat angegeben, dass es ihm/ihr nicht gut geht.\n\nSymptome/Grund: $customReason\n\nBitte werden Sie umgehend aktiv!"
+        : "giulianaCARE Warnung: $clientName konnte nach automatischen Anrufversuchen nicht erreicht werden. Bitte werden Sie umgehend aktiv!";
+
+    foreach ($contacts as $contact) {
+        if (!empty($contact['email'])) {
+            $headers = [
+                'From' => 'info@giuliana-care.de',
+                'Reply-To' => 'info@giuliana-care.de',
+                'Content-Type' => 'text/plain; charset=UTF-8',
+                'X-Mailer' => 'PHP/' . phpversion()
+            ];
+
+            mail($contact['email'], $subject, $messageText, $headers);
+        }
+
+        if ($smsEnabled && !empty($contact['tel1'])) {
+            sendSmsNotification($contact['tel1'], $messageText);
+        }
+    }
+}
+
+
+// ==================================================
+// SMS BENACHRICHTIGUNG
+// ==================================================
+
+function sendSmsNotification(
+    string $phoneNumber,
+    string $message
+): void {
+    if (
+        !defined('TWILIO_ACCOUNT_SID')
+        || !defined('TWILIO_AUTH_TOKEN')
+        || !defined('TWILIO_PHONE_NUMBER')
+    ) {
+        return;
+    }
+
+    $url = "https://api.twilio.com/2010-04-01/Accounts/" . TWILIO_ACCOUNT_SID . "/Messages.json";
+
+    $postData = [
+        'From' => TWILIO_PHONE_NUMBER,
+        'To' => $phoneNumber,
+        'Body' => $message
     ];
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $apiKey,
-        'Content-Type: application/json'
-    ]);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+    curl_setopt($ch, CURLOPT_USERPWD, TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN);
+    curl_exec($ch);
     curl_close($ch);
-
-    if ($response === false || $httpCode < 200 || $httpCode >= 300) {
-        return [
-            'status_type' => 'unclear',
-            'reason' => 'Die Aussage konnte technisch nicht ausgewertet werden.',
-            'behavior_log' => 'OpenAI API-Fehler.',
-            'medication_already_done' => false,
-            'medication_status' => 'Prüfung ausstehend'
-        ];
-    }
-
-    $result = json_decode($response, true);
-    $content = $result['choices'][0]['message']['content'] ?? '';
-    $analysis = json_decode($content, true);
-
-    $allowedStatusTypes = ['ok', 'mild_incident', 'severe_incident', 'unclear'];
-    if (!is_array($analysis) || !isset($analysis['status_type']) || !in_array($analysis['status_type'], $allowedStatusTypes, true)) {
-        return [
-            'status_type' => 'unclear',
-            'reason' => 'Die Aussage konnte nicht sicher ausgewertet werden.',
-            'behavior_log' => 'KI-Auswertung fehlgeschlagen.',
-            'medication_already_done' => false,
-            'medication_status' => 'Prüfung ausstehend'
-        ];
-    }
-
-    $analysis['reason'] = $analysis['reason'] ?? '';
-    $analysis['behavior_log'] = $analysis['behavior_log'] ?? 'Normale Sprachweise.';
-    $analysis['medication_already_done'] = filter_var($analysis['medication_already_done'] ?? false, FILTER_VALIDATE_BOOLEAN);
-    $analysis['medication_status'] = $analysis['medication_status'] ?? 'Prüfung ausstehend';
-
-    return $analysis;
 }
 
-/**
- * Aktualisiert den Aktivitätszeitpunkt nur für den aktuell aktiven Anruf.
- * Verspätete Callbacks von tel1 dürfen einen bereits gestarteten tel2-Anruf
- * nicht künstlich am Leben halten.
- */
-function touchCallStatus(PDO $db, int $clientId, string $callType, string $telType, int $cycle): void
-{
+
+// ==================================================
+// ANRUFSTATUS INITIALISIEREN
+// ==================================================
+
+function initializeCallStatus(
+    $db,
+    $clientId,
+    $callType = 'call_1'
+) {
+    $column = [
+        'call_1' => 'medication_1',
+        'call_2' => 'medication_2',
+        'call_3' => 'medication_3'
+    ][$callType] ?? 'medication_1';
+
     $stmt = $db->prepare("
-        UPDATE call_status
-        SET updated_at = CURRENT_TIMESTAMP
-        WHERE client_id = ?
-          AND call_type = ?
-          AND status = 'calling'
-          AND attempt_cycle = ?
-          AND last_tel_used = ?
-    ");
-    $stmt->execute([$clientId, $callType, $cycle, $telType]);
-}
-
-/**
- * Eskalation bei fehlgeschlagenem Anruf:
- * Zyklus 1: tel1 -> tel2 -> Retry in 15 Minuten.
- * Zyklus 2: tel1 -> tel2 -> Notfallkontakte benachrichtigen.
- * Der Status-Guard verhindert doppelte Verarbeitung von AMD- und Statuscallback.
- */
-function handleCallFailure(PDO $db, int $clientId, string $callType, string $telType, int $cycle, string $reason): void
-{
-    $client = getClientData($db, $clientId);
-    if (!$client) {
-        error_log("Call escalation: Client {$clientId} nicht gefunden.");
-        return;
-    }
-
-    if ($telType === 'tel1' && !empty($client['tel2'])) {
-        $lock = $db->prepare("
-            UPDATE call_status
-            SET last_tel_used = 'tel2'
-            WHERE client_id = ? AND call_type = ?
-              AND status = 'calling' AND attempt_cycle = ?
-              AND last_tel_used = 'tel1'
-        ");
-        $lock->execute([$clientId, $callType, $cycle]);
-
-        if ($lock->rowCount() > 0) {
-            if (!executeTwilioCall($db, $clientId, 'tel2', $cycle, $callType)) {
-                handleCallFailure($db, $clientId, $callType, 'tel2', $cycle, 'Anruf auf tel2 konnte nicht gestartet werden.');
-            }
-        }
-        return;
-    }
-
-    // Kein zweites Telefon vorhanden oder tel2 ebenfalls fehlgeschlagen.
-    if ($cycle <= 1) {
-        $schedule = $db->prepare("
-            UPDATE call_status
-            SET status = 'retry_scheduled',
-                attempt_cycle = 2,
-                last_tel_used = 'tel2',
-                scheduled_time = ?,
-                summary = ?
-            WHERE client_id = ? AND call_type = ?
-              AND status = 'calling' AND attempt_cycle = ?
-        ");
-        $schedule->execute([
-            date('Y-m-d H:i:s', time() + 15 * 60),
-            "Zyklus 1 fehlgeschlagen ({$reason}); Retry-Zyklus 2 in 15 Minuten geplant.",
-            $clientId,
-            $callType,
-            $cycle
-        ]);
-
-        if ($schedule->rowCount() > 0) {
-            error_log("Retry für Client {$clientId}, {$callType}, in 15 Minuten geplant.");
-        }
-        return;
-    }
-
-    // Zyklus 2 ist endgültig fehlgeschlagen: Status sichern und Kontakte informieren.
-    $finish = $db->prepare("
-        UPDATE call_status
-        SET status = 'failed',
-            scheduled_time = NULL,
-            summary = ?
-        WHERE client_id = ? AND call_type = ?
-          AND status = 'calling' AND attempt_cycle = ?
-    ");
-    $finish->execute([
-        "Beide Anrufzyklen fehlgeschlagen. Notfallkontakte werden informiert. Ursache: {$reason}",
-        $clientId,
-        $callType,
-        $cycle
-    ]);
-
-    if ($finish->rowCount() > 0) {
-        $clientName = trim(
-            ($client['title'] ?? '') . ' ' .
-                ($client['firstname'] ?? '') . ' ' .
-                ($client['lastname'] ?? '')
-        );
-
-        $incidentReason = "{$clientName} wurde nach allen Anrufversuchen nicht erreicht. " .
-            "Bitte erkundige dich nach dem Befinden. " .
-            "Alle angegebenen Notfallkontakte wurden informiert.";
-
-        // Endgültigen Nichterreichbarkeits-Vorfall in client_incidents protokollieren.
-        logClientIncident($db, $clientId, $incidentReason);
-
-        notifyEmergencyContacts($db, $clientId, $incidentReason);
-        error_log("Endgültiger Nichterreichbarkeits-Vorfall für Client {$clientId} protokolliert; Notfallkontakte informiert.");
-    }
-}
-
-function executeTwilioCall($db, $clientId, $telType, $cycle, $callType)
-{
-    $client = getClientData($db, $clientId);
-    if (!$client) {
-        return false;
-    }
-
-    $phone = ($telType === 'tel1') ? trim($client['tel1'] ?? '') : trim($client['tel2'] ?? '');
-    if ($phone === '') {
-        if ($telType === 'tel1' && !empty($client['tel2'])) {
-            $stmt = $db->prepare("UPDATE call_status SET last_tel_used = 'tel2' WHERE client_id = ? AND call_type = ? AND status = 'calling' AND attempt_cycle = ?");
-            $stmt->execute([$clientId, $callType, $cycle]);
-            return executeTwilioCall($db, $clientId, 'tel2', $cycle, $callType);
-        }
-        if ($telType === 'tel2') {
-            handleCallFailure($db, (int)$clientId, (string)$callType, 'tel2', (int)$cycle, 'Telefonnummer tel2 fehlt.');
-        }
-        return false;
-    }
-
-    if (!defined('TWILIO_ACCOUNT_SID') || !defined('TWILIO_AUTH_TOKEN') || !defined('TWILIO_PHONE_NUMBER')) {
-        return false;
-    }
-
-    $baseUrl = 'https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']);
-    $webhookUrl = $baseUrl . '/call_manager.php?' . http_build_query([
-        'step' => 'welcome',
-        'clientId' => $clientId,
-        'callType' => $callType,
-        'telType' => $telType,
-        'cycle' => $cycle
-    ]);
-    $statusCallbackUrl = $baseUrl . '/call_manager.php?' . http_build_query([
-        'step' => 'call_status',
-        'clientId' => $clientId,
-        'callType' => $callType,
-        'telType' => $telType,
-        'cycle' => $cycle
-    ]);
-    $amdCallbackUrl = $baseUrl . '/call_manager.php?' . http_build_query([
-        'step' => 'amd_callback',
-        'clientId' => $clientId,
-        'callType' => $callType,
-        'telType' => $telType,
-        'cycle' => $cycle
-    ]);
-
-    $url = 'https://api.twilio.com/2010-04-01/Accounts/' . TWILIO_ACCOUNT_SID . '/Calls.json';
-
-    // ANRUFBEANTWORTER ERKENNUNG (AMD) FÜR REGULÄRE ANRUFE
-    $postData = [
-        'From' => TWILIO_PHONE_NUMBER,
-        'To' => $phone,
-        'Url' => $webhookUrl,
-        'Method' => 'POST',
-        'StatusCallback' => $statusCallbackUrl,
-        'StatusCallbackMethod' => 'POST',
-        'StatusCallbackEvent' => 'initiated ringing answered completed',
-        'MachineDetection' => 'DetectMessageEnd',
-        'AsyncAmd' => 'true',
-        'AsyncAmdStatusCallback' => $amdCallbackUrl,
-        'AsyncAmdStatusCallbackMethod' => 'POST',
-        'Timeout' => 50
-    ];
-
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => http_build_query($postData),
-        CURLOPT_USERPWD => TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2
-    ]);
-    $response = curl_exec($ch);
-    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
-
-    $twilioResult = json_decode((string)$response, true);
-    $twilioSid = $twilioResult['sid'] ?? null;
-
-    if ($response === false || $httpCode < 200 || $httpCode >= 300 || empty($twilioSid)) {
-        error_log("Twilio-Anruf konnte nicht erstellt werden. Client {$clientId}, {$callType}, {$telType}, Zyklus {$cycle}. HTTP {$httpCode}; cURL: {$curlError}; Antwort: " . substr((string)$response, 0, 1200));
-        return false;
-    }
-
-    error_log("Twilio-Anruf erstellt. Client {$clientId}, {$callType}, {$telType}, Zyklus {$cycle}, CallSid {$twilioSid}.");
-
-    return true;
-}
-
-function getClientData($db, $clientId)
-{
-    $stmt = $db->prepare("SELECT * FROM clients WHERE id = ?");
-    $stmt->execute([$clientId]);
-    return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-}
-
-function getClientMedication($client, $callType)
-{
-    if ($callType === 'call_2') {
-        return trim($client['medication_2'] ?? '');
-    }
-    if ($callType === 'call_3') {
-        return trim($client['medication_3'] ?? '');
-    }
-    return trim($client['medication_1'] ?? '');
-}
-
-function initializeCallStatus($db, $clientId, $callType)
-{
-    $stmt = $db->prepare("
-        INSERT INTO call_status
-        (client_id, attempt_cycle, last_tel_used, call_type, status, scheduled_time, medication_required, medication_checked)
-        VALUES (?, 1, 'tel1', ?, 'calling', NOW(), 1, 0)
-        ON DUPLICATE KEY UPDATE status = 'calling', attempt_cycle = 1
-    ");
-    $stmt->execute([$clientId, $callType]);
-}
-
-function markCallCompleted($db, $clientId, $callType, $summary)
-{
-    $stmt = $db->prepare("
-        UPDATE call_status
-        SET status = 'completed', summary = ?
-        WHERE client_id = ? AND call_type = ? AND status = 'calling'
-    ");
-    $stmt->execute([$summary, $clientId, $callType]);
-}
-
-function logClientIncident($db, $clientId, $reason)
-{
-    $stmt = $db->prepare("
-        INSERT INTO client_incidents (client_id, reason, created_at)
-        VALUES (?, ?, NOW())
-    ");
-    $stmt->execute([$clientId, $reason]);
-}
-
-function updateCallStatusSummary($db, $clientId, $callType, $summary)
-{
-    $stmt = $db->prepare("
-        UPDATE call_status
-        SET status = 'incident_reported', summary = ?
-        WHERE client_id = ? AND call_type = ?
-    ");
-    $stmt->execute([$summary, $clientId, $callType]);
-}
-
-
-function notifyEmergencyContacts(PDO $db, int $clientId, string $reason): void
-{
-    if ($clientId <= 0) {
-        error_log("NOTIFY ERROR: Ungültige Client-ID: {$clientId}");
-        return;
-    }
-
-    // Kundendaten einschließlich SMS-Freigabe laden.
-    $stmt = $db->prepare("
-        SELECT firstname, lastname, title, sms_status
+        SELECT $column
         FROM clients
         WHERE id = ?
     ");
+
     $stmt->execute([$clientId]);
-    $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$client) {
-        error_log("NOTIFY ERROR: Client {$clientId} nicht gefunden.");
-        return;
-    }
+    $medicationRequired = trim((string)$stmt->fetchColumn()) !== '' ? 1 : 0;
 
-    $clientName = trim(
-        ($client['title'] ?? '') . ' ' .
-            ($client['firstname'] ?? '') . ' ' .
-            ($client['lastname'] ?? '')
-    );
-
-    // SMS nur versenden, wenn beim Kunden aktiviert.
-    $smsEnabled = !empty($client['sms_status']);
-
-    // Notfallkontakte laden.
-    $stmtContacts = $db->prepare("
-        SELECT firstname, lastname, email, tel1
-        FROM contacts
-        WHERE client_id = ?
+    $stmt = $db->prepare("
+        INSERT INTO call_status (
+            client_id,
+            attempt_cycle,
+            last_tel_used,
+            call_type,
+            status,
+            scheduled_time,
+            medication_required,
+            medication_checked,
+            medication_response
+        )
+        VALUES (
+            ?,
+            1,
+            'tel1',
+            ?,
+            'calling',
+            NOW(),
+            ?,
+            0,
+            NULL
+        )
+        ON DUPLICATE KEY UPDATE
+            status = 'calling',
+            attempt_cycle = 1,
+            last_tel_used = 'tel1',
+            call_type = ?,
+            scheduled_time = NOW(),
+            medication_required = ?,
+            medication_checked = 0,
+            medication_response = NULL
     ");
-    $stmtContacts->execute([$clientId]);
-    $contacts = $stmtContacts->fetchAll(PDO::FETCH_ASSOC);
 
-    if (empty($contacts)) {
-        error_log("NOTIFY ERROR: Keine Notfallkontakte für Client {$clientId} gefunden.");
-        return;
-    }
-
-    $subject = "NOTFALL-ALARM: {$clientName} benötigt Hilfe!";
-
-    $messageText =
-        "giulianaCARE ALARM\n\n" .
-        "Betroffene Person: {$clientName}\n\n" .
-        "Grund: {$reason}\n\n" .
-        "Bitte nimm umgehend Kontakt auf und überprüfe, ob Hilfe benötigt wird.";
-
-    error_log(
-        "NOTIFY: Client {$clientId}: " . count($contacts) .
-            " Notfallkontakt(e). SMS-Status: " .
-            ($smsEnabled ? 'AKTIV' : 'INAKTIV')
-    );
-
-    foreach ($contacts as $contact) {
-
-        $contactName = trim(
-            ($contact['firstname'] ?? '') . ' ' .
-                ($contact['lastname'] ?? '')
-        );
-
-        // =====================================
-        // 1. E-MAIL VERSENDEN
-        // =====================================
-        if (!empty($contact['email'])) {
-
-            $headers =
-                "From: giulianaCARE <info@giuliana-care.de>\r\n" .
-                "Reply-To: info@giuliana-care.de\r\n" .
-                "MIME-Version: 1.0\r\n" .
-                "Content-Type: text/plain; charset=UTF-8\r\n";
-
-            $mailResult = mail(
-                $contact['email'],
-                $subject,
-                $messageText,
-                $headers
-            );
-
-            error_log(
-                "NOTIFY EMAIL: Kontakt {$contactName} ({$contact['email']}): " .
-                    ($mailResult ? "an Mailserver übergeben" : "VERSAND FEHLGESCHLAGEN")
-            );
-        } else {
-            error_log(
-                "NOTIFY EMAIL: Keine E-Mail-Adresse für {$contactName} hinterlegt."
-            );
-        }
-
-        // =====================================
-        // 2. SMS ÜBER TWILIO VERSENDEN
-        // =====================================
-        $phoneToSms = trim($contact['tel1'] ?? '');
-
-        if ($smsEnabled) {
-
-            if ($phoneToSms !== '') {
-
-                error_log(
-                    "NOTIFY SMS: Starte SMS an {$contactName} ({$phoneToSms})."
-                );
-
-                try {
-                    sendSmsNotification($phoneToSms, $messageText);
-                } catch (Throwable $e) {
-                    error_log(
-                        "NOTIFY SMS ERROR für {$contactName}: " . $e->getMessage()
-                    );
-                }
-            } else {
-                error_log(
-                    "NOTIFY SMS: Keine Telefonnummer tel1 für {$contactName} vorhanden."
-                );
-            }
-        } else {
-            error_log(
-                "NOTIFY SMS: SMS-Versand deaktiviert (sms_status) für Client {$clientId}."
-            );
-        }
-    }
+    $stmt->execute([
+        $clientId,
+        $callType,
+        $medicationRequired,
+        $callType,
+        $medicationRequired
+    ]);
 }
 
 
-/**
- * Versendet eine SMS über die Twilio REST API.
- */
-function sendSmsNotification(string $phoneNumber, string $message): void
+// ==================================================
+// STATUS AKTUALISIEREN
+// ==================================================
+
+function updateCallStatus(
+    $db,
+    $clientId,
+    $status,
+    $summary
+) {
+    $stmt = $db->prepare("
+        UPDATE call_status
+        SET status = ?,
+            summary = ?
+        WHERE client_id = ?
+    ");
+
+    $stmt->execute([
+        $status,
+        $summary,
+        $clientId
+    ]);
+}
+
+
+// ==================================================
+// DIREKTER TESTANRUF
+// ==================================================
+
+function executeDirectTestCall($phone)
 {
-    if (
-        !defined('TWILIO_ACCOUNT_SID') ||
-        !defined('TWILIO_AUTH_TOKEN') ||
-        !defined('TWILIO_PHONE_NUMBER')
-    ) {
-        throw new RuntimeException(
-            "Twilio-Zugangsdaten fehlen in config.php."
-        );
-    }
+    $systemPrompt = "Du bist ein freundlicher Test-Assistent. Sieze den Angerufenen, verabschiede dich höflich mit 'Auf Wiederhören!' und rufe sofort endCall auf.";
 
-    if (!function_exists('curl_init')) {
-        throw new RuntimeException("PHP-cURL ist nicht aktiviert.");
-    }
+    $payload = [
+        'assistantId' => VAPI_ASSISTANT_ID,
+        'phoneNumberId' => VAPI_PHONE_ID,
 
-    $phoneNumber = trim($phoneNumber);
+        'assistantOverrides' => [
+            'firstMessage' => "Guten Tag! Dies ist ein Testanruf.",
+            'voice' => [
+                'provider' => 'google',
+                'voiceId' => 'de-DE-Chirp3-HD-Aoede',
+                'speed' => 1.05
+            ],
+            'transcriber' => [
+                'provider' => 'deepgram',
+                'model' => 'nova-2',
+                'language' => 'de',
+                'endpointing' => 150
+            ],
+            'startSpeakingPlan' => [
+                'waitSeconds' => 0.1,
+                'smartEndpointingEnabled' => true
+            ],
+            'responseDelaySeconds' => 0.1,
+            'backchannelingEnabled' => false,
+            'endCallPhrases' => ["Auf Wiederhören!", "Auf Wiederhören."],
+            'endCallFunctionEnabled' => true,
 
-    if ($phoneNumber === '') {
-        throw new InvalidArgumentException("SMS-Zielnummer ist leer.");
-    }
+            'model' => [
+                'provider' => 'azure-openai',
+                'model' => 'gpt-5.4-mini',
+                'maxTokens' => 150,
 
-    $url = "https://api.twilio.com/2010-04-01/Accounts/" .
-        TWILIO_ACCOUNT_SID . "/Messages.json";
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => $systemPrompt
+                    ]
+                ],
+                'tools' => [
+                    ['type' => 'endCall']
+                ]
+            ]
+        ],
 
-    $postData = [
-        'From' => TWILIO_PHONE_NUMBER,
-        'To'   => $phoneNumber,
-        'Body' => $message
+        'customer' => [
+            'number' => $phone
+        ]
     ];
 
-    $ch = curl_init($url);
-
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => http_build_query($postData),
-        CURLOPT_USERPWD => TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN,
-        CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_TIMEOUT => 20
+    $ch = curl_init('https://api.vapi.ai/call/phone');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . VAPI_PRIVATE_KEY,
+        'Content-Type: application/json'
     ]);
 
-    $response = curl_exec($ch);
-    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-
+    curl_exec($ch);
     curl_close($ch);
-
-    if ($response === false || $httpCode !== 201) {
-        error_log(
-            "TWILIO SMS FEHLER: HTTP {$httpCode}; " .
-                "cURL: {$curlError}; Antwort: " .
-                substr((string)$response, 0, 1000)
-        );
-
-        throw new RuntimeException(
-            "Twilio konnte die SMS nicht annehmen (HTTP {$httpCode})."
-        );
-    }
-
-    $result = json_decode($response, true);
-    $messageSid = $result['sid'] ?? 'unbekannt';
-
-    error_log(
-        "TWILIO SMS ERFOLGREICH ANGENOMMEN: {$phoneNumber}; SID: {$messageSid}"
-    );
 }
