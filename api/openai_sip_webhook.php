@@ -15,9 +15,11 @@ header('Content-Type: application/json; charset=utf-8');
 // ======================================================
 // 1. GEHEIMNISSE – SPÄTER EINTRAGEN
 // ======================================================
+require_once __DIR__ . '/envloader.php';
 
-$OPENAI_API_KEY = 'HIER_DEIN_OPENAI_API_KEY';
-$OPENAI_WEBHOOK_SECRET = 'HIER_DEIN_WEBHOOK_SIGNING_SECRET';
+$OPENAI_API_KEY = $openAiApiKey;
+$OPENAI_WEBHOOK_SECRET = $_ENV['OPENAI_WEBHOOK_SECRET'] ?? '';
+
 
 // ======================================================
 // 2. LOGGING
@@ -92,7 +94,7 @@ if (
 // 5. SIGNATUR PRÜFEN
 // ======================================================
 
-if ($OPENAI_WEBHOOK_SECRET === 'HIER_DEIN_WEBHOOK_SIGNING_SECRET') {
+if ($OPENAI_WEBHOOK_SECRET === '') {
     sipLog('Webhook secret not configured');
 
     respond(500, ['error' => 'Webhook secret not configured']);
@@ -202,7 +204,7 @@ if ($sessionId === '') {
 // 8. OPENAI API KEY PRÜFEN
 // ======================================================
 
-if ($OPENAI_API_KEY === 'HIER_DEIN_OPENAI_API_KEY') {
+if ($OPENAI_API_KEY === '') {
     sipLog('OpenAI API key not configured');
 
     respond(500, ['error' => 'API key not configured']);

@@ -19,6 +19,7 @@ import AdminDashboard from "./routes/components/admin_dashboard";
 import AdminRegistration from "./routes/admin_registration";
 import "./routes/styles/main.scss";
 import { ScrollToTop } from "./routes/toTop";
+import RepairSite from "./routes/wartung";
 
 // ==========================================
 // CAREMATCH KOMPONENTEN
@@ -49,7 +50,8 @@ function App() {
         <ScrollToTop />
         <Routes>
           {/* Bestehende öffentliche Routen */}
-          <Route path="/" element={<TeleCare />} />
+          <Route path="/" element={<RepairSite />} />
+          {/*<Route path="/" element={<TeleCare />} />*/}
           <Route path="/main" element={<Landingpage />} />
           <Route path="/telecare" element={<TeleCare />} />
           <Route path="/registration" element={<Registration />} />
