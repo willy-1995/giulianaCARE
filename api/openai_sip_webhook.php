@@ -2,73 +2,43 @@
 
 declare(strict_types=1);
 
-/*
- * GiulianaCare – OpenAI Live SIP Incoming Webhook
- * Erstmaliger Verbindungstest – ohne VPS
- */
-
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 
 header('Content-Type: application/json; charset=utf-8');
 
-// ======================================================
-// 1. GEHEIMNISSE – SPÄTER EINTRAGEN
-// ======================================================
+// =====================================================
+// ENVIRONMENT
+// =====================================================
 require_once __DIR__ . '/envloader.php';
 
-$OPENAI_API_KEY = $openAiApiKey;
-$OPENAI_WEBHOOK_SECRET = $_ENV['OPENAI_WEBHOOK_SECRET'] ?? '';
+$openAiApiKey = $_ENV['API_KEY_OPENAI'] ?? '';
+$webhookSecret = $_ENV['OPENAI_WEBHOOK_SECRET'] ?? '';
 
-
-// ======================================================
-// 2. LOGGING
-// ======================================================
-
-function sipLog(string $message): void
-{
-    $logFile = __DIR__ . '/openai_sip.log';
-
-    file_put_contents(
-        $logFile,
-        date('Y-m-d H:i:s') . ' - ' . $message . PHP_EOL,
-        FILE_APPEND
-    );
-}
-
-function respond(int $status, array $data): void
-{
-    http_response_code($status);
-
-    echo json_encode(
-        $data,
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-    );
-
+if (!$openAiApiKey || !$webhookSecret) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Server configuration missing'
+    ]);
     exit;
 }
 
-// ======================================================
-// 3. NUR POST ERLAUBEN
-// ======================================================
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    respond(405, ['error' => 'Method not allowed']);
-}
-
-// ======================================================
-// 4. RAW BODY UND HEADERS
-// ======================================================
-
+// =====================================================
+// RAW REQUEST
+// =====================================================
 $rawBody = file_get_contents('php://input');
 
 if ($rawBody === false || $rawBody === '') {
-    respond(400, ['error' => 'Empty request body']);
+    http_response_code(400);
+    echo json_encode(['success' => false]);
+    exit;
 }
 
-$headers = function_exists('getallheaders')
-    ? getallheaders()
-    : [];
+// =====================================================
+// HEADERS
+// =====================================================
+$headers = function_exists('getallheaders') ? getallheaders() : [];
 
 $normalizedHeaders = [];
 
@@ -80,41 +50,31 @@ $webhookId = $normalizedHeaders['webhook-id'] ?? '';
 $webhookTimestamp = $normalizedHeaders['webhook-timestamp'] ?? '';
 $webhookSignature = $normalizedHeaders['webhook-signature'] ?? '';
 
-if (
-    $webhookId === '' ||
-    $webhookTimestamp === '' ||
-    $webhookSignature === ''
-) {
-    sipLog('Webhook rejected: missing headers');
-
-    respond(400, ['error' => 'Missing webhook headers']);
+if (!$webhookId || !$webhookTimestamp || !$webhookSignature) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Missing headers']);
+    exit;
 }
 
-// ======================================================
-// 5. SIGNATUR PRÜFEN
-// ======================================================
+// =====================================================
+// SIGNATURE VERIFICATION
+// =====================================================
 
-if ($OPENAI_WEBHOOK_SECRET === '') {
-    sipLog('Webhook secret not configured');
-
-    respond(500, ['error' => 'Webhook secret not configured']);
-}
-
-// Replay-Schutz: maximal 5 Minuten Zeitabweichung
-
-if (!is_numeric($webhookTimestamp)) {
-    respond(400, ['error' => 'Invalid timestamp']);
+// Timestamp check (5 minutes)
+if (!ctype_digit((string)$webhookTimestamp)) {
+    http_response_code(400);
+    echo json_encode(['success' => false]);
+    exit;
 }
 
 if (abs(time() - (int)$webhookTimestamp) > 300) {
-    sipLog('Webhook rejected: timestamp outside tolerance');
-
-    respond(400, ['error' => 'Webhook timestamp expired']);
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Expired webhook']);
+    exit;
 }
 
-// OpenAI secret format: whsec_...
-
-$secret = $OPENAI_WEBHOOK_SECRET;
+// Remove whsec_ prefix
+$secret = $webhookSecret;
 
 if (str_starts_with($secret, 'whsec_')) {
     $secret = substr($secret, 6);
@@ -123,97 +83,79 @@ if (str_starts_with($secret, 'whsec_')) {
 $decodedSecret = base64_decode($secret, true);
 
 if ($decodedSecret === false) {
-    sipLog('Webhook rejected: invalid secret format');
-
-    respond(500, ['error' => 'Invalid webhook secret']);
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Invalid webhook secret']);
+    exit;
 }
 
-$signedPayload = $webhookId . '.' . $webhookTimestamp . '.' . $rawBody;
+// Signed content:
+// webhook-id.webhook-timestamp.raw-body
+$signedContent = $webhookId . '.' . $webhookTimestamp . '.' . $rawBody;
 
 $expectedSignature = base64_encode(
-    hash_hmac('sha256', $signedPayload, $decodedSecret, true)
+    hash_hmac('sha256', $signedContent, $decodedSecret, true)
 );
 
+// OpenAI signature header can contain multiple signatures
 $signatureValid = false;
 
-foreach (explode(' ', $webhookSignature) as $signaturePart) {
+foreach (explode(' ', $webhookSignature) as $signatureEntry) {
 
-    $parts = explode(',', $signaturePart, 2);
+    if (strpos($signatureEntry, 'v1,') !== 0) {
+        continue;
+    }
 
-    if (
-        count($parts) === 2 &&
-        $parts[0] === 'v1' &&
-        hash_equals($expectedSignature, $parts[1])
-    ) {
+    $providedSignature = substr($signatureEntry, 3);
+
+    if (hash_equals($expectedSignature, $providedSignature)) {
         $signatureValid = true;
         break;
     }
 }
 
 if (!$signatureValid) {
-    sipLog('Webhook rejected: invalid signature');
-
-    respond(401, ['error' => 'Invalid signature']);
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid signature']);
+    exit;
 }
 
-// ======================================================
-// 6. JSON AUSLESEN
-// ======================================================
-
+// =====================================================
+// PARSE EVENT
+// =====================================================
 $event = json_decode($rawBody, true);
 
 if (!is_array($event)) {
-    respond(400, ['error' => 'Invalid JSON']);
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid JSON']);
+    exit;
 }
 
-$eventType = $event['type'] ?? '';
-
-sipLog('Verified webhook received: ' . $eventType);
-
-// ======================================================
-// 7. NUR LIVE SIP INCOMING VERARBEITEN
-// ======================================================
-
-if ($eventType !== 'live.transport.incoming') {
-    respond(200, [
-        'success' => true,
-        'message' => 'Event ignored'
-    ]);
+// =====================================================
+// EVENT CHECK
+// =====================================================
+if (($event['type'] ?? '') !== 'live.transport.incoming') {
+    http_response_code(200);
+    echo json_encode(['success' => true, 'message' => 'Event ignored']);
+    exit;
 }
 
-$data = $event['data'] ?? [];
-
-if (($data['type'] ?? '') !== 'sip') {
-    sipLog('Incoming event is not SIP');
-
-    respond(200, [
-        'success' => true,
-        'message' => 'Non-SIP event ignored'
-    ]);
+if (($event['data']['type'] ?? '') !== 'sip') {
+    http_response_code(200);
+    echo json_encode(['success' => true, 'message' => 'Non SIP event ignored']);
+    exit;
 }
 
-$sessionId = $data['session_id'] ?? '';
+$sessionId = $event['data']['session_id'] ?? '';
 
-if ($sessionId === '') {
-    sipLog('Missing session ID');
-
-    respond(400, ['error' => 'Missing session ID']);
+if (!$sessionId) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Missing session ID']);
+    exit;
 }
 
-// ======================================================
-// 8. OPENAI API KEY PRÜFEN
-// ======================================================
-
-if ($OPENAI_API_KEY === '') {
-    sipLog('OpenAI API key not configured');
-
-    respond(500, ['error' => 'API key not configured']);
-}
-
-// ======================================================
-// 9. SIP ANRUF ANNEHMEN
-// ======================================================
-
+// =====================================================
+// ACCEPT LIVE SIP CALL
+// =====================================================
 $acceptUrl = 'https://api.openai.com/v1/live/sessions/'
     . rawurlencode($sessionId)
     . '/accept';
@@ -223,14 +165,14 @@ $sessionConfiguration = [
         'type' => 'live',
         'model' => 'gpt-live-1',
         'instructions' =>
-        'Du bist eine freundliche deutschsprachige Test-KI am Telefon. '
-            . 'Du führst zunächst ein einfaches, unverbindliches Gespräch. '
-            . 'Begrüße den Anrufer kurz und stelle eine einfache Frage. '
-            . 'Antworte kurz, natürlich und verständlich. '
-            . 'Unterhalte dich ausschließlich auf Deutsch. '
-            . 'Dies ist ein technischer Test. '
-            . 'Du führst keine medizinischen Beratungen durch und '
-            . 'löst keine Notfälle oder Benachrichtigungen aus.',
+        'Du bist die freundliche telefonische Testassistenz von GiulianaCare. '
+            . 'Du sprichst ausschließlich Deutsch. '
+            . 'Begrüße den Anrufer kurz und sage: '
+            . 'Hallo, hier ist die GiulianaCare Testassistenz. '
+            . 'Die Sprachverbindung funktioniert. Wie kann ich dir helfen? '
+            . 'Antworte kurz, freundlich und natürlich. '
+            . 'Dies ist ein reiner Verbindungstest. '
+            . 'Du führst keine medizinischen Aufgaben aus und löst keine Notfallprozesse aus.',
         'audio' => [
             'output' => [
                 'voice' => 'marin'
@@ -248,55 +190,51 @@ curl_setopt_array($ch, [
     CURLOPT_POST => true,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_HTTPHEADER => [
-        'Authorization: Bearer ' . $OPENAI_API_KEY,
+        'Authorization: Bearer ' . $openAiApiKey,
         'Content-Type: application/json'
     ],
-    CURLOPT_POSTFIELDS => json_encode(
-        $sessionConfiguration,
-        JSON_UNESCAPED_UNICODE
-    ),
+    CURLOPT_POSTFIELDS => json_encode($sessionConfiguration),
     CURLOPT_TIMEOUT => 15
 ]);
 
 $response = curl_exec($ch);
-
-$curlError = curl_error($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curlError = curl_error($ch);
 
 curl_close($ch);
 
-// ======================================================
-// 10. FEHLERBEHANDLUNG
-// ======================================================
+// =====================================================
+// ERROR HANDLING
+// =====================================================
+if ($response === false || $httpCode < 200 || $httpCode >= 300) {
 
-if ($response === false) {
-    sipLog('cURL error: ' . $curlError);
-
-    respond(500, [
-        'error' => 'OpenAI request failed'
-    ]);
-}
-
-if ($httpCode < 200 || $httpCode >= 300) {
-
-    sipLog(
-        'OpenAI accept failed. HTTP ' .
-            $httpCode . ' Response: ' . $response
+    error_log(
+        'OpenAI SIP accept failed. HTTP: '
+            . $httpCode
+            . ' Error: '
+            . $curlError
+            . ' Response: '
+            . $response
     );
 
-    respond(500, [
-        'error' => 'OpenAI could not accept the call',
-        'http_status' => $httpCode
+    http_response_code(500);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Call acceptance failed'
     ]);
+
+    exit;
 }
 
-// ======================================================
-// 11. ERFOLG
-// ======================================================
+// =====================================================
+// SUCCESS
+// =====================================================
+http_response_code(200);
 
-sipLog('SIP session accepted: ' . $sessionId);
-
-respond(200, [
+echo json_encode([
     'success' => true,
     'message' => 'SIP session accepted'
 ]);
+
+exit;
