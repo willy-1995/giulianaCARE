@@ -185,6 +185,31 @@ function RepairSite() {
             <br />
             Alle aktuellen Anrufe werden weiterhin durchgeführt!
           </p>
+          <div className="contact-div">
+            <h2>Kontakt</h2>
+
+            <a
+              href="https://wa.me/4915170135563"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <h3>
+                <FontAwesomeIcon icon={faWhatsapp} /> Whatsapp
+              </h3>
+            </a>
+            <Link to={"/request"}>
+              <h3>
+                <FontAwesomeIcon icon={faEnvelope} /> E-Mail
+              </h3>
+            </Link>
+            {/*
+          <Link to={"/salespartnership"}>
+            <h3>
+              <FontAwesomeIcon icon={faHandshake} /> Vertriebspartner werden
+            </h3>
+          </Link>
+          */}
+          </div>
         </div>
       </main>
 

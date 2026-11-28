@@ -19,7 +19,7 @@ function Footer() {
           <h2>Kontakt</h2>
 
           <a
-            href="https://wa.me/4915141650792"
+            href="https://wa.me/4915170135563"
             target="_blank"
             rel="noopener noreferrer"
           >
