@@ -1,4 +1,68 @@
 <?php
+// ============================================
+// OPENAI SIP WEBHOOK DEBUG LOGGING
+// ============================================
+
+ini_set('log_errors', '1');
+ini_set('display_errors', '0');
+
+$webhookLogFile = __DIR__ . '/openai_sip_debug.log';
+
+function sipWebhookLog(string $message, array $context = []): void
+{
+    global $webhookLogFile;
+
+    $timestamp = date('Y-m-d H:i:s');
+
+    $contextText = !empty($context)
+        ? ' | ' . json_encode(
+            $context,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        )
+        : '';
+
+    error_log(
+        '[' . $timestamp . '] ' . $message . $contextText . PHP_EOL,
+        3,
+        $webhookLogFile
+    );
+}
+
+// PHP-Fehler und Exceptions protokollieren
+set_exception_handler(function (Throwable $e) {
+    sipWebhookLog('UNCAUGHT EXCEPTION', [
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ]);
+});
+
+// Fatal Errors beim Beenden abfangen
+register_shutdown_function(function () {
+    $error = error_get_last();
+
+    if ($error !== null) {
+        $fatalTypes = [
+            E_ERROR,
+            E_PARSE,
+            E_CORE_ERROR,
+            E_COMPILE_ERROR
+        ];
+
+        if (in_array($error['type'], $fatalTypes, true)) {
+            sipWebhookLog('FATAL PHP ERROR', [
+                'message' => $error['message'],
+                'file' => $error['file'],
+                'line' => $error['line']
+            ]);
+        }
+    }
+});
+
+sipWebhookLog('WEBHOOK SCRIPT START', [
+    'method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+    'remote' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+]);
 
 declare(strict_types=1);
 
