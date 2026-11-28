@@ -1,10 +1,14 @@
+
 <?php
+declare(strict_types=1);
+
 // ============================================
 // OPENAI SIP WEBHOOK DEBUG LOGGING
 // ============================================
 
-ini_set('log_errors', '1');
+error_reporting(E_ALL);
 ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 
 $webhookLogFile = __DIR__ . '/openai_sip_debug.log';
 
@@ -28,17 +32,30 @@ function sipWebhookLog(string $message, array $context = []): void
     );
 }
 
-// PHP-Fehler und Exceptions protokollieren
-set_exception_handler(function (Throwable $e) {
+// ============================================
+// EXCEPTION HANDLER
+// ============================================
+
+set_exception_handler(function (Throwable $e): void {
     sipWebhookLog('UNCAUGHT EXCEPTION', [
         'message' => $e->getMessage(),
         'file' => $e->getFile(),
         'line' => $e->getLine()
     ]);
+
+    http_response_code(500);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Internal server error'
+    ]);
 });
 
-// Fatal Errors beim Beenden abfangen
-register_shutdown_function(function () {
+// ============================================
+// FATAL ERROR HANDLER
+// ============================================
+
+register_shutdown_function(function (): void {
     $error = error_get_last();
 
     if ($error !== null) {
@@ -59,50 +76,99 @@ register_shutdown_function(function () {
     }
 });
 
+// ============================================
+// INITIALIZATION
+// ============================================
+
+header('Content-Type: application/json; charset=utf-8');
+
 sipWebhookLog('WEBHOOK SCRIPT START', [
     'method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
     'remote' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
 ]);
 
-declare(strict_types=1);
-
-error_reporting(E_ALL);
-ini_set('display_errors', '0');
-
-header('Content-Type: application/json; charset=utf-8');
-
-// =====================================================
+// ============================================
 // ENVIRONMENT
-// =====================================================
-require_once __DIR__ . '/envloader.php';
+// ============================================
+
+sipWebhookLog('Loading envloader.php');
+
+try {
+    require_once __DIR__ . '/envloader.php';
+} catch (Throwable $e) {
+    sipWebhookLog('ENVLOADER FAILED', [
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ]);
+
+    http_response_code(500);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Environment loading failed'
+    ]);
+
+    exit;
+}
+
+sipWebhookLog('ENVLOADER LOADED');
 
 $openAiApiKey = $_ENV['API_KEY_OPENAI'] ?? '';
 $webhookSecret = $_ENV['OPENAI_WEBHOOK_SECRET'] ?? '';
 
 if (!$openAiApiKey || !$webhookSecret) {
+    sipWebhookLog('CONFIGURATION MISSING', [
+        'api_key_present' => !empty($openAiApiKey),
+        'webhook_secret_present' => !empty($webhookSecret)
+    ]);
+
     http_response_code(500);
+
     echo json_encode([
         'success' => false,
         'message' => 'Server configuration missing'
     ]);
+
     exit;
 }
 
-// =====================================================
+sipWebhookLog('CONFIGURATION CHECK OK');
+
+// ============================================
 // RAW REQUEST
-// =====================================================
+// ============================================
+
+sipWebhookLog('READING REQUEST BODY');
+
 $rawBody = file_get_contents('php://input');
 
 if ($rawBody === false || $rawBody === '') {
+    sipWebhookLog('EMPTY REQUEST BODY');
+
     http_response_code(400);
-    echo json_encode(['success' => false]);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Empty request body'
+    ]);
+
     exit;
 }
 
-// =====================================================
+sipWebhookLog('REQUEST BODY RECEIVED', [
+    'length' => strlen($rawBody)
+]);
+
+// ============================================
 // HEADERS
-// =====================================================
-$headers = function_exists('getallheaders') ? getallheaders() : [];
+// ============================================
+
+sipWebhookLog('READING HEADERS');
+
+$headers = function_exists('getallheaders')
+    ? getallheaders()
+    : [];
 
 $normalizedHeaders = [];
 
@@ -114,30 +180,61 @@ $webhookId = $normalizedHeaders['webhook-id'] ?? '';
 $webhookTimestamp = $normalizedHeaders['webhook-timestamp'] ?? '';
 $webhookSignature = $normalizedHeaders['webhook-signature'] ?? '';
 
+sipWebhookLog('WEBHOOK HEADERS CHECK', [
+    'webhook_id_present' => !empty($webhookId),
+    'timestamp_present' => !empty($webhookTimestamp),
+    'signature_present' => !empty($webhookSignature)
+]);
+
 if (!$webhookId || !$webhookTimestamp || !$webhookSignature) {
+    sipWebhookLog('REQUIRED WEBHOOK HEADERS MISSING');
+
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Missing headers']);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Missing headers'
+    ]);
+
     exit;
 }
 
-// =====================================================
+// ============================================
 // SIGNATURE VERIFICATION
-// =====================================================
+// ============================================
+
+sipWebhookLog('STARTING SIGNATURE VERIFICATION');
 
 // Timestamp check (5 minutes)
+
 if (!ctype_digit((string)$webhookTimestamp)) {
+    sipWebhookLog('INVALID WEBHOOK TIMESTAMP FORMAT');
+
     http_response_code(400);
-    echo json_encode(['success' => false]);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid timestamp'
+    ]);
+
     exit;
 }
 
 if (abs(time() - (int)$webhookTimestamp) > 300) {
+    sipWebhookLog('WEBHOOK TIMESTAMP EXPIRED');
+
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Expired webhook']);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Expired webhook'
+    ]);
+
     exit;
 }
 
 // Remove whsec_ prefix
+
 $secret = $webhookSecret;
 
 if (str_starts_with($secret, 'whsec_')) {
@@ -147,20 +244,27 @@ if (str_starts_with($secret, 'whsec_')) {
 $decodedSecret = base64_decode($secret, true);
 
 if ($decodedSecret === false) {
+    sipWebhookLog('WEBHOOK SECRET BASE64 DECODING FAILED');
+
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Invalid webhook secret']);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid webhook secret'
+    ]);
+
     exit;
 }
 
 // Signed content:
 // webhook-id.webhook-timestamp.raw-body
+
 $signedContent = $webhookId . '.' . $webhookTimestamp . '.' . $rawBody;
 
 $expectedSignature = base64_encode(
     hash_hmac('sha256', $signedContent, $decodedSecret, true)
 );
 
-// OpenAI signature header can contain multiple signatures
 $signatureValid = false;
 
 foreach (explode(' ', $webhookSignature) as $signatureEntry) {
@@ -177,49 +281,124 @@ foreach (explode(' ', $webhookSignature) as $signatureEntry) {
     }
 }
 
+sipWebhookLog('SIGNATURE VERIFICATION RESULT', [
+    'valid' => $signatureValid
+]);
+
 if (!$signatureValid) {
+    sipWebhookLog('SIGNATURE VERIFICATION FAILED');
+
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Invalid signature']);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid signature'
+    ]);
+
     exit;
 }
 
-// =====================================================
+sipWebhookLog('SIGNATURE VERIFIED');
+
+// ============================================
 // PARSE EVENT
-// =====================================================
+// ============================================
+
+sipWebhookLog('PARSING EVENT JSON');
+
 $event = json_decode($rawBody, true);
 
 if (!is_array($event)) {
+    sipWebhookLog('JSON PARSING FAILED', [
+        'json_error' => json_last_error_msg()
+    ]);
+
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Invalid JSON']);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid JSON'
+    ]);
+
     exit;
 }
 
-// =====================================================
+$eventType = $event['type'] ?? 'unknown';
+
+sipWebhookLog('EVENT RECEIVED', [
+    'event_type' => $eventType
+]);
+
+// ============================================
 // EVENT CHECK
-// =====================================================
-if (($event['type'] ?? '') !== 'live.transport.incoming') {
+// ============================================
+
+if ($eventType !== 'live.transport.incoming') {
+
+    sipWebhookLog('EVENT IGNORED', [
+        'event_type' => $eventType
+    ]);
+
     http_response_code(200);
-    echo json_encode(['success' => true, 'message' => 'Event ignored']);
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Event ignored'
+    ]);
+
     exit;
 }
+
+sipWebhookLog('INCOMING LIVE TRANSPORT EVENT DETECTED');
 
 if (($event['data']['type'] ?? '') !== 'sip') {
+
+    sipWebhookLog('NON SIP EVENT RECEIVED', [
+        'data_type' => $event['data']['type'] ?? 'unknown'
+    ]);
+
     http_response_code(200);
-    echo json_encode(['success' => true, 'message' => 'Non SIP event ignored']);
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Non SIP event ignored'
+    ]);
+
     exit;
 }
+
+sipWebhookLog('SIP EVENT DETECTED');
+
+// ============================================
+// SESSION ID
+// ============================================
 
 $sessionId = $event['data']['session_id'] ?? '';
 
 if (!$sessionId) {
+
+    sipWebhookLog('SESSION ID MISSING');
+
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Missing session ID']);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Missing session ID'
+    ]);
+
     exit;
 }
 
-// =====================================================
+sipWebhookLog('SESSION ID RECEIVED', [
+    'session_id' => $sessionId
+]);
+
+// ============================================
 // ACCEPT LIVE SIP CALL
-// =====================================================
+// ============================================
+
+sipWebhookLog('PREPARING OPENAI ACCEPT REQUEST');
+
 $acceptUrl = 'https://api.openai.com/v1/live/sessions/'
     . rawurlencode($sessionId)
     . '/accept';
@@ -229,7 +408,7 @@ $sessionConfiguration = [
         'type' => 'live',
         'model' => 'gpt-live-1',
         'instructions' =>
-        'Du bist die freundliche telefonische Testassistenz von GiulianaCare. '
+            'Du bist die freundliche telefonische Testassistenz von GiulianaCare. '
             . 'Du sprichst ausschließlich Deutsch. '
             . 'Begrüße den Anrufer kurz und sage: '
             . 'Hallo, hier ist die GiulianaCare Testassistenz. '
@@ -248,7 +427,23 @@ $sessionConfiguration = [
     ]
 ];
 
+sipWebhookLog('INITIALIZING CURL');
+
 $ch = curl_init($acceptUrl);
+
+if ($ch === false) {
+
+    sipWebhookLog('CURL INITIALIZATION FAILED');
+
+    http_response_code(500);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'CURL initialization failed'
+    ]);
+
+    exit;
+}
 
 curl_setopt_array($ch, [
     CURLOPT_POST => true,
@@ -257,9 +452,18 @@ curl_setopt_array($ch, [
         'Authorization: Bearer ' . $openAiApiKey,
         'Content-Type: application/json'
     ],
-    CURLOPT_POSTFIELDS => json_encode($sessionConfiguration),
+    CURLOPT_POSTFIELDS => json_encode(
+        $sessionConfiguration,
+        JSON_UNESCAPED_UNICODE
+    ),
     CURLOPT_TIMEOUT => 15
 ]);
+
+sipWebhookLog('SENDING ACCEPT REQUEST TO OPENAI');
+
+// ============================================
+// OPENAI RESPONSE
+// ============================================
 
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -267,19 +471,27 @@ $curlError = curl_error($ch);
 
 curl_close($ch);
 
-// =====================================================
+sipWebhookLog('OPENAI RESPONSE RECEIVED', [
+    'http_code' => $httpCode,
+    'curl_error' => $curlError,
+    'response_length' => is_string($response)
+        ? strlen($response)
+        : 0
+]);
+
+// ============================================
 // ERROR HANDLING
-// =====================================================
+// ============================================
+
 if ($response === false || $httpCode < 200 || $httpCode >= 300) {
 
-    error_log(
-        'OpenAI SIP accept failed. HTTP: '
-            . $httpCode
-            . ' Error: '
-            . $curlError
-            . ' Response: '
-            . $response
-    );
+    sipWebhookLog('OPENAI ACCEPT REQUEST FAILED', [
+        'http_code' => $httpCode,
+        'curl_error' => $curlError,
+        'response' => is_string($response)
+            ? substr($response, 0, 2000)
+            : null
+    ]);
 
     http_response_code(500);
 
@@ -291,14 +503,19 @@ if ($response === false || $httpCode < 200 || $httpCode >= 300) {
     exit;
 }
 
-// =====================================================
+sipWebhookLog('OPENAI ACCEPT REQUEST SUCCESS');
+
+// ============================================
 // SUCCESS
-// =====================================================
+// ============================================
+
 http_response_code(200);
 
 echo json_encode([
     'success' => true,
     'message' => 'SIP session accepted'
 ]);
+
+sipWebhookLog('WEBHOOK SCRIPT COMPLETED');
 
 exit;
